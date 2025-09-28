@@ -14,7 +14,7 @@ endforeach()
 
 target_compile_features(RHIVulkan PRIVATE cxx_std_23)
 
-target_link_libraries(RHIVulkan PRIVATE Pyroshock::RHI volk::volk VulkanMemoryAllocator)
+target_link_libraries(RHIVulkan PRIVATE PyroRHI::PyroRHI volk::volk VulkanMemoryAllocator)
 
 if (UNIX AND NOT APPLE) 
 # needed for surface creation
