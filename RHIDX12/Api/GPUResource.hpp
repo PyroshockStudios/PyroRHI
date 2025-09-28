@@ -1,0 +1,146 @@
+#pragma once
+#include <EASTL/hash_map.h>
+#include <EASTL/vector.h>
+#include <RHIDX12/Core.hpp>
+#include <PyroRHI/Api/GPUResource.hpp>
+namespace PyroshockStudios {
+    namespace RHIDX12 {
+        struct DescriptorTableInfo {
+            D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptor = {};
+            D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptor = {};
+            ComPtr<ID3D12DescriptorHeap> mHeap = {};
+
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const DescriptorTableInfo& other) const {
+                return mHeap.Get() == other.mHeap.Get();
+            }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator!=(const DescriptorTableInfo& other) const {
+                return mHeap.Get() != other.mHeap.Get();
+            }
+        };
+
+        class D3DDevice;
+
+        struct ZombieDeleter {
+            void* resource = {};
+            FunctionPtr<void(D3DDevice* device, void* resource)> deleter = {};
+        };
+
+        template <typename TInfo>
+        struct D3DHeapManager {
+        public:
+            D3DHeapManager(ID3D12Device* device, UINT maxDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE heapType, bool gpuVisible, const char* debugName) {
+                D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+                heapDesc.NumDescriptors = maxDescriptors;
+                heapDesc.Type = heapType;
+                heapDesc.Flags = gpuVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+                CheckD3DResult(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mHeap)));
+                D3DSetDebugName(mHeap, debugName);
+                mIncSz = device->GetDescriptorHandleIncrementSize(heapType);
+                mDescriptorBase = mHeap->GetCPUDescriptorHandleForHeapStart();
+            }
+            ~D3DHeapManager() {
+                if (mTombstones.size() != mHeapCounter) {
+                    printf("Leaked resources\n");
+                }
+            }
+            eastl::pair<GPUResourceId, TInfo&> AcquireSlot() {
+                UINT slot = 0;
+                if (mTombstones.size() == 1) {
+                    slot = mHeapCounter++;
+                    mSlots.push_back({});
+                } else {
+                    slot = mTombstones.back();
+                    mTombstones.pop_back();
+                }
+                return { { .index = slot, .version = 0 }, mSlots[slot] };
+            }
+            void ReleaseSlot(GPUResourceId handle) {
+                mTombstones.emplace_back(handle.index);
+            }
+            void ReleaseSlot(D3D12_CPU_DESCRIPTOR_HANDLE handle) {
+                mTombstones.emplace_back(static_cast<UINT>((handle.ptr - mDescriptorBase.ptr) / mIncSz));
+            }
+
+            D3D12_CPU_DESCRIPTOR_HANDLE Resolve(GPUResourceId slot) {
+                D3D12_CPU_DESCRIPTOR_HANDLE handle;
+                handle.ptr = mDescriptorBase.ptr + slot.index * mIncSz;
+                return handle;
+            }
+
+            TInfo& GetInfo(GPUResourceId slot) {
+                return mSlots[slot.index];
+            }
+
+            D3D12_CPU_DESCRIPTOR_HANDLE HostHandle() {
+                return mDescriptorBase;
+            }
+            D3D12_GPU_DESCRIPTOR_HANDLE DeviceHandle() {
+                return mHeap->GetGPUDescriptorHandleForHeapStart();
+            }
+            ID3D12DescriptorHeap* InternalHeap() {
+                return mHeap.Get();
+            }
+
+        private:
+            eastl::vector<UINT> mTombstones = { 1 };
+            eastl::vector<TInfo> mSlots = { TInfo{} };
+            D3D12_CPU_DESCRIPTOR_HANDLE mDescriptorBase = {};
+            UINT mHeapCounter = 1;
+            ComPtr<ID3D12DescriptorHeap> mHeap = {};
+            UINT mIncSz{};
+        };
+
+        struct D3DBufferResourceData {
+            ComPtr<ID3D12Resource> resource = {};
+            D3D12_RESOURCE_DESC desc = {};
+            BufferInfo info = {};
+            // Required for keeping track of the "UNDEFINED" state
+            D3D12_RESOURCE_STATES lastValidState = D3D12_RESOURCE_STATE_COMMON;
+            u8* mappedMemory = nullptr;
+            D3D12_RANGE range = {};
+        };
+        struct D3DImageResourceData {
+            ComPtr<ID3D12Resource> resource = {};
+            D3D12_RESOURCE_DESC desc = {};
+            ImageInfo info = {};
+            // Required for keeping track of the "UNDEFINED" state
+            eastl::vector<D3D12_RESOURCE_STATES> lastValidStates = {};
+            // Blit Dst
+            eastl::vector<GPUResourceId> blitImageRTVs = {};
+            // Blit Src
+            eastl::vector<DescriptorTableInfo> blitImageSRVHeaps = {};
+        };
+
+        struct D3DRenderTargetData {
+            u64 x;
+        };
+
+        class GPUResourcePool : DeleteCopy, DeleteMove {
+        public:
+            GPUResourcePool(D3DDevice* device, UINT maxRtvs, UINT maxDsvs, UINT maxSRVs, UINT maxUAVs, UINT maxSamplers);
+            ~GPUResourcePool();
+
+            eastl::pair<Buffer, D3DBufferResourceData&> AllocBuffer();
+            eastl::pair<Image, D3DImageResourceData&> AllocImage();
+
+            void ReleaseBuffer(Buffer buffer);
+            void ReleaseImage(Image image);
+
+            D3DBufferResourceData& Get(Buffer handle);
+            D3DImageResourceData& Get(Image handle);
+
+            D3DHeapManager<GPUResourceInfo> mSRVHeap;
+            D3DHeapManager<GPUResourceInfo> mUAVHeap;
+            D3DHeapManager<SamplerInfo> mSamplerHeap;
+            D3DHeapManager<D3DRenderTargetData> mRTVHeap;
+            D3DHeapManager<D3DRenderTargetData> mDSVHeap;
+
+        private:
+            eastl::hash_map<Buffer, D3DBufferResourceData> mBufferResources = {};
+            eastl::hash_map<Image, D3DImageResourceData> mImageResources = {};
+
+            u32 mImageCounter = 1;
+            u32 mBufferCounter = 1;
+        };
+    } // namespace RHIDX12
+} // namespace PyroshockStudios

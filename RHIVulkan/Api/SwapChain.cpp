@@ -1,0 +1,274 @@
+#include "SwapChain.hpp"
+
+#include <EASTL/numeric_limits.h>
+
+#include "Device.hpp"
+
+#include <RHIVulkan/VkContext.hpp>
+#include <PyroCommon/Logger.hpp>
+
+#ifdef PYRO_PLATFORM_WINDOWS
+#include <Windows.h>
+#elif PYRO_PLATFORM_LINUX
+#include <X11/Xlib.h>
+#endif
+#include <libassert/assert.hpp>
+
+namespace PyroshockStudios::RHIVulkan {
+    VulkanSwapChain::VulkanSwapChain(VulkanDevice* device, const SwapChainInfo& info) : mInfo(info), mDevice(device) {
+        CreateSurface();
+        mSupportInfo = device->GetSwapChainSupport(mSurface);
+        VkSurfaceFormatKHR finalFormat{};
+        bool bFoundFormat = false;
+        for (const auto& availableFormat : mSupportInfo.formats) {
+            if (bFoundFormat)
+                break;
+            switch (info.format) {
+            case SwapChainFormat::Unorm8BitLDR:
+                if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                    finalFormat = availableFormat;
+                    mFormat = Format::BGRA8Unorm;
+                    mColorSpace = ColorSpace::SrgbNonlinear;
+                    bFoundFormat = true;
+                } else if (availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                    mFormat = Format::RGBA8Unorm;
+                    mColorSpace = ColorSpace::SrgbNonlinear;
+                    finalFormat = availableFormat;
+                    bFoundFormat = true;
+                }
+                break;
+            case SwapChainFormat::Srgb8BitLDR:
+                if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                    mFormat = Format::BGRA8Srgb;
+                    mColorSpace = ColorSpace::SrgbNonlinear;
+                    finalFormat = availableFormat;
+                    bFoundFormat = true;
+                } else if (availableFormat.format == VK_FORMAT_R8G8B8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                    mFormat = Format::RGBA8Srgb;
+                    mColorSpace = ColorSpace::SrgbNonlinear;
+                    finalFormat = availableFormat;
+                    bFoundFormat = true;
+                }
+                break;
+            case SwapChainFormat::Unorm10BitLDR:
+                if (availableFormat.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                    mFormat = Format::A2RGB10Unorm;
+                    mColorSpace = ColorSpace::SrgbNonlinear;
+                    finalFormat = availableFormat;
+                    bFoundFormat = true;
+                }
+                break;
+            case SwapChainFormat::Float16BitHDR: // idfk, just dont use hdr displays bro
+                if (availableFormat.format == VK_FORMAT_R16G16B16A16_SFLOAT && availableFormat.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT) {
+                    mFormat = Format::RGBA16Sfloat;
+                    mColorSpace = ColorSpace::Hdr10St2084;
+                    finalFormat = availableFormat;
+                    bFoundFormat = true;
+                }
+                break;
+            }
+        }
+        if (finalFormat.format == VK_FORMAT_UNDEFINED) {
+            Logger::Fatal("SwapChain format is not available!");
+        }
+        mInfo.extent = { mSupportInfo.capabilities.currentExtent.width, mSupportInfo.capabilities.currentExtent.height };
+        TrySetPresentMode(info.presentMode);
+
+        CreateSwapChain(VK_NULL_HANDLE);
+        CreateSemaphores();
+    }
+    VulkanSwapChain::~VulkanSwapChain() {
+        for (i32 i = 0; i < mInfo.bufferCount; ++i) {
+            mDevice->DestroyImage(mWrappedImages[i]);
+            vkDestroySemaphore(mDevice->GetVkDevice(), mImageAcquireSemaphores[i], mDevice->Context()->GetVkAllocator());
+        }
+        vkDestroySwapchainKHR(mDevice->GetVkDevice(), mSwapChain, mDevice->Context()->GetVkAllocator());
+        vkDestroySurfaceKHR(mDevice->Context()->GetVkInstance(), mSurface, mDevice->Context()->GetVkAllocator());
+    }
+
+    Image VulkanSwapChain::GetBackBuffer(u32 imageIndex) {
+        if (imageIndex >= mWrappedImages.size())
+            return {};
+        return mWrappedImages[imageIndex];
+    }
+    Image VulkanSwapChain::AcquireNextImage() {
+        mImageAcquireIndex = (mImageAcquireIndex + 1) % mInfo.bufferCount;
+        VkResult result = vkAcquireNextImageKHR(mDevice->GetVkDevice(),
+            mSwapChain,
+            eastl::numeric_limits<u64>::max(),
+            mImageAcquireSemaphores[mImageAcquireIndex],
+            VK_NULL_HANDLE,
+            &mImageIndex);
+        return result == VK_SUCCESS ? GetBackBuffer(mImageIndex) : Image{};
+    }
+
+    void VulkanSwapChain::Resize() {
+        auto supportInfo = mDevice->GetSwapChainSupport(mSurface);
+        mInfo.extent = { supportInfo.capabilities.currentExtent.width, supportInfo.capabilities.currentExtent.height };
+        mImageIndex = 0;
+        for (Image img : mWrappedImages) {
+            mDevice->DestroyImage(img);
+        }
+        mWrappedImages.clear();
+        VkSwapchainKHR oldSwapChain = mSwapChain;
+        CreateSwapChain(oldSwapChain);
+        vkDestroySwapchainKHR(mDevice->GetVkDevice(), oldSwapChain, mDevice->Context()->GetVkAllocator());
+    }
+    void VulkanSwapChain::SetPresentMode(PresentMode presentMode) {
+        TrySetPresentMode(presentMode);
+    }
+    const SwapChainInfo& VulkanSwapChain::Info() const {
+        return mInfo;
+    }
+    Extent2D VulkanSwapChain::GetSurfaceExtent() const {
+        return mInfo.extent;
+    }
+    Format VulkanSwapChain::GetFormat() const {
+        return mFormat;
+    }
+    ColorSpace VulkanSwapChain::GetColorSpace() const {
+        ASSERT(false, "TODO");
+        return mColorSpace;
+    }
+    void VulkanSwapChain::CreateSurface() {
+        VkResult result = VK_ERROR_UNKNOWN;
+#ifdef PYRO_PLATFORM_WINDOWS
+        VkWin32SurfaceCreateInfoKHR createInfo{
+            .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+            .hinstance = reinterpret_cast<HINSTANCE>(mInfo.nativeInstance),
+            .hwnd = reinterpret_cast<HWND>(mInfo.nativeWindow)
+        };
+        auto func = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>(vkGetInstanceProcAddr(mDevice->Context()->GetVkInstance(), "vkCreateWin32SurfaceKHR"));
+        result = func(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
+#elif PYRO_PLATFORM_LINUX
+        VkXlibSurfaceCreateInfoKHR createInfo{
+            .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
+            .dpy = reinterpret_cast<Display*>(mInfo.nativeInstance),
+            .window = reinterpret_cast<Window>(mInfo.nativeWindow)
+        };
+        auto func = reinterpret_cast<PFN_vkCreateXlibSurfaceKHR>(vkGetInstanceProcAddr(mDevice->Context()->GetVkInstance(), "vkCreateXlibSurfaceKHR"));
+        result = func(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
+#elif PYRO_PLATFORM_MACOS
+        VkMacOSSurfaceCreateInfoMVK createInfo{
+            .sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK,
+            .flags = VK_MAC_OS,
+            .pView = reinterpret_cast<void*>(mInfo.nativeWindow)
+        };
+        auto func = reinterpret_cast<PFN_vkCreateMacOSSurfaceMVK>(vkGetInstanceProcAddr(mDevice->Context()->GetVkInstance(), "vkCreateMacOSSurfaceMVK"));
+        result = func(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
+#else
+#error VulkanWindowSurface Not supported!
+#endif
+        CheckVkResult(result);
+    }
+    void VulkanSwapChain::CreateSwapChain(VkSwapchainKHR oldSwapChain) {
+        VkSwapchainCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
+        createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        createInfo.surface = mSurface;
+        createInfo.minImageCount = mInfo.bufferCount;
+        createInfo.imageExtent = {
+            .width = mInfo.extent.x,
+            .height = mInfo.extent.y
+        };
+        createInfo.imageFormat = ToVkFormat(mFormat);
+        createInfo.imageColorSpace = ToVkColorSpace(mColorSpace);
+        createInfo.imageArrayLayers = 1;
+        createInfo.imageUsage = ToVkImageUsageFlags(mInfo.imageUsage, mFormat);
+
+        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        createInfo.queueFamilyIndexCount = 0;
+        createInfo.pQueueFamilyIndices = nullptr;
+        createInfo.preTransform = mSupportInfo.capabilities.currentTransform;
+        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        createInfo.presentMode = ToVkPresentMode(mPresentMode);
+        createInfo.clipped = VK_TRUE;
+        createInfo.oldSwapchain = oldSwapChain;
+
+        VkResult result = vkCreateSwapchainKHR(mDevice->GetVkDevice(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSwapChain);
+        CheckVkResult(result);
+
+        u32 imageCount = 0;
+        vkGetSwapchainImagesKHR(mDevice->GetVkDevice(), mSwapChain, &imageCount, nullptr);
+        ASSERT(imageCount == mInfo.bufferCount, "Swap buffer count and image count don't match!");
+        mSwapImages.resize(static_cast<usize>(imageCount));
+        mWrappedImages.resize(static_cast<usize>(imageCount));
+        vkGetSwapchainImagesKHR(mDevice->GetVkDevice(), mSwapChain, &imageCount, mSwapImages.data());
+        for (u32 i = 0; i < mSwapImages.size(); ++i) {
+            if (vkSetDebugUtilsObjectNameEXT) {
+                eastl::string name = mInfo.name + " (Vk Swap Image #" + eastl::to_string(i) + ")";
+                const VkDebugUtilsObjectNameInfoEXT nameInfoo = {
+                    .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+                    .pNext = nullptr,
+                    .objectType = VK_OBJECT_TYPE_IMAGE,
+                    .objectHandle = eastl::bit_cast<uint64_t>(mSwapImages[i]),
+                    .pObjectName = name.c_str(),
+                };
+                vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &nameInfoo);
+            }
+
+            ImageUsageFlags usage = ImageUsageFlagBits::RENDER_TARGET | ImageUsageFlagBits::TRANSFER_DST | ImageUsageFlagBits::TRANSFER_SRC;
+            ImageInfo const image_info = {
+                .format = mFormat,
+                .size = { mInfo.extent.x, mInfo.extent.y, 1 },
+                .usage = usage,
+                .name = mInfo.name + " Image #" + eastl::to_string(i),
+            };
+
+            mWrappedImages[i] = mDevice->NewSwapChainImage(mSwapImages[i], ToVkFormat(mFormat), i, usage, image_info);
+        }
+
+        if (vkSetDebugUtilsObjectNameEXT) {
+            const VkDebugUtilsObjectNameInfoEXT nameInfoo = {
+                .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+                .pNext = nullptr,
+                .objectType = VK_OBJECT_TYPE_SWAPCHAIN_KHR,
+                .objectHandle = eastl::bit_cast<uint64_t>(mSwapChain),
+                .pObjectName = mInfo.name.c_str(),
+            };
+            vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &nameInfoo);
+        }
+    }
+    void VulkanSwapChain::CreateSemaphores() {
+        mImageAcquireSemaphores.resize(mInfo.bufferCount);
+        for (i32 i = 0; i < mInfo.bufferCount; ++i) {
+            VkSemaphoreCreateInfo createInfo{
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = {},
+            };
+
+            VkResult result = vkCreateSemaphore(mDevice->GetVkDevice(),
+                &createInfo, mDevice->Context()->GetVkAllocator(), &mImageAcquireSemaphores[i]);
+            CheckVkResult(result);
+
+            if (vkSetDebugUtilsObjectNameEXT) {
+                eastl::string name1 = mInfo.name + " Acquire Image Semaphore #" + eastl::to_string(i);
+                VkDebugUtilsObjectNameInfoEXT semaphoreNameInfo = {
+                    .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+                    .pNext = nullptr,
+                    .objectType = VK_OBJECT_TYPE_SEMAPHORE,
+                    .objectHandle = eastl::bit_cast<uint64_t>(mImageAcquireSemaphores[i]),
+                    .pObjectName = name1.c_str(),
+                };
+                vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &semaphoreNameInfo);
+            }
+        }
+    }
+
+    void VulkanSwapChain::TrySetPresentMode(PresentMode presentMode) {
+        auto it = eastl::find(mSupportInfo.presentModes.begin(), mSupportInfo.presentModes.end(), ToVkPresentMode(presentMode));
+        if (it != mSupportInfo.presentModes.end()) {
+            mPresentMode = presentMode;
+        } else {
+            // try fallbacks
+            switch (presentMode) {
+            case PresentMode::LowLatency:
+                TrySetPresentMode(PresentMode::Tearing);
+                break;
+            default: // vsync is always supported
+                mPresentMode = PresentMode::VSync;
+                break;
+            }
+        }
+    }
+} // namespace PyroshockStudios::RHIVulkan

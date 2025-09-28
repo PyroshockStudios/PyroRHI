@@ -1,0 +1,158 @@
+#pragma once
+
+#include <PyroCommon/Core.hpp>
+#include <PyroRHI/Api/Sync.hpp>
+#include <PyroRHI/Api/Types.hpp>
+
+namespace PyroshockStudios {
+    inline namespace RHI {
+
+        /**
+         * @brief Supported formats for a swap chain's images.
+         *
+         * Specifies the color format and dynamic range for the back buffers.
+         */
+        enum struct SwapChainFormat {
+            /** Standard 8-bit per channel, low dynamic range (sRGB not applied). */
+            Unorm8BitLDR = 0,
+
+            /** Standard 8-bit per channel, low dynamic range with sRGB encoding. */
+            Srgb8BitLDR = 1,
+
+            /** 10-bit per channel, low dynamic range. */
+            Unorm10BitLDR = 2,
+
+            /** 16-bit floating point per channel, high dynamic range. */
+            Float16BitHDR = 3
+        };
+
+        /**
+         * @brief Parameters for creating a swap chain.
+         *
+         * Describes the target window, image format, presentation mode, and number of back buffers.
+         */
+        struct SwapChainInfo {
+            /**
+             * @brief Native platform window handle.
+             * Used by the swap chain to present images to the OS window.
+             */
+            NativeHandle nativeWindow = {};
+
+            /**
+             * @brief Native platform instance handle.
+             * Platform-specific context or instance. 
+             * In Win32 this is the HINSTANCE, while in linux we use the X11 implementation, so a Display is required.
+             * MacOS Cocoa does not have such an instance, and can be left NULL. 
+             */
+            NativeHandle nativeInstance = {};
+
+            /**
+             * @brief Image format for the swap chain's back buffers.
+             * Default is `Unorm8BitLDR`.
+             */
+            SwapChainFormat format = SwapChainFormat::Unorm8BitLDR;
+
+            /**
+             * @brief Presentation mode, controlling vsync and tearing behavior.
+             */
+            PresentMode presentMode = PresentMode::VSync;
+
+            /**
+             * @brief Present operation
+             */
+            // TODO: is this actually necessary?
+            PresentOp presentOperation = PresentOp::Identity;
+
+            /**
+             * @brief Number of back buffers in the swap chain.
+             * Typically 2 or 3 for double or triple buffering.
+             * A minimum of 2 is required.
+             */
+            usize bufferCount = 2;
+
+            /**
+             * @brief Intended usage flags for swap chain images.
+             */
+            ImageUsageFlags imageUsage = ImageUsageFlagBits::NONE;
+
+            /**
+             * @brief Initial dimensions of the swap chain images.
+             */
+            Extent2D extent = {};
+
+            /**
+             * @brief Optional human-readable name for debugging and profiling.
+             */
+            eastl::string name = {};
+
+            PYRO_NODISCARD  bool operator==(const SwapChainInfo&) const = default;
+            PYRO_NODISCARD  bool operator!=(const SwapChainInfo&) const = default;
+        };
+
+        /**
+         * @brief Interface representing a GPU swap chain.
+         *
+         * Provides access to back buffers, handles image acquisition and presentation,
+         * and allows resizing and format configuration.
+         */
+        struct ISwapChain {
+            ISwapChain() = default;
+            virtual ~ISwapChain() = default;
+
+            /**
+             * @brief Get a back buffer by index.
+             *
+             * @param imageIndex Index of the back buffer.
+             * @return Image Handle to the back buffer.
+             */
+            PYRO_NODISCARD virtual Image GetBackBuffer(u32 imageIndex) = 0;
+
+            /**
+             * @brief Acquire the next available image for rendering.
+             *
+             * @return Image Handle to the next back buffer.
+             * Returns null if acquisition failed (e.g., swap chain needs resize).
+             */
+            PYRO_NODISCARD virtual Image AcquireNextImage() = 0;
+
+            /** @brief Resize the swap chain to match the current window size. */
+            virtual void Resize() = 0;
+
+            /**
+             * @brief Change the swap chain's present mode.
+             *
+             * @param presentMode New present mode (e.g., VSync, Immediate).
+             */
+            virtual void SetPresentMode(PresentMode presentMode) = 0;
+
+            /**
+             * @brief Get the description of this swap chain.
+             *
+             * @return const SwapChainInfo& Reference to swap chain creation info.
+             */
+            PYRO_NODISCARD virtual const SwapChainInfo& Info() const = 0;
+
+            /**
+             * @brief Get the current size of the swap chain images.
+             *
+             * @return Extent2D Current image width and height.
+             */
+            PYRO_NODISCARD virtual Extent2D GetSurfaceExtent() const = 0;
+
+            /**
+             * @brief Get the swap chain image format.
+             *
+             * @return Format Current pixel format.
+             */
+            PYRO_NODISCARD virtual Format GetFormat() const = 0;
+
+            /**
+             * @brief Get the swap chain's color space.
+             *
+             * @return ColorSpace Current color space of the back buffers.
+             */
+            PYRO_NODISCARD virtual ColorSpace GetColorSpace() const = 0;
+        };
+
+    } // namespace RHI
+} // namespace PyroshockStudios

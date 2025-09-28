@@ -1,0 +1,336 @@
+#pragma once
+#include <EASTL/bit.h>
+#include <EASTL/compare.h>
+#include <EASTL/functional.h>
+
+#include "Types.hpp"
+#include <PyroRHI/Core.hpp>
+
+namespace PyroshockStudios {
+    inline namespace RHI {
+        struct IDevice;
+
+        /// @brief Handle to GPU memory.
+        RHI_TYPED_HANDLE64(DeviceMemory);
+
+        /// @brief Handle to a GPU buffer resource.
+        RHI_TYPED_HANDLE64(Buffer);
+
+        /// @brief Handle to a GPU image resource.
+        RHI_TYPED_HANDLE64(Image);
+
+        /// @brief Null (invalid) buffer handle.
+        constexpr DeviceMemory PYRO_NULL_DEVICE_MEMORY = DeviceMemory{};
+
+        /// @brief Null (invalid) buffer handle.
+        constexpr Buffer PYRO_NULL_BUFFER = Buffer{};
+
+        /// @brief Null (invalid) image handle.
+        constexpr Image PYRO_NULL_IMAGE = Image{};
+
+
+        //-------------------------------------------------------------------------------------------------
+        // Device Memory Creation Structure
+        //-------------------------------------------------------------------------------------------------
+
+        /**
+         * @brief Parameters for creating a GPU memory pool.
+         */
+        struct DeviceMemoryInfo {
+            BufferUsageFlags bufferUsage = {};                                            /**< Intended possible usages of subsequent buffers (e.g., vertex, uniform). */
+            ImageUsageFlags imageUsage = {};                                              /**< Intended possible usages of subsequent images (e.g., sampled, unordered access). */
+            DeviceSize size = {};                                                         /**< Memory size in bytes. */
+            MemoryAllocationUsage allocateUsage = MemoryAllocationUsage::DedicatedMemory; /**< Memory allocation usage. */
+            eastl::string name = {};                                                      /**< Optional debug name for the memory handle. */
+
+            PYRO_NODISCARD  bool operator==(const DeviceMemoryInfo&) const = default;
+            PYRO_NODISCARD  bool operator!=(const DeviceMemoryInfo&) const = default;
+        };
+
+        //-------------------------------------------------------------------------------------------------
+        // Buffer Creation Structures
+        //-------------------------------------------------------------------------------------------------
+
+
+        struct BufferCreateFlagsProperties {
+            using Data = u32;
+        };
+
+        using BufferCreateFlags = Flags<BufferCreateFlagsProperties>;
+
+        /**
+         * @brief Buffer creation flag bits.
+         */
+        struct BufferCreateFlagsBits {
+            static inline constexpr BufferCreateFlags NONE = { 0x00000000 };        /**< No flags. */
+            static inline constexpr BufferCreateFlags ALLOW_ALIAS = { 0x00000001 }; /**< Allows aliasing buffer memory. */
+        };
+
+        /**
+         * @brief Parameters for creating a GPU buffer.
+         */
+        struct BufferInfo {
+            /**
+             * @brief Optional device memory handle for virtual allocations.
+             * If `memoryPool` is `PYRO_NULL_DEVICE_MEMORY`, then the buffer will create it's own allocation handle.
+             */
+            DeviceMemory memoryPool = PYRO_NULL_DEVICE_MEMORY;                            
+            BufferCreateFlags flags = BufferCreateFlagsBits::NONE;                        /**< Buffer creation flags. */
+            DeviceSize size = {};                                                         /**< Buffer size in bytes. */
+            BufferUsageFlags usage = {};                                                  /**< Intended usage of the buffer (e.g., vertex, uniform). */
+            BufferLayout initialLayout = BufferLayout::Undefined;                         /**< Initial state of the buffer. */
+            /**
+             * @brief Memory allocation usage.
+             * If `memoryPool` is not `PYRO_NULL_DEVICE_MEMORY`, then `allocateUsage` will be ignored. 
+             */
+            MemoryAllocationUsage allocateUsage = MemoryAllocationUsage::DedicatedMemory; 
+            eastl::string name = {};                                                      /**< Optional debug name for the buffer. */
+
+            PYRO_NODISCARD  bool operator==(const BufferInfo&) const = default;
+            PYRO_NODISCARD  bool operator!=(const BufferInfo&) const = default;
+        };
+
+        //-------------------------------------------------------------------------------------------------
+        // Image Creation Structures
+        //-------------------------------------------------------------------------------------------------
+
+        struct ImageCreateFlagsProperties {
+            using Data = u32;
+        };
+
+        using ImageCreateFlags = Flags<ImageCreateFlagsProperties>;
+
+        /**
+         * @brief Image creation flag bits.
+         */
+        struct ImageCreateFlagBits {
+            static inline constexpr ImageCreateFlags NONE = { 0x00000000 };           /**< No flags. */
+            static inline constexpr ImageCreateFlags MUTABLE_FORMAT = { 0x00000001 }; /**< Allows different formats when creating UAVs or SRVs. */
+            static inline constexpr ImageCreateFlags CUBE = { 0x00000002 };           /**< Create a cube-compatible image. */
+            static inline constexpr ImageCreateFlags ALLOW_ALIAS = { 0x00000004 };    /**< Allows aliasing image memory. */
+        };
+
+        /**
+         * @brief Parameters for creating a GPU image.
+         */
+        struct ImageInfo {
+            /**
+             * @brief Optional device memory handle for virtual allocations.
+             * If `memoryPool` is `PYRO_NULL_DEVICE_MEMORY`, then the image will create it's own allocation handle.
+             */
+            DeviceMemory memoryPool = PYRO_NULL_DEVICE_MEMORY;  
+            ImageCreateFlags flags = ImageCreateFlagBits::NONE; /**< Image creation flags. */
+            u32 dimensions = 2;                                 /**< Number of dimensions (1D, 2D, 3D). */
+            Format format = Format::RGBA8Unorm;                 /**< Pixel format of the image. */
+            Extent3D size = {};                                 /**< Dimensions of the image (width, height, depth). */
+            u32 mipLevelCount = 1;                              /**< Number of mipmap levels. */
+            u32 arrayLayerCount = 1;                            /**< Number of array layers. */
+            u32 sampleCount = 1;                                /**< Number of samples per pixel (for MSAA). */
+            ImageUsageFlags usage = {};                         /**< Intended usage of the image (e.g., render target, sampling). */
+            eastl::string name = {};                            /**< Optional debug name for the image. */
+
+            PYRO_NODISCARD bool operator==(const ImageInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const ImageInfo&) const = default;
+        };
+
+        //-------------------------------------------------------------------------------------------------
+        // Subresource Layout
+        //-------------------------------------------------------------------------------------------------
+
+        /**
+         * @brief Memory layout information for an image subresource.
+         */
+        struct SubresourceLayout {
+            usize offset = 0;     /**< Offset from the start of the image in bytes. */
+            usize size = 0;       /**< Size of the subresource in bytes. */
+            usize rowPitch = 0;   /**< Row stride in bytes. */
+            usize arrayPitch = 0; /**< Array layer stride in bytes. */
+            usize depthPitch = 0; /**< Depth slice stride in bytes. */
+
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const SubresourceLayout&) const = default;
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator!=(const SubresourceLayout&) const = default;
+        };
+
+        //-------------------------------------------------------------------------------------------------
+        // Sampler Configuration
+        //-------------------------------------------------------------------------------------------------
+
+        /**
+         * @brief Parameters for configuring a texture sampler.
+         */
+        struct SamplerInfo {
+            Filter magnificationFilter = Filter::Linear;                       /**< Filter for magnifying textures. */
+            Filter minificationFilter = Filter::Linear;                        /**< Filter for minifying textures. */
+            Filter mipmapFilter = Filter::Linear;                              /**< Filter for sampling between mipmap levels. */
+            ReductionMode reductionMode = ReductionMode::WeightedAverage;      /**< How multiple samples are reduced. */
+            SamplerAddressMode addressModeU = SamplerAddressMode::ClampToEdge; /**< Addressing mode for U coordinate. */
+            SamplerAddressMode addressModeV = SamplerAddressMode::ClampToEdge; /**< Addressing mode for V coordinate. */
+            SamplerAddressMode addressModeW = SamplerAddressMode::ClampToEdge; /**< Addressing mode for W coordinate. */
+            f32 mipLodBias = 0.0f;                                             /**< Bias applied to the mipmap LOD level. */
+            bool enableAnisotropy = false;                                     /**< Enables anisotropic filtering. */
+            u32 maxAnisotropy = 1;                                             /**< Maximum anisotropy if enabled. */
+            bool enableCompare = false;                                        /**< Enables depth comparison for shadow mapping. */
+            CompareOp compareOp = CompareOp::Always;                           /**< Comparison operation if enabled. */
+            f32 minLod = 0.0f;                                                 /**< Minimum mipmap LOD. */
+            f32 maxLod = FLT_MAX;                                              /**< Maximum mipmap LOD. */
+            BorderColor borderColor = BorderColor::TransparentBlackFloat;      /**< Border color for texture sampling. */
+            eastl::string name = {};                                           /**< Optional debug name for the sampler. */
+
+            PYRO_NODISCARD  bool operator==(const SamplerInfo&) const = default;
+            PYRO_NODISCARD  bool operator!=(const SamplerInfo&) const = default;
+        };
+
+        //-------------------------------------------------------------------------------------------------
+        // GPU Resource Identifiers
+        //-------------------------------------------------------------------------------------------------
+
+        /**
+         * @brief Generic GPU resource identifier with index and version.
+         */
+        struct GPUResourceId {
+            u32 index = 0x00000000;   /**< Resource index in a table. */
+            u32 version = 0x00000000; /**< Version number to avoid stale references. */
+
+            /**
+             * @brief Three-way comparison operator.
+             */
+            PYRO_FORCEINLINE auto operator<=>(GPUResourceId const& other) const {
+                return eastl::bit_cast<u64>(*this) <=> eastl::bit_cast<u64>(other);
+            }
+        };
+
+        /// @brief Identifier for a shader resource view (SRV).
+        struct ShaderResourceId : public GPUResourceId {
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const ShaderResourceId& other) const {
+                return eastl::bit_cast<u64>(*this) == eastl::bit_cast<u64>(other);
+            }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator!=(const ShaderResourceId& other) const {
+                return !(*this == other);
+            }
+        };
+
+        /// @brief Identifier for an unordered access view (UAV).
+        /// @note The `index` variable is not to be used as a bindless index.
+        struct UnorderedAccessId : public GPUResourceId {
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const UnorderedAccessId& other) const {
+                return eastl::bit_cast<u64>(*this) == eastl::bit_cast<u64>(other);
+            }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator!=(const UnorderedAccessId& other) const {
+                return !(*this == other);
+            }
+        };
+
+        /// @brief Identifier for a sampler resource.
+        struct SamplerId : public GPUResourceId {
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const SamplerId& other) const {
+                return eastl::bit_cast<u64>(*this) == eastl::bit_cast<u64>(other);
+            }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator!=(const SamplerId& other) const {
+                return !(*this == other);
+            }
+        };
+
+        /// @brief Null SRV identifier.
+        constexpr ShaderResourceId PYRO_NULL_SRV = ShaderResourceId{};
+
+        /// @brief Null UAV identifier.
+        constexpr UnorderedAccessId PYRO_NULL_UAV = UnorderedAccessId{};
+
+        /// @brief Null sampler identifier.
+        constexpr SamplerId PYRO_NULL_SAMPLER = SamplerId{};
+
+        //-------------------------------------------------------------------------------------------------
+        // Resource View Structures
+        //-------------------------------------------------------------------------------------------------
+
+        /**
+         * @brief Buffer resource view information.
+         */
+        struct BufferResourceInfo {
+            Buffer buffer = PYRO_NULL_BUFFER; /**< Buffer handle. */
+            BufferRegion region = {};         /**< Region of the buffer to be used. */
+        };
+
+        /**
+         * @brief Types of image views that can be created.
+         */
+        enum struct ImageViewType : i32 {
+            e1D = 0,       /**< 1D texture view. */
+            e2D = 1,       /**< 2D texture view. */
+            e3D = 2,       /**< 3D texture view. */
+            eCube = 3,     /**< Cube texture view. */
+            e1DArray = 4,  /**< 1D array texture view. */
+            e2DArray = 5,  /**< 2D array texture view. */
+            eCubeArray = 6 /**< Cube array texture view. */
+        };
+
+        /**
+         * @brief Image resource view information.
+         */
+        struct ImageResourceInfo {
+            Image image = PYRO_NULL_IMAGE; /**< Image handle. */
+            /**
+             * @brief  Subresource slice (mips + array levels).
+             * @note If creating an Unordered Access View, only *ONE* mip level is allowed to be selected.
+             */
+            ImageMipArraySlice slice = {};
+            ImageViewType viewType = ImageViewType::e2D; /**< Type of image view. */
+            Format format = Format::Inherit;             /**< Format override, if any. */
+        };
+
+        /// @brief Variant type holding either a buffer or image resource view.
+        /// Used for SRV/UAV creation
+        using GPUResourceInfo = eastl::variant<BufferResourceInfo, ImageResourceInfo>;
+
+    } // namespace RHI
+} // namespace PyroshockStudios
+
+namespace eastl {
+    using namespace PyroshockStudios;
+    using namespace PyroshockStudios::RHI;
+
+    template <>
+    struct hash<GPUResourceId> {
+        usize operator()(GPUResourceId k) const {
+            return eastl::hash<usize>{}(eastl::bit_cast<u64>(k));
+        }
+    };
+    template <>
+    struct hash<ShaderResourceId> {
+        usize operator()(ShaderResourceId k) const {
+            return eastl::hash<usize>{}(eastl::bit_cast<u64>(k));
+        }
+    };
+    template <>
+    struct hash<UnorderedAccessId> {
+        usize operator()(UnorderedAccessId k) const {
+            return eastl::hash<usize>{}(eastl::bit_cast<u64>(k));
+        }
+    };
+    template <>
+    struct hash<SamplerId> {
+        usize operator()(SamplerId k) const {
+            return eastl::hash<usize>{}(eastl::bit_cast<u64>(k));
+        }
+    };
+
+    template <>
+    struct hash<DeviceMemory> {
+        usize operator()(DeviceMemory k) const {
+            return eastl::hash<usize>{}(eastl::bit_cast<u64>(k));
+        }
+    };
+
+    template <>
+    struct hash<Buffer> {
+        usize operator()(Buffer k) const {
+            return eastl::hash<usize>{}(eastl::bit_cast<u64>(k));
+        }
+    };
+    template <>
+    struct hash<Image> {
+        usize operator()(Image k) const {
+            return eastl::hash<usize>{}(eastl::bit_cast<u64>(k));
+        }
+    };
+} // namespace eastl

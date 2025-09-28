@@ -1,0 +1,825 @@
+#include "CommandBuffer.hpp"
+#include "Device.hpp"
+#include "GPUResource.hpp"
+#include "Pipeline.hpp"
+#include "RenderTarget.hpp"
+
+#include <DirectXMath.h>
+#include <libassert/assert.hpp>
+
+namespace PyroshockStudios {
+    namespace RHIDX12 {
+
+        D3DCommandBuffer::D3DCommandBuffer(D3DDevice* device, ComPtr<ID3D12GraphicsCommandList>&& commandList, ComPtr<ID3D12CommandAllocator>&& allocator)
+            : mDevice(device), mCommandList(eastl::move(commandList)), mAllocator(eastl::move(allocator)) {
+        }
+        D3DCommandBuffer::~D3DCommandBuffer() {
+        }
+
+        void D3DCommandBuffer::CopyBufferToBuffer(const CopyBufferToBufferInfo& info) {
+            const auto& src = mDevice->ResourcePool().Get(info.srcBuffer);
+            const auto& dst = mDevice->ResourcePool().Get(info.dstBuffer);
+            mCommandList->CopyBufferRegion(dst.resource.Get(), info.dstOffset, src.resource.Get(), info.srcOffset, info.size);
+        }
+
+        void D3DCommandBuffer::CopyBufferToImage(const CopyBufferToImageInfo& info) {
+            const auto& src = mDevice->ResourcePool().Get(info.buffer);
+            const auto& dst = mDevice->ResourcePool().Get(info.image);
+
+            for (UINT j = 0; j < info.imageSlice.layerCount; ++j) {
+                UINT dstSubresource = D3D12CalcSubresource(info.imageSlice.mipLevel, info.imageSlice.baseArrayLayer + j, 0, dst.info.mipLevelCount, dst.info.arrayLayerCount);
+                D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+                UINT numRows = {};
+                UINT64 rowSizesInBytes = {};
+                UINT64 requiredSize = {};
+                mDevice->InternalDevice()->GetCopyableFootprints(&dst.desc, dstSubresource, 1, info.bufferOffset,
+                    &footprint, &numRows, &rowSizesInBytes, &requiredSize);
+                ASSERT(PYRO_VERIFY_ALIGNMENT(info.rowPitch, rowSizesInBytes), "Row Pitch MUST be aligned to device requirements!");
+                rowSizesInBytes = info.rowPitch;
+                CD3DX12_TEXTURE_COPY_LOCATION Dst(dst.resource.Get(), dstSubresource);
+                CD3DX12_TEXTURE_COPY_LOCATION Src(src.resource.Get(), footprint);
+                mCommandList->CopyTextureRegion(&Dst, 0, 0, 0, &Src, nullptr);
+            }
+        }
+
+        void D3DCommandBuffer::CopyImageToBuffer(const CopyImageToBufferInfo& info) {
+            const auto& src = mDevice->ResourcePool().Get(info.image);
+            const auto& dst = mDevice->ResourcePool().Get(info.buffer);
+
+            for (UINT j = 0; j < info.imageSlice.layerCount; ++j) {
+                UINT srcSubresource = D3D12CalcSubresource(info.imageSlice.mipLevel, info.imageSlice.baseArrayLayer + j, 0, src.info.mipLevelCount, src.info.arrayLayerCount);
+                D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+                UINT numRows = {};
+                UINT64 rowSizesInBytes = {};
+                UINT64 requiredSize = {};
+                mDevice->InternalDevice()->GetCopyableFootprints(&src.desc, srcSubresource, 1, 0,
+                    &footprint, &numRows, &rowSizesInBytes, &requiredSize);
+                ASSERT(PYRO_VERIFY_ALIGNMENT(info.rowPitch, rowSizesInBytes), "Row Pitch MUST be aligned to device requirements!");
+                rowSizesInBytes = info.rowPitch;
+                CD3DX12_TEXTURE_COPY_LOCATION Dst(dst.resource.Get(), footprint);
+                CD3DX12_TEXTURE_COPY_LOCATION Src(src.resource.Get(), srcSubresource);
+                mCommandList->CopyTextureRegion(&Dst, 0, 0, 0, &Src, nullptr);
+            }
+        }
+
+        void D3DCommandBuffer::CopyImageToImage(const CopyImageToImageInfo& info) {
+            const auto& src = mDevice->ResourcePool().Get(info.srcImage);
+            const auto& dst = mDevice->ResourcePool().Get(info.dstImage);
+            for (UINT j = 0; j < info.srcImageSlice.layerCount; ++j) {
+                UINT srcSubresource = D3D12CalcSubresource(info.srcImageSlice.mipLevel, info.srcImageSlice.baseArrayLayer + j, 0, src.info.mipLevelCount, src.info.arrayLayerCount);
+                UINT dstSubresource = D3D12CalcSubresource(info.dstImageSlice.mipLevel, info.dstImageSlice.baseArrayLayer + j, 0, dst.info.mipLevelCount, dst.info.arrayLayerCount);
+                auto srcCpy = CD3DX12_TEXTURE_COPY_LOCATION(src.resource.Get(), srcSubresource);
+                auto dstCpy = CD3DX12_TEXTURE_COPY_LOCATION(dst.resource.Get(), dstSubresource);
+                D3D12_BOX srcBox = ToD3D12Box(Box3D::Cut(info.extent, info.srcOffset));
+                mCommandList->CopyTextureRegion(&dstCpy, (UINT)info.dstOffset.x, (UINT)info.dstOffset.y, (UINT)info.dstOffset.z, &srcCpy, &srcBox);
+            }
+        }
+
+        void D3DCommandBuffer::BlitImageToImage(const BlitImageToImageInfo& info) {
+            auto& srcImage = mDevice->ResourcePool().Get(info.srcImage);
+            auto& dstImage = mDevice->ResourcePool().Get(info.dstImage);
+
+            ID3D12PipelineState* pipeline = mDevice->GetBlitImagePipeline(ToDXGIFormat(dstImage.info.format), dstImage.info.arrayLayerCount > 1);
+            mCommandList->SetPipelineState(pipeline);
+            mCommandList->SetGraphicsRootSignature(mDevice->mBlitImageRootSignature.Get());
+
+            D3D12_VIEWPORT viewport{};
+            viewport.TopLeftX = 0.0f;
+            viewport.TopLeftY = 0.0f;
+            viewport.Width = static_cast<float>(dstImage.info.size.x);
+            viewport.Height = static_cast<float>(dstImage.info.size.y);
+            viewport.MinDepth = 0.0f;
+            viewport.MaxDepth = 1.0f;
+            mCommandList->RSSetViewports(1, &viewport);
+
+            D3D12_RECT scissorRect{};
+            scissorRect.left = info.dstImageRect.x;
+            // origin is top left in the rect... go figure lol
+            scissorRect.top = static_cast<i32>(dstImage.info.size.y) - info.dstImageRect.height - info.dstImageRect.y;
+            scissorRect.right = info.dstImageRect.x + info.dstImageRect.width;
+            scissorRect.bottom = static_cast<i32>(dstImage.info.size.y) - info.dstImageRect.y;
+            if (scissorRect.left > scissorRect.right) {
+                eastl::swap(scissorRect.left, scissorRect.right);
+            }
+            if (scissorRect.bottom < scissorRect.top) {
+                eastl::swap(scissorRect.bottom, scissorRect.top);
+            }
+            mCommandList->RSSetScissorRects(1, &scissorRect);
+
+            // Build push constants (src UVs and dst NDC). Handle negative src rects (flips).
+            struct PushConstants {
+                DirectX::XMFLOAT2 srcLower;
+                DirectX::XMFLOAT2 srcUpper;
+                DirectX::XMFLOAT2 dstLower;
+                DirectX::XMFLOAT2 dstUpper;
+            } pushConstants;
+
+            // Compute src UVs from pixel rect -> [0,1] space
+            float srcW = static_cast<float>(srcImage.info.size.x);
+            float srcH = static_cast<float>(srcImage.info.size.y);
+
+            float srcX0 = static_cast<float>(info.srcImageRect.x);
+            // NOTE: UV sampling is vulkan coordinate style, so origin is TOP LEFT!
+            float srcY0 = static_cast<float>(info.srcImageRect.y + info.srcImageRect.height);
+            float srcX1 = static_cast<float>(info.srcImageRect.x + info.srcImageRect.width);
+            float srcY1 = static_cast<float>(info.srcImageRect.y);
+
+            float u0 = srcX0 / srcW;
+            float v0 = srcY0 / srcH;
+            float u1 = srcX1 / srcW;
+            float v1 = srcY1 / srcH;
+
+            pushConstants.srcLower = DirectX::XMFLOAT2(u0, v0);
+            pushConstants.srcUpper = DirectX::XMFLOAT2(u1, v1);
+
+            // Convert dst pixel rect to NDC [-1,1].
+            float fbWidth = static_cast<float>(dstImage.info.size.x);
+            float fbHeight = static_cast<float>(dstImage.info.size.y);
+
+            float dstX0 = static_cast<float>(scissorRect.left);
+            float dstY0 = fbHeight - static_cast<float>(scissorRect.bottom);
+            float dstX1 = static_cast<float>(scissorRect.right);
+            float dstY1 = fbHeight - static_cast<float>(scissorRect.top);
+
+            float ndcX0 = 2.0f * dstX0 / fbWidth - 1.0f;
+            float ndcY0 = 2.0f * dstY0 / fbHeight - 1.0f;
+            float ndcX1 = 2.0f * dstX1 / fbWidth - 1.0f;
+            float ndcY1 = 2.0f * dstY1 / fbHeight - 1.0f;
+
+            // Push to shader: dstLower should be (minX, minY), dstUpper (maxX, maxY) in NDC
+            pushConstants.dstLower = DirectX::XMFLOAT2(ndcX0, ndcY0); // minX, minY
+            // FIXME: WHY DOES THE PUSH CONSTANT IN THE GPU HAVE THIS RANDOM SLIGHT OFFSET???
+            pushConstants.dstUpper = DirectX::XMFLOAT2(ndcX1, ndcY1); // maxX, maxY
+
+            mCommandList->SetGraphicsRoot32BitConstants(0, sizeof(PushConstants) / 4, &pushConstants, 0);
+
+            // 7. Draw quad (4 vertices, no VB needed)
+            mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+            bBlitImageState = true;
+
+            for (UINT j = 0; j < info.srcImageSlice.layerCount; ++j) {
+                UINT srcSubresource = D3D12CalcSubresource(info.srcImageSlice.mipLevel, info.srcImageSlice.baseArrayLayer + j, 0,
+                    srcImage.info.mipLevelCount, srcImage.info.arrayLayerCount);
+                UINT dstSubresource = D3D12CalcSubresource(info.dstImageSlice.mipLevel, info.dstImageSlice.baseArrayLayer + j, 0,
+                    dstImage.info.mipLevelCount, dstImage.info.arrayLayerCount);
+                ID3D12DescriptorHeap* heaps[] = {
+                    srcImage.blitImageSRVHeaps[srcSubresource].mHeap.Get(),
+                    info.filter == Filter::Linear
+                        ? mDevice->mLinearSamplerDescriptorTable.mHeap.Get()
+                        : mDevice->mNearestSamplerDescriptorTable.mHeap.Get(),
+                };
+                mCommandList->SetDescriptorHeaps(PYRO_ARRAY_SIZE(heaps), heaps);
+                mCommandList->SetGraphicsRootDescriptorTable(2, info.filter == Filter::Linear
+                                                                    ? mDevice->mLinearSamplerDescriptorTable.gpuDescriptor
+                                                                    : mDevice->mNearestSamplerDescriptorTable.gpuDescriptor);
+                mCommandList->SetGraphicsRootDescriptorTable(1, srcImage.blitImageSRVHeaps[srcSubresource].gpuDescriptor);
+
+                ASSERT(dstImage.blitImageRTVs.size() > dstSubresource, "Image must have been created with BLIT DST capability!");
+                D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = mDevice->ResourcePool().mRTVHeap.Resolve(dstImage.blitImageRTVs[dstSubresource]);
+                mCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+                mCommandList->DrawInstanced(4, 1, 0, 0);
+            }
+        }
+
+        void D3DCommandBuffer::ClearUnorderedAccessView(const ClearUnorderedAccessViewInfo& info) {
+            // FIXME: optimise this by caching the UAVs, this is probably insanely slow
+            ID3D12DescriptorHeap* heap = nullptr;
+            D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+            heapDesc.NumDescriptors = 1;
+            heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+            heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heap)));
+            D3DSetDebugName(heap, "UAV Clear Desriptor Heap");
+
+            D3D12_CPU_DESCRIPTOR_HANDLE handle = mDevice->ResourcePool().mUAVHeap.Resolve(info.view);
+            mDevice->InternalDevice()->CopyDescriptorsSimple(1U, heap->GetCPUDescriptorHandleForHeapStart(), handle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+            ID3D12Resource* resource;
+            bool bUintClear = false;
+            bool bRepeatFirst = false;
+            const auto& vinfo = mDevice->ResourcePool().mUAVHeap.GetInfo(info.view);
+            if (eastl::holds_alternative<BufferResourceInfo>(vinfo)) {
+                resource = mDevice->ResourcePool().Get(eastl::get<BufferResourceInfo>(vinfo).buffer).resource.Get();
+                bUintClear = true;
+            } else if (eastl::holds_alternative<ImageResourceInfo>(vinfo)) {
+                auto& imgInfo = mDevice->ResourcePool().Get(eastl::get<ImageResourceInfo>(vinfo).image);
+                resource = imgInfo.resource.Get();
+                bUintClear = RHIUtil::GetFormatNumericType(eastl::get<ImageResourceInfo>(vinfo).format == Format::Inherit
+                                                               ? imgInfo.info.format
+                                                               : eastl::get<ImageResourceInfo>(vinfo).format) != RHIUtil::FormatNumericType::Float;
+            } else {
+                ASSERT(false, "BAD VARIANT");
+            }
+
+            mCommandList->SetDescriptorHeaps(1U, &heap);
+            if (bUintClear) {
+                UINT clearUint[4];
+                if (bRepeatFirst) {
+                    clearUint[0] = info.clearValue.uint32[0];
+                    clearUint[1] = info.clearValue.uint32[0];
+                    clearUint[2] = info.clearValue.uint32[0];
+                    clearUint[3] = info.clearValue.uint32[0];
+                } else {
+                    clearUint[0] = info.clearValue.uint32[0];
+                    clearUint[1] = info.clearValue.uint32[1];
+                    clearUint[2] = info.clearValue.uint32[2];
+                    clearUint[3] = info.clearValue.uint32[3];
+                }
+                mCommandList->ClearUnorderedAccessViewUint(heap->GetGPUDescriptorHandleForHeapStart(), heap->GetCPUDescriptorHandleForHeapStart(),
+                    resource, clearUint, 1, nullptr);
+            } else {
+                FLOAT clearFlt[4];
+                if (bRepeatFirst) {
+                    clearFlt[0] = info.clearValue.float32[0];
+                    clearFlt[1] = info.clearValue.float32[0];
+                    clearFlt[2] = info.clearValue.float32[0];
+                    clearFlt[3] = info.clearValue.float32[0];
+                } else {
+                    clearFlt[0] = info.clearValue.float32[0];
+                    clearFlt[1] = info.clearValue.float32[1];
+                    clearFlt[2] = info.clearValue.float32[2];
+                    clearFlt[3] = info.clearValue.float32[3];
+                }
+                mCommandList->ClearUnorderedAccessViewFloat(heap->GetGPUDescriptorHandleForHeapStart(), heap->GetCPUDescriptorHandleForHeapStart(),
+                    resource, clearFlt, 1, nullptr);
+            }
+            mDeferredDeleteOps.push_back({
+                .resource = reinterpret_cast<void*>(heap),
+                .deleter = [](D3DDevice* device, void* resource) {
+                    reinterpret_cast<ID3D12DescriptorHeap*>(resource)->Release();
+                },
+            });
+            // invalidate
+            mGraphicsLastBoundUAVDescriptorTable = {};
+            mComputeLastBoundUAVDescriptorTable = {};
+            FlushPendingUnorderedAccessViewBinds();
+        }
+        void D3DCommandBuffer::UpdateBuffer(const UpdateBufferInfo& info) {
+            if (!mCurrentLinearUploadBuffer) {
+                mCurrentLinearUploadBuffer = mDevice->GetLinearBufferAllocation();
+            }
+            auto& dstBuffer = mDevice->ResourcePool().Get(info.buffer);
+            UINT64 sz = eastl::min(dstBuffer.info.size, info.region.size);
+            UINT64 offset;
+            void* ptr = mCurrentLinearUploadBuffer->Allocate(sz, offset);
+            if (ptr == nullptr) {
+                mPendingReturnLinearUploadBuffers.emplace_back(mCurrentLinearUploadBuffer);
+                mCurrentLinearUploadBuffer = nullptr;
+                D3DCommandBuffer::UpdateBuffer(info);
+            }
+            memcpy(ptr, info.data, sz);
+            mCommandList->CopyBufferRegion(dstBuffer.resource.Get(), info.region.offset,
+                mCurrentLinearUploadBuffer->GetResource(), offset, sz);
+        }
+
+        void D3DCommandBuffer::BufferBarrier(const BufferMemoryBarrierInfo& info) {
+            auto& bufferInfo = mDevice->ResourcePool().Get(info.buffer);
+            D3D12_RESOURCE_BARRIER barrier = {};
+            barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Transition.pResource = bufferInfo.resource.Get();
+            barrier.Transition.StateBefore = info.srcLayout == BufferLayout::Undefined ? bufferInfo.lastValidState : ToD3D12BufferResourceState(info.srcLayout);
+            barrier.Transition.StateAfter = ToD3D12BufferResourceState(info.dstLayout);
+            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            if (barrier.Transition.StateAfter == barrier.Transition.StateBefore)
+                return;
+            mCommandList->ResourceBarrier(1, &barrier);
+            bufferInfo.lastValidState = barrier.Transition.StateAfter;
+        }
+
+        void D3DCommandBuffer::ImageBarrier(const ImageMemoryBarrierInfo& info) {
+            auto& imageInfo = mDevice->ResourcePool().Get(info.image);
+            D3D12_RESOURCE_BARRIER barrier = {};
+            barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+
+            D3D12_RESOURCE_STATES validMask =
+                D3D12_RESOURCE_STATE_COMMON |
+                D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER |
+                D3D12_RESOURCE_STATE_INDEX_BUFFER |
+                D3D12_RESOURCE_STATE_RENDER_TARGET |
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS |
+                D3D12_RESOURCE_STATE_DEPTH_WRITE |
+                D3D12_RESOURCE_STATE_DEPTH_READ |
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+                D3D12_RESOURCE_STATE_STREAM_OUT |
+                D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT |
+                D3D12_RESOURCE_STATE_COPY_DEST |
+                D3D12_RESOURCE_STATE_COPY_SOURCE |
+                D3D12_RESOURCE_STATE_RESOLVE_DEST |
+                D3D12_RESOURCE_STATE_RESOLVE_SOURCE |
+                D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE |
+                D3D12_RESOURCE_STATE_SHADING_RATE_SOURCE |
+                D3D12_RESOURCE_STATE_RESERVED_INTERNAL_8000 |
+                D3D12_RESOURCE_STATE_RESERVED_INTERNAL_4000 |
+                D3D12_RESOURCE_STATE_RESERVED_INTERNAL_100000 |
+                D3D12_RESOURCE_STATE_RESERVED_INTERNAL_40000000 |
+                D3D12_RESOURCE_STATE_RESERVED_INTERNAL_80000000 |
+                D3D12_RESOURCE_STATE_GENERIC_READ |
+                D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE |
+                D3D12_RESOURCE_STATE_PRESENT |
+                D3D12_RESOURCE_STATE_PREDICATION |
+                D3D12_RESOURCE_STATE_VIDEO_DECODE_READ |
+                D3D12_RESOURCE_STATE_VIDEO_DECODE_WRITE |
+                D3D12_RESOURCE_STATE_VIDEO_PROCESS_READ |
+                D3D12_RESOURCE_STATE_VIDEO_PROCESS_WRITE |
+                D3D12_RESOURCE_STATE_VIDEO_ENCODE_READ |
+                D3D12_RESOURCE_STATE_VIDEO_ENCODE_WRITE;
+            bool bDepthStencil = RHIUtil::FormatIsDepthStencil(imageInfo.info.format);
+            if (bDepthStencil) {
+                validMask &= ~(D3D12_RESOURCE_STATE_RENDER_TARGET);
+            } else {
+                validMask &= ~(D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_READ);
+            }
+
+            barrier.Transition.pResource = imageInfo.resource.Get();
+            if (bDepthStencil && info.srcLayout == ImageLayout::RenderTargetReadOnly) {
+                barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_READ;
+            } else {
+                barrier.Transition.StateBefore = info.srcLayout == ImageLayout::Undefined ? imageInfo.lastValidStates[barrier.Transition.Subresource] : (ToD3D12ImageResourceState(info.srcLayout) & validMask);
+            }
+            if (bDepthStencil && info.dstLayout == ImageLayout::RenderTargetReadOnly) {
+                barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_READ;
+            } else {
+                barrier.Transition.StateAfter = ToD3D12ImageResourceState(info.dstLayout) & validMask;
+            }
+            if (barrier.Transition.StateAfter == barrier.Transition.StateBefore)
+                return;
+            for (UINT i = 0; i < info.imageSlice.levelCount; ++i) {
+                for (UINT j = 0; j < info.imageSlice.layerCount; ++j) {
+                    barrier.Transition.Subresource = D3D12CalcSubresource(info.imageSlice.baseMipLevel + i, info.imageSlice.baseArrayLayer + j, 0,
+                        imageInfo.info.mipLevelCount, imageInfo.info.arrayLayerCount);
+                    mCommandList->ResourceBarrier(1, &barrier);
+                    imageInfo.lastValidStates[barrier.Transition.Subresource] = barrier.Transition.StateAfter;
+                }
+            }
+        }
+
+        void D3DCommandBuffer::SignalEvent(const EventSignalInfo& info) {
+        }
+
+        void D3DCommandBuffer::WaitEvents(const eastl::span<const EventWaitInfo>& infos) {
+        }
+
+        void D3DCommandBuffer::WaitEvent(const EventWaitInfo& info) {
+        }
+
+        void D3DCommandBuffer::ResetEvent(const ResetEventInfo& info) {
+        }
+
+        void D3DCommandBuffer::DestroyDeviceMemoryDeferred(DeviceMemory memory) {
+            mDeferredDeleteOps.push_back({
+                .resource = eastl::bit_cast<void*>(memory),
+                .deleter = [](D3DDevice* device, void* resource) {
+                    auto x = eastl::bit_cast<DeviceMemory>(resource);
+                    device->Destroy(x);
+                },
+            });
+        }
+
+        void D3DCommandBuffer::DestroyBufferDeferred(Buffer buffer) {
+            mDeferredDeleteOps.push_back({
+                .resource = eastl::bit_cast<void*>(buffer),
+                .deleter = [](D3DDevice* device, void* resource) {
+                    auto x = eastl::bit_cast<Buffer>(resource);
+                    device->Destroy(x);
+                },
+            });
+        }
+
+        void D3DCommandBuffer::DestroyImageDeferred(Image image) {
+            mDeferredDeleteOps.push_back({
+                .resource = eastl::bit_cast<void*>(image),
+                .deleter = [](D3DDevice* device, void* resource) {
+                    auto x = eastl::bit_cast<Image>(resource);
+                    device->Destroy(x);
+                },
+            });
+        }
+
+        void D3DCommandBuffer::DestroyShaderResourceDeferred(ShaderResourceId srv) {
+            mDeferredDeleteOps.push_back({
+                .resource = eastl::bit_cast<void*>(srv),
+                .deleter = [](D3DDevice* device, void* resource) {
+                    auto x = eastl::bit_cast<ShaderResourceId>(resource);
+                    device->Destroy(x);
+                },
+            });
+        }
+
+        void D3DCommandBuffer::DestroyUnorderedAccessDeferred(UnorderedAccessId uav) {
+            mDeferredDeleteOps.push_back({
+                .resource = eastl::bit_cast<void*>(uav),
+                .deleter = [](D3DDevice* device, void* resource) {
+                    auto x = eastl::bit_cast<UnorderedAccessId>(resource);
+                    device->Destroy(x);
+                },
+            });
+        }
+
+        void D3DCommandBuffer::DestroySamplerDeferred(SamplerId sampler) {
+            mDeferredDeleteOps.push_back({
+                .resource = eastl::bit_cast<void*>(sampler),
+                .deleter = [](D3DDevice* device, void* resource) {
+                    auto x = eastl::bit_cast<SamplerId>(resource);
+                    device->Destroy(x);
+                },
+            });
+        }
+
+        void D3DCommandBuffer::DestroyRenderTargetDeferred(RenderTarget renderTarget) {
+            mDeferredDeleteOps.push_back({
+                .resource = renderTarget,
+                .deleter = [](D3DDevice* device, void* resource) {
+                    auto x = reinterpret_cast<RenderTarget>(resource);
+                    device->Destroy(x);
+                },
+            });
+        }
+
+        void D3DCommandBuffer::DestroyRasterPipelineDeferred(RasterPipeline pipeline) {
+            mDeferredDeleteOps.push_back({
+                .resource = pipeline,
+                .deleter = [](D3DDevice* device, void* resource) {
+                    auto x = reinterpret_cast<RasterPipeline>(resource);
+                    device->Destroy(x);
+                },
+            });
+        }
+
+        void D3DCommandBuffer::DestroyComputePipelineDeferred(ComputePipeline pipeline) {
+            mDeferredDeleteOps.push_back({
+                .resource = pipeline,
+                .deleter = [](D3DDevice* device, void* resource) {
+                    auto x = reinterpret_cast<ComputePipeline>(resource);
+                    device->Destroy(x);
+                },
+            });
+        }
+
+        void D3DCommandBuffer::WriteTimestamp(const WriteTimestampInfo& info) {
+        }
+
+        void D3DCommandBuffer::ResetTimestamps(const ResetTimestampsInfo& info) {
+        }
+
+        void D3DCommandBuffer::BeginLabel(const CommandLabelInfo& info) {
+            if (!gPixBeginEventOnCommandListFn)
+                return;
+            UINT64 col = (u64)(info.labelColor.r * 255) << 24 |
+                         (u64)(info.labelColor.g * 255) << 16 |
+                         (u64)(info.labelColor.b * 255) << 8 |
+                         (u64)(info.labelColor.a * 255) << 0;
+            gPixBeginEventOnCommandListFn(mCommandList.Get(), col, info.name.data());
+        }
+
+        void D3DCommandBuffer::EndLabel() {
+            if (!gPixBeginEventOnCommandListFn)
+                return;
+            gPixEndEventOnCommandListFn(mCommandList.Get());
+        }
+
+        void D3DCommandBuffer::BeginRenderPass(const RenderPassBeginInfo& info) {
+            D3D12_RECT renderArea = ToD3D12Rect(info.renderArea);
+            eastl::fixed_vector<D3D12_CPU_DESCRIPTOR_HANDLE, 8> renderTargets{};
+            D3D12_CPU_DESCRIPTOR_HANDLE depthStencil;
+
+            for (const auto& colTarg : info.colorAttachments) {
+                auto rt = eastl::bit_cast<D3DRenderTarget*>(colTarg.target);
+                const auto& imageData = mDevice->ResourcePool().Get(rt->Info().image);
+                renderTargets.emplace_back(rt->GetDescriptor());
+                if (colTarg.loadOp == AttachmentLoadOp::Clear) {
+                    FLOAT clearCol[4];
+                    Format imageFormat = imageData.info.format;
+                    switch (RHIUtil::GetFormatNumericType(imageFormat)) {
+                    case RHIUtil::FormatNumericType::Float:
+                        memcpy(clearCol, colTarg.clearValue.float32.data(), sizeof(clearCol));
+                        break;
+                    case RHIUtil::FormatNumericType::SignedInt:
+                        clearCol[0] = static_cast<FLOAT>(colTarg.clearValue.int32[0]);
+                        clearCol[1] = static_cast<FLOAT>(colTarg.clearValue.int32[1]);
+                        clearCol[2] = static_cast<FLOAT>(colTarg.clearValue.int32[2]);
+                        clearCol[3] = static_cast<FLOAT>(colTarg.clearValue.int32[3]);
+                        break;
+                    case RHIUtil::FormatNumericType::UnsignedInt:
+                        clearCol[0] = static_cast<FLOAT>(colTarg.clearValue.uint32[0]);
+                        clearCol[1] = static_cast<FLOAT>(colTarg.clearValue.uint32[1]);
+                        clearCol[2] = static_cast<FLOAT>(colTarg.clearValue.uint32[2]);
+                        clearCol[3] = static_cast<FLOAT>(colTarg.clearValue.uint32[3]);
+                        break;
+                    default:
+                        ASSERT(false, "Bad image format!");
+                        break;
+                    }
+                    mCommandList->ClearRenderTargetView(renderTargets.back(), clearCol, 1, &renderArea);
+                }
+                if (colTarg.resolve.has_value()) {
+                    auto dstRt = eastl::bit_cast<D3DRenderTarget*>(colTarg.resolve->target);
+                    const auto& dstImageData = mDevice->ResourcePool().Get(dstRt->Info().image);
+
+                    mRenderPassResolves.push_back({
+                        .src = imageData.resource.Get(),
+                        .srcSubresource = rt->GetSubresource(),
+                        .dst = dstImageData.resource.Get(),
+                        .dstSubresource = dstRt->GetSubresource(),
+                        .format = ToDXGIFormat(dstImageData.info.format),
+                    });
+                }
+            }
+
+            if (info.depthStencilAttachment.has_value()) {
+                depthStencil = eastl::bit_cast<D3DRenderTarget*>(info.depthStencilAttachment->target)->GetDescriptor();
+                D3D12_CLEAR_FLAGS depthStencilClear = {};
+                if (info.depthStencilAttachment->depthLoadOp == AttachmentLoadOp::Clear) {
+                    depthStencilClear |= D3D12_CLEAR_FLAG_DEPTH;
+                }
+                if (info.depthStencilAttachment->stencilLoadOp == AttachmentLoadOp::Clear) {
+                    depthStencilClear |= D3D12_CLEAR_FLAG_STENCIL;
+                }
+                mCommandList->ClearDepthStencilView(depthStencil, depthStencilClear,
+                    info.depthStencilAttachment->clearValue.depth, (UINT)info.depthStencilAttachment->clearValue.stencil,
+                    1, &renderArea);
+            }
+            mCommandList->OMSetRenderTargets(static_cast<UINT>(renderTargets.size()), renderTargets.data(), FALSE,
+                info.depthStencilAttachment.has_value() ? &depthStencil : nullptr);
+
+            D3D12_VIEWPORT viewport{
+                .TopLeftX = static_cast<FLOAT>(info.renderArea.x),
+                .TopLeftY = static_cast<FLOAT>(info.renderArea.y),
+                .Width = static_cast<FLOAT>(info.renderArea.width),
+                .Height = static_cast<FLOAT>(info.renderArea.height),
+                .MinDepth = 0.0f,
+                .MaxDepth = 1.0f,
+            };
+            mCommandList->RSSetViewports(1, &viewport);
+            mCommandList->RSSetScissorRects(1, &renderArea);
+        }
+
+        void D3DCommandBuffer::EndRenderPass() {
+            for (const auto& resolveInfo : mRenderPassResolves) {
+                // DX12 uniquely has a resolve state, just opaquely transition them and be done with it
+                D3D12_RESOURCE_BARRIER enterBarriers[2] = {
+                    CD3DX12_RESOURCE_BARRIER::Transition(
+                        resolveInfo.dst,
+                        D3D12_RESOURCE_STATE_RENDER_TARGET,
+                        D3D12_RESOURCE_STATE_RESOLVE_DEST,
+                        resolveInfo.dstSubresource),
+                    CD3DX12_RESOURCE_BARRIER::Transition(resolveInfo.src,
+                        D3D12_RESOURCE_STATE_RENDER_TARGET,
+                        D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
+                        resolveInfo.srcSubresource),
+                };
+                D3D12_RESOURCE_BARRIER exitBarriers[2] = {
+                    CD3DX12_RESOURCE_BARRIER::Transition(
+                        resolveInfo.dst,
+                        D3D12_RESOURCE_STATE_RESOLVE_DEST,
+                        D3D12_RESOURCE_STATE_RENDER_TARGET,
+                        resolveInfo.dstSubresource),
+                    CD3DX12_RESOURCE_BARRIER::Transition(resolveInfo.src,
+                        D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
+                        D3D12_RESOURCE_STATE_RENDER_TARGET,
+                        resolveInfo.srcSubresource),
+                };
+                mCommandList->ResourceBarrier(2, enterBarriers);
+                mCommandList->ResolveSubresource(resolveInfo.dst, resolveInfo.dstSubresource, resolveInfo.src, resolveInfo.srcSubresource, resolveInfo.format);
+                mCommandList->ResourceBarrier(2, exitBarriers);
+            }
+            mRenderPassResolves.clear();
+        }
+
+        void D3DCommandBuffer::PushConstantVPtr(const PushConstantInfo& info) {
+            ASSERT(PYRO_VERIFY_ALIGNMENT(info.size, 4), "Push constants must be DWord aligned!");
+            ASSERT(PYRO_VERIFY_ALIGNMENT(info.offset, 4), "Push constants must be DWord aligned!");
+            if (bIsComputePipeline) {
+                mCommandList->SetComputeRoot32BitConstants(0, info.size / 4, info.data, info.offset / 4);
+            } else {
+                mCommandList->SetGraphicsRoot32BitConstants(0, info.size / 4, info.data, info.offset / 4);
+            }
+        }
+
+        void D3DCommandBuffer::SetUniformBufferView(const SetUniformBufferViewInfo& info) {
+            D3D12_GPU_VIRTUAL_ADDRESS gpuAddress =
+                mDevice->ResourcePool().Get(info.buffer).resource->GetGPUVirtualAddress() + info.region.offset;
+
+            if (info.bindPoint == PipelineBindPoint::Graphics) {
+                mCommandList->SetGraphicsRootConstantBufferView(info.slot + 6 /*match the root params in the signature*/, gpuAddress);
+            } else if (info.bindPoint == PipelineBindPoint::Compute) {
+                mCommandList->SetComputeRootConstantBufferView(info.slot + 6, gpuAddress);
+            }
+        }
+
+        void D3DCommandBuffer::SetUnorderedAccessView(const SetUnorderedAccessViewInfo& info) {
+            if (mPendingUAVBinds.boundUavs.size() < info.slot + 1) {
+                mPendingUAVBinds.boundUavs.resize(info.slot + 1);
+            }
+            mPendingUAVBinds.boundUavs[info.slot] = info.view;
+        }
+
+        void D3DCommandBuffer::SetRasterPipeline(RasterPipeline pipeline) {
+            auto* pipe = eastl::bit_cast<D3DRasterPipeline*>(pipeline);
+            mCurrentRasterPipeline = pipe;
+            mCommandList->SetPipelineState(pipe->mPipelineState.Get());
+            mCommandList->IASetPrimitiveTopology(pipe->mTopology);
+            mInvalidatedVertexBufferBindings.clear();
+            u32 slot = 0;
+            for (UINT stride : pipe->mVertexBufferStrides) {
+                if (stride == 0)
+                    continue;
+                mInvalidatedVertexBufferBindings.emplace(slot);
+            }
+            for (UINT i = 0; i < pipe->mEmulatedSpecialisationConstants.size(); ++i) {
+                if (pipe->mEmulatedSpecialisationConstants[i]) {
+                    mCommandList->SetGraphicsRootConstantBufferView(i + 1 /*match the root params in the signature*/,
+                        pipe->mEmulatedSpecialisationConstants[i]->GetGPUVirtualAddress());
+                }
+            }
+            bIsComputePipeline = false;
+            if (bBlitImageState) {
+                mCommandList->SetGraphicsRootSignature(mDevice->mRootSignature.Get());
+                eastl::array<ID3D12DescriptorHeap* const, 2u> descriptorHeaps{
+                    mDevice->mDefaultUAVDescriptorTable.mHeap.Get(),
+                    mDevice->ResourcePool().mSamplerHeap.InternalHeap()
+                };
+                mComputeLastBoundUAVDescriptorTable = mDevice->mDefaultUAVDescriptorTable;
+                mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
+                bBlitImageState = false;
+            }
+        }
+
+        void D3DCommandBuffer::SetComputePipeline(ComputePipeline pipeline) {
+            auto* pipe = eastl::bit_cast<D3DComputePipeline*>(pipeline);
+            mCommandList->SetPipelineState(pipe->mPipelineState.Get());
+            if (pipe->mEmulatedSpecialisationConstant) {
+                mCommandList->SetComputeRootConstantBufferView(1 /*match the root params in the signature*/,
+                    pipe->mEmulatedSpecialisationConstant->GetGPUVirtualAddress());
+            }
+            bIsComputePipeline = true;
+        }
+        void D3DCommandBuffer::SetViewport(const ViewportInfo& info) {
+            D3D12_VIEWPORT viewport{
+                .TopLeftX = info.x,
+                .TopLeftY = info.y,
+                .Width = info.width,
+                .Height = info.height,
+                .MinDepth = info.minDepth,
+                .MaxDepth = info.maxDepth,
+            };
+            mCommandList->RSSetViewports(1, &viewport);
+        }
+
+        void D3DCommandBuffer::SetScissor(const Rect2D& info) {
+            D3D12_RECT renderArea = ToD3D12Rect(info);
+            mCommandList->RSSetScissorRects(1, &renderArea);
+        }
+
+        void D3DCommandBuffer::SetVertexBuffer(const SetVertexBufferInfo& info) {
+            // Due to how D3D12 requires the stride to be provided when binding a vertex buffer,
+            // and our design only provides this in the pipeline level, we need to defer the binding
+            // until we know what state we are in
+            if (mPendingVertexBufferBinds.size() < (info.slot + 1)) {
+                mPendingVertexBufferBinds.resize(info.slot + 1);
+            }
+            const auto& bufferInfo = mDevice->ResourcePool().Get(info.buffer);
+
+            mPendingVertexBufferBinds[info.slot].BufferLocation = bufferInfo.resource->GetGPUVirtualAddress() + info.offset;
+            mPendingVertexBufferBinds[info.slot].SizeInBytes = static_cast<u32>(eastl::min(bufferInfo.info.size - info.offset, static_cast<u64>(UINT32_MAX)));
+            mInvalidatedVertexBufferBindings.emplace(info.slot);
+        }
+
+        void D3DCommandBuffer::SetIndexBuffer(const SetIndexBufferInfo& info) {
+            D3D12_INDEX_BUFFER_VIEW view{};
+            switch (info.indexType) {
+            case IndexType::Uint32:
+                view.Format = DXGI_FORMAT_R32_UINT;
+                break;
+            case IndexType::Uint16:
+                view.Format = DXGI_FORMAT_R16_UINT;
+                break;
+                // TODO: is UINT8 actually supported in d3d12?
+            case IndexType::Uint8:
+                view.Format = DXGI_FORMAT_R8_UINT;
+                break;
+            }
+            const auto& bufferInfo = mDevice->ResourcePool().Get(info.buffer);
+            view.BufferLocation = bufferInfo.resource->GetGPUVirtualAddress() + info.offset;
+            view.SizeInBytes = static_cast<u32>(eastl::min(bufferInfo.info.size - info.offset, static_cast<u64>(UINT32_MAX)));
+            mCommandList->IASetIndexBuffer(&view);
+        }
+
+        void D3DCommandBuffer::Draw(const DrawInfo& info) {
+            FlushPendingUnorderedAccessViewBinds();
+            FlushPendingVertexBufferBinds();
+            mCommandList->DrawInstanced(info.vertexCount, info.instanceCount, info.firstVertex, info.firstInstance);
+        }
+
+        void D3DCommandBuffer::DrawIndexed(const DrawIndexedInfo& info) {
+            FlushPendingUnorderedAccessViewBinds();
+            FlushPendingVertexBufferBinds();
+            mCommandList->DrawIndexedInstanced(info.indexCount, info.instanceCount, info.firstIndex, info.vertexOffset, info.firstInstance);
+        }
+
+        void D3DCommandBuffer::DrawIndirect(const DrawIndirectInfo& info) {
+            FlushPendingUnorderedAccessViewBinds();
+            FlushPendingVertexBufferBinds();
+            ID3D12CommandSignature* signature = mDevice->GetDrawCommandSignature();
+            ID3D12Resource* resource = mDevice->ResourcePool().Get(info.indirectBuffer).resource.Get();
+            for (UINT64 i = 0; i < info.drawCount; ++i) {
+                mCommandList->SetGraphicsRoot32BitConstant(17, static_cast<UINT>(i), 0);
+                mCommandList->ExecuteIndirect(signature,
+                    1, resource,
+                    info.indirectBufferOffset + i * info.drawCommandStride, nullptr, 0);
+            } 
+            // set back to 0
+            if (info.drawCount > 1) {
+                mCommandList->SetGraphicsRoot32BitConstant(17, 0, 0);
+            }
+        }
+
+        void D3DCommandBuffer::DrawIndexedIndirect(const DrawIndexedIndirectInfo& info) {
+            FlushPendingUnorderedAccessViewBinds();
+            FlushPendingVertexBufferBinds();
+            ID3D12CommandSignature* signature = mDevice->GetDrawIndexedCommandSignature();
+            ID3D12Resource* resource = mDevice->ResourcePool().Get(info.indirectBuffer).resource.Get();
+            for (UINT64 i = 0; i < info.drawCount; ++i) {
+                mCommandList->SetGraphicsRoot32BitConstant(17, static_cast<UINT>(i), 0);
+                mCommandList->ExecuteIndirect(signature,
+                    1, resource,
+                    info.indirectBufferOffset + i * info.drawCommandStride, nullptr, 0);
+            }
+            // set back to 0
+            if (info.drawCount > 1) {
+                mCommandList->SetGraphicsRoot32BitConstant(17, 0, 0);
+            }
+        }
+
+        void D3DCommandBuffer::Dispatch(const DispatchInfo& info) {
+            FlushPendingUnorderedAccessViewBinds();
+            mCommandList->Dispatch(info.x, info.y, info.z);
+        }
+
+        void D3DCommandBuffer::DispatchIndirect(const DispatchIndirectInfo& info) {
+            FlushPendingUnorderedAccessViewBinds();
+            ID3D12CommandSignature* signature = mDevice->GetDispatchCommandSignature();
+            mCommandList->ExecuteIndirect(signature,
+                1, mDevice->ResourcePool().Get(info.indirectBuffer).resource.Get(), info.indirectBufferOffset, nullptr, 0);
+        }
+
+        void D3DCommandBuffer::Complete() {
+            CheckD3DResult(mCommandList->Close());
+            mCurrentRasterPipeline = nullptr;
+            mInvalidatedVertexBufferBindings.clear();
+            mPendingVertexBufferBinds.clear();
+            mPendingUAVBinds = {};
+            mComputeLastBoundUAVDescriptorTable = {};
+            mGraphicsLastBoundUAVDescriptorTable = {};
+            mRenderPassResolves.clear();
+            if (mCurrentLinearUploadBuffer) {
+                mPendingReturnLinearUploadBuffers.push_back(mCurrentLinearUploadBuffer);
+                mCurrentLinearUploadBuffer = nullptr;
+            }
+        }
+
+        void D3DCommandBuffer::FlushPendingVertexBufferBinds() {
+            if (mInvalidatedVertexBufferBindings.empty())
+                return;
+            for (u32 binding : mInvalidatedVertexBufferBindings) {
+                ASSERT(binding < mPendingVertexBufferBinds.size(), "Currently bound raster pipeline requires slot " + eastl::to_string(binding) + " to be bound, but it's not!");
+                mPendingVertexBufferBinds[binding].StrideInBytes = mCurrentRasterPipeline->mVertexBufferStrides[binding];
+                if (mPendingVertexBufferBinds[binding].StrideInBytes == 0)
+                    continue;
+                mCommandList->IASetVertexBuffers(binding, 1, &mPendingVertexBufferBinds[binding]);
+            }
+            mInvalidatedVertexBufferBindings.clear();
+        }
+        void D3DCommandBuffer::FlushPendingUnorderedAccessViewBinds() {
+            // HACK:
+            // This is the UGLIEST way to do dynamic descriptor table updates
+            // Right now we keep track of a list of UAVs to be bound, and then last minute copy the entire bindless array
+            // To a new descriptor heap (or reuse if it's been cached already) and then bind it.
+            auto descriptorTable = mDevice->GetUnorderedAccessViewDescriptorTable(mPendingUAVBinds);
+
+            eastl::array<ID3D12DescriptorHeap* const, 2u> descriptorHeaps{
+                descriptorTable.mHeap.Get(),
+                mDevice->ResourcePool().mSamplerHeap.InternalHeap()
+            };
+            if (bIsComputePipeline) {
+                if (descriptorTable == mComputeLastBoundUAVDescriptorTable)
+                    return;
+                mComputeLastBoundUAVDescriptorTable = descriptorTable;
+
+                mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
+                mCommandList->SetComputeRootDescriptorTable(14, descriptorTable.gpuDescriptor);
+                mCommandList->SetComputeRootDescriptorTable(16, descriptorTable.gpuDescriptor);
+            } else {
+                if (descriptorTable == mGraphicsLastBoundUAVDescriptorTable)
+                    return;
+                mGraphicsLastBoundUAVDescriptorTable = descriptorTable;
+                mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
+                mCommandList->SetGraphicsRootDescriptorTable(14, descriptorTable.gpuDescriptor);
+                mCommandList->SetGraphicsRootDescriptorTable(16, descriptorTable.gpuDescriptor);
+            }
+        }
+    } // namespace RHIDX12
+} // namespace PyroshockStudios

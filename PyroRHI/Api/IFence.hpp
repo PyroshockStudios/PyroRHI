@@ -1,0 +1,66 @@
+#pragma once
+#include <EASTL/string.h>
+
+#include <PyroRHI/Core.hpp>
+#include <PyroCommon/Core.hpp>
+#include <PyroRHI/Api/Forward.hpp>
+
+namespace PyroshockStudios {
+    inline namespace RHI {
+        /**
+         * @brief Parameters used to create a fence.
+         */
+        struct FenceInfo {
+            /// @brief Initial fence value. Default is 0.
+            u64 initialValue = {};
+
+            /// @brief Optional human-readable name for debugging/profiling.
+            eastl::string name = {};
+
+            PYRO_NODISCARD  bool operator==(const FenceInfo&) const = default;
+            PYRO_NODISCARD  bool operator!=(const FenceInfo&) const = default;
+        };
+
+        /**
+         * @brief GPU fence interface.
+         *
+         * Used to synchronize GPU and CPU operations.
+         */
+        struct IFence {
+            IFence() = default;
+
+            /**
+             * @brief Get the description for this fence.
+             */
+            PYRO_NODISCARD virtual const FenceInfo& Info() const = 0;
+
+            /**
+             * @brief Get the current fence value.
+             *
+             * @return u64 Current value of the fence.
+             */
+            PYRO_NODISCARD virtual u64 Value() const = 0;
+
+            /**
+             * @brief Update the fence value.
+             *
+             * @param value New value to set.
+             */
+            virtual void SetValue(u64 value) = 0;
+
+            /**
+             * @brief Wait for the fence to reach at least the given value.
+             *
+             * @param value Value to wait for.
+             * @param timeoutNs Maximum wait time in nanoseconds (default infinite).
+             * @return true if the fence reached the value within the timeout.
+             * @note A timeout of infinity is not recommended, as GPU hang can be indefinite.
+             */
+            PYRO_NODISCARD virtual bool WaitForValue(u64 value, u64 timeoutNs = ~u64(0)) = 0;
+
+        protected:
+            virtual ~IFence() = default;
+            friend class IDevice;
+        };
+    } // namespace RHI
+} // namespace PyroshockStudios

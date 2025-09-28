@@ -1,0 +1,178 @@
+#include "D3DContext.hpp"
+#include <EASTL/vector.h>
+#include <RHIDX12/Api/Device.hpp>
+#include <PyroRHI/Shader/IShaderFeatureSet.hpp>
+#include <iostream>
+#include <wrl.h>
+
+PFN_BeginEventOnCommandList gPixBeginEventOnCommandListFn = nullptr;
+PFN_EndEventOnCommandList gPixEndEventOnCommandListFn = nullptr;
+PFN_SetMarkerOnCommandList gPixSetMarkerOnCommandListFn = nullptr;
+
+namespace PyroshockStudios::RHIDX12 {
+    using namespace ::Microsoft::WRL;
+    D3DContext::D3DContext(const D3DContextArgs& args) {
+        mPixRuntimeDll = LoadLibraryA("WinPixEventRuntime.dll");
+        if (mPixRuntimeDll) {
+            gPixBeginEventOnCommandListFn = (PFN_BeginEventOnCommandList)GetProcAddress(mPixRuntimeDll, "PIXBeginEventOnCommandList");
+            gPixEndEventOnCommandListFn = (PFN_EndEventOnCommandList)GetProcAddress(mPixRuntimeDll, "PIXEndEventOnCommandList");
+            gPixSetMarkerOnCommandListFn = (PFN_SetMarkerOnCommandList)GetProcAddress(mPixRuntimeDll, "PIXSetMarkerOnCommandList");
+        }
+
+        UINT dxgiFactoryFlags = 0;
+        if (args.bDebug) {
+            ComPtr<ID3D12Debug> debugController;
+            if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
+                debugController->EnableDebugLayer();
+
+                // Enable additional debug layers.
+                dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+            }
+        }
+
+        ComPtr<IDXGIFactory4> factory;
+        CheckD3DResult(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
+        D3DSetDebugName(factory, "DXGI Factory 4");
+
+        ComPtr<IDXGIAdapter1> hardwareAdapter;
+        GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+        D3DSetDebugName(hardwareAdapter, "HW Adaptor");
+        ComPtr<ID3D12Device> device;
+        CheckD3DResult(D3D12CreateDevice(
+            hardwareAdapter.Get(),
+            D3D_FEATURE_LEVEL_11_0,
+            IID_PPV_ARGS(&device)));
+        D3DSetDebugName(device, "D3D12 Device (Feature level 11_0)");
+
+        ComPtr<ID3D12InfoQueue> infoQueue;
+        if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
+            D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO, D3D12_MESSAGE_SEVERITY_WARNING };
+            // Suprress the following
+            D3D12_MESSAGE_ID denyIds[] = {
+                // D3D12 WARNING: ID3D12CommandList::ClearRenderTargetView: The clear values do not match those passed to resource creation.
+                D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+                // D3D12 WARNING: ID3D12CommandList::ClearDepthStencilView: The clear values do not match those passed to resource creation.
+                D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+            };
+
+            D3D12_INFO_QUEUE_FILTER filter = {};
+            filter.DenyList.NumIDs = _countof(denyIds);
+            filter.DenyList.pIDList = denyIds;
+
+            infoQueue->AddStorageFilterEntries(&filter);
+        }
+        mDevice = new D3DDevice(eastl::move(device), eastl::move(factory));
+    }
+    D3DContext::~D3DContext() {
+        if (mPixRuntimeDll) {
+            FreeLibrary(mPixRuntimeDll);
+        }
+        delete mDevice;
+    }
+
+    void D3DContext::GetHardwareAdapter(
+        IDXGIFactory1* pFactory,
+        IDXGIAdapter1** ppAdapter,
+        i32 deviceIndex) {
+        *ppAdapter = nullptr;
+
+        ComPtr<IDXGIAdapter1> adapter;
+
+        ComPtr<IDXGIFactory6> factory6;
+        if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6)))) {
+            for (
+                UINT adapterIndex = 0;
+                SUCCEEDED(factory6->EnumAdapterByGpuPreference(
+                    adapterIndex,
+                    deviceIndex == -1 ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
+                    IID_PPV_ARGS(&adapter)));
+                ++adapterIndex) {
+                DXGI_ADAPTER_DESC1 desc;
+                adapter->GetDesc1(&desc);
+
+                // if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
+                //     // Don't select the Basic Render Driver adapter.
+                //     // If you want a software adapter, pass in "/warp" on the command line.
+                //     continue;
+                // }
+
+                // Check to see whether the adapter supports Direct3D 12, but don't create the
+                // actual device yet.
+                if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr))) {
+                    break;
+                }
+            }
+        }
+
+        if (adapter.Get() == nullptr) {
+            for (UINT adapterIndex = 0; SUCCEEDED(pFactory->EnumAdapters1(adapterIndex, &adapter)); ++adapterIndex) {
+                DXGI_ADAPTER_DESC1 desc;
+                adapter->GetDesc1(&desc);
+
+                if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
+                    // Don't select the Basic Render Driver adapter.
+                    // If you want a software adapter, pass in "/warp" on the command line.
+                    continue;
+                }
+
+                // Check to see whether the adapter supports Direct3D 12, but don't create the
+                // actual device yet.
+                if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr))) {
+                    break;
+                }
+            }
+        }
+
+        *ppAdapter = adapter.Detach();
+    }
+    IDevice* D3DContext::CreateDevice() {
+        return mDevice;
+    }
+
+    const RHIProperties& D3DContext::Properties() {
+        const static RHIProperties set{
+            .bBufferDeviceAddress = false,
+            .bScalarLayout = true,
+            .bDrawIndirectCount = true,
+            .bUint8IndexBuffer = false,
+            .viewportConvention = RHIViewportConvention::LeftHanded_OriginBottomLeft,
+            .bufferImageRowAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT,
+        };
+        return set;
+    }
+
+    IShaderFeatureSet* D3DContext::ShaderFeatureSet() {
+        struct ShaderFeatureSetD3D12 : public IShaderFeatureSet {
+            ShaderFeatureSetD3D12() = default;
+            ShaderCompileTarget GetTarget() const override {
+                return ShaderCompileTarget::Dxbc;
+            }
+            const char* GetProfileName(ShaderStage shaderStage) const override {
+                return "sm5_1";
+            }
+            const char* GetFileExtension() const override {
+                return "cso";
+            }
+            const ShaderFeatureInfo& Features() const override {
+                static auto features = ShaderFeatureInfo{
+                    .bDescriptorIndexing = true,
+                    .bBufferDeviceAddress = false,
+                    .bScalarLayout = true,
+                    .bDrawParameters = false,
+                    .bGLSL = false,
+                };
+                return features;
+            }
+            const eastl::span<eastl::pair<const char*, const char*>>& GlobalPreprocessorDefines() const override {
+                static eastl::vector<eastl::pair<const char*, const char*>> preprocesor = {
+                    { "PYRO_SHADER_FLAG_RHI_D3D12", "1" }
+                };
+                static auto span = eastl::span(preprocesor.data(), preprocesor.size());
+                return span;
+            }
+        };
+        // for now
+        static ShaderFeatureSetD3D12 stub{};
+        return &stub;
+    }
+}

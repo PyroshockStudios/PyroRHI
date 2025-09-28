@@ -1,0 +1,415 @@
+#pragma once
+#include <PyroCommon/Core.hpp>
+
+#include "GPUResource.hpp"
+#include "ICommandBuffer.hpp"
+#include "ICommandQueue.hpp"
+#include "IFence.hpp"
+#include "ISwapChain.hpp"
+#include "Pipeline.hpp"
+#include "Semaphore.hpp"
+#include "Sync.hpp"
+
+#include "RenderTarget.hpp"
+
+#include <EASTL/span.h>
+
+namespace PyroshockStudios {
+    inline namespace RHI {
+        // TODO: maybe it's better to refactor this and split it into DeviceStatistics or something?
+        struct DeviceInfo {
+            usize numAllocations = {};
+            usize numAllocatedBytes = {};
+            eastl::string name = {};
+            eastl::string vendor = {};
+            u32 driverVersion = {};
+
+            PYRO_NODISCARD  bool operator==(const DeviceInfo&) const = default;
+            PYRO_NODISCARD  bool operator!=(const DeviceInfo&) const = default;
+        };
+
+        /**
+         * @brief Describes the limits of the device.
+         */
+        struct DeviceLimitsInfo {
+            RasterizationSamples maxRenderTargetSamples = RasterizationSamples::e1;
+            RasterizationSamples maxShaderResourceImageSamples = RasterizationSamples::e1;
+
+            PYRO_NODISCARD  bool operator==(const DeviceLimitsInfo&) const = default;
+            PYRO_NODISCARD  bool operator!=(const DeviceLimitsInfo&) const = default;
+        };
+
+        /**
+         * Parameters for submitting a command queue.
+         */
+        struct CommandQueueSubmitInfo {
+            /**
+             * @brief the command queue to submit. *MUST* be non-null;
+             */
+            ICommandQueue* queue = nullptr;
+            /**
+             * @brief Semaphores to signal, if applicable
+             */
+            eastl::span<Semaphore> signalSemaphores = {};
+            /**
+             * @brief Pairs of fences to signal, with a value.
+             */
+            eastl::span<eastl::pair<IFence* /*fence*/, u64 /*wait index*/>> signalFences = {};
+
+            PYRO_NODISCARD  bool operator==(const CommandQueueSubmitInfo&) const = default;
+            PYRO_NODISCARD  bool operator!=(const CommandQueueSubmitInfo&) const = default;
+        };
+        /**
+         * Parameters for presenting the swap chains inside of a command queue.
+         */
+        struct CommandQueuePresentInfo {
+            /**
+             * @brief the command queue to present. *MUST* be non-null;
+             */
+            ICommandQueue* queue = nullptr;
+            /**
+             * @brief Semaphores that the present operation must wait on, if applicable
+             */
+            eastl::span<Semaphore> waitSemaphores = {};
+
+            PYRO_NODISCARD  bool operator==(const CommandQueuePresentInfo&) const = default;
+            PYRO_NODISCARD  bool operator!=(const CommandQueuePresentInfo&) const = default;
+        };
+
+        /**
+         * @brief Interface for GPU device operations and resource management.
+         *
+         * Provides methods for creating, querying, and destroying GPU resources,
+         * as well as for submitting commands and synchronising workloads.
+         */
+        struct IDevice {
+            IDevice() = default;
+            virtual ~IDevice() = default;
+
+            // ---------------------------------------------------------------------
+            // Validation
+            // ---------------------------------------------------------------------
+
+            /**
+             * @brief Check whether a buffer handle is valid.
+             */
+            PYRO_NODISCARD virtual bool IsBufferValid(Buffer handle) const = 0;
+
+            /**
+             * @brief Check whether an image handle is valid.
+             */
+            PYRO_NODISCARD virtual bool IsImageValid(Image handle) const = 0;
+
+            /**
+             * @brief Check whether a shader resource handle is valid.
+             */
+            PYRO_NODISCARD virtual bool IsShaderResourceValid(ShaderResourceId id) const = 0;
+
+            /**
+             * @brief Check whether an unordered access view (UAV) handle is valid.
+             */
+            PYRO_NODISCARD virtual bool IsUnorderedAccessValid(UnorderedAccessId id) const = 0;
+
+            /**
+             * @brief Check whether a sampler handle is valid.
+             */
+            PYRO_NODISCARD virtual bool IsSamplerValid(SamplerId id) const = 0;
+
+            // Convenience overloads
+            PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(Buffer handle) const { return IsBufferValid(handle); }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(Image handle) const { return IsImageValid(handle); }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(ShaderResourceId id) const { return IsShaderResourceValid(id); }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(UnorderedAccessId id) const { return IsUnorderedAccessValid(id); }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(SamplerId id) const { return IsSamplerValid(id); }
+
+            // ---------------------------------------------------------------------
+            // Resource Info Queries
+            // ---------------------------------------------------------------------
+
+            /**
+             * @brief Retrieves device memory description.
+             */
+            PYRO_NODISCARD virtual const DeviceMemoryInfo& GetDeviceMemoryInfo(DeviceMemory memory) const = 0;
+
+            /**
+             * @brief Retrieves buffer description.
+             */
+            PYRO_NODISCARD virtual const BufferInfo& GetBufferInfo(Buffer buffer) const = 0;
+
+            /**
+             * @brief Retrieves image description.
+             */
+            PYRO_NODISCARD virtual const ImageInfo& GetImageInfo(Image image) const = 0;
+
+            /**
+             * @brief Retrieves shader resource view description.
+             */
+            PYRO_NODISCARD virtual const GPUResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const = 0;
+
+            /**
+             * @brief Retrieves unordered access view description.
+             */
+            PYRO_NODISCARD virtual const GPUResourceInfo& GetUnorderedAccessInfo(UnorderedAccessId id) const = 0;
+
+            /**
+             * @brief Retrieves sampler description.
+             */
+            PYRO_NODISCARD virtual const SamplerInfo& GetSamplerInfo(SamplerId id) const = 0;
+
+            /**
+             * @brief Retrieves render target description.
+             */
+            PYRO_NODISCARD virtual const RenderTargetInfo& GetRenderTargetInfo(RenderTarget renderTarget) const = 0;
+
+            /**
+             * @brief Retrieves raster pipeline object description.
+             */
+            PYRO_NODISCARD virtual const RasterPipelineInfo& GetRasterPipelineInfo(RasterPipeline pipeline) const = 0;
+
+            /**
+             * @brief Retrieves compute pipeline object description.
+             */
+            PYRO_NODISCARD virtual const ComputePipelineInfo& GetComputePipelineInfo(ComputePipeline pipeline) const = 0;
+
+            /**
+             * @brief Retrieves semaphore description.
+             */
+            PYRO_NODISCARD virtual const SemaphoreInfo& GetSemaphoreInfo(Semaphore semaphore) const = 0;
+
+
+            // ---------------------------------------------------------------------
+            // Memory Access
+            // ---------------------------------------------------------------------
+
+            /**
+             * @brief Returns the device (GPU) address of a buffer, if supported.
+             * This address may or may not be a valid address to use inside a shader, usage varies by API.
+             */
+            PYRO_NODISCARD virtual DeviceAddress BufferDeviceAddress(Buffer buffer) const = 0;
+
+            /**
+             * @brief Returns the host (CPU) mapped pointer for a buffer. This will not be a valid
+             * pointer if the buffer is not host visible.
+             */
+            PYRO_NODISCARD virtual u8* BufferHostAddress(Buffer buffer) const = 0;
+
+            /**
+             * @brief Returns the size requirements for an image resource.
+             */
+            PYRO_NODISCARD virtual DeviceSize ImageSizeRequirements(Image image) const = 0;
+
+            /**
+             * @brief Returns the host-mapped pointer for a buffer, cast to the requested type.
+             */
+            template <typename T>
+            PYRO_NODISCARD PYRO_FORCEINLINE T* BufferHostAddressAs(Buffer buffer) const {
+                return reinterpret_cast<T*>(BufferHostAddress(buffer));
+            }
+
+            // ---------------------------------------------------------------------
+            // Resource Creation
+            // ---------------------------------------------------------------------
+
+            /**
+             * @brief Creates a block of device memory with the specified parameters
+             */
+            PYRO_NODISCARD virtual DeviceMemory CreateDeviceMemory(const DeviceMemoryInfo& info) = 0;
+            /**
+             * @brief Creates a buffer with the specified parameters
+             * @note If the `memoryAllocation` is a valid handle, and the virtual allocation failed, then `PYRO_NULL_BUFFER` will be returned
+             */
+            PYRO_NODISCARD virtual Buffer CreateBuffer(const BufferInfo& info) = 0;
+            /**
+             * @brief Creates an image with the specified parameters
+             * @note If the `memoryAllocation` is a valid handle, and the virtual allocation failed, then `PYRO_NULL_IMAGE` will be returned
+             */
+            PYRO_NODISCARD virtual Image CreateImage(const ImageInfo& info) = 0;
+            /**
+             * @brief Creates a shader resource view with the specified parameters. ShaderResourceId::index is an index into
+             * the descriptor heap that can be used to index into a bindless heap in a shader.
+             */
+            PYRO_NODISCARD virtual ShaderResourceId CreateShaderResource(const GPUResourceInfo& info) = 0;
+            /**
+             * @brief Creates an unordered access view with the specified parameters. This handle must be bound
+             * and cannot be used for bindless shader indexing.
+             */
+            PYRO_NODISCARD virtual UnorderedAccessId CreateUnorderedAccess(const GPUResourceInfo& info) = 0;
+            /**
+             * @brief Creates a sampler with the specified parameters. SamplerId::index is an index into
+             * the descriptor heap that can be used to index into a bindless heap in a shader.
+             */
+            PYRO_NODISCARD virtual SamplerId CreateSampler(const SamplerInfo& info) = 0;
+
+            /**
+             * @brief Creates a render target view (either a colour target or depth-stencil) with the specified parameters
+             */
+            PYRO_NODISCARD virtual RenderTarget CreateRenderTarget(const RenderTargetInfo& info) = 0;
+            /**
+             * @brief Creates a raster pipeline with the specified parameters
+             */
+            PYRO_NODISCARD virtual RasterPipeline CreateRasterPipeline(const RasterPipelineInfo& info, const RasterPipelineShaderStages& rasterShaderStages) = 0;
+            /**
+             * @brief Creates a compute pipeline with the specified parameters
+             */
+            PYRO_NODISCARD virtual ComputePipeline CreateComputePipeline(const ComputePipelineInfo& info, const ShaderInfo& computeShaderInfo) = 0;
+            /**
+             * @brief Creates a swap chain with the specified parameters
+             */
+            PYRO_NODISCARD virtual ISwapChain* CreateSwapChain(const SwapChainInfo& info) = 0;
+            /**
+             * @brief Creates a semaphore with the specified parameters
+             */
+            PYRO_NODISCARD virtual Semaphore CreateSemaphore(const SemaphoreInfo& info) = 0;
+            /**
+             * @brief Creates a fence with the specified parameters
+             */
+            PYRO_NODISCARD virtual IFence* CreateFence(const FenceInfo& info) = 0;
+            PYRO_NODISCARD virtual IEvent* CreateEvent(const EventInfo& info) = 0;
+            PYRO_NODISCARD virtual ITimelineQueryPool* CreateTimelineQueryPool(const TimelineQueryPoolInfo& info) = 0;
+
+            /**
+             * @brief Retrives a newly available command buffer for recording commands.
+             */
+            PYRO_NODISCARD virtual ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) = 0;
+
+            // ---------------------------------------------------------------------
+            // Resource Destruction
+            // ---------------------------------------------------------------------
+
+            /**
+             * @brief Immediately destroys the device memory, and sets the handle to NULL
+             * @note Make sure all resources making use of this memory handle have been destroyed prior to this!
+             */
+            virtual void DestroyDeviceMemory(DeviceMemory& memory) = 0;
+            /**
+             * @brief Immediately destroys the buffer, and sets the handle to NULL
+             */
+            virtual void DestroyBuffer(Buffer& buffer) = 0;
+            /**
+             * @brief Immediately destroys the image, and sets the handle to NULL
+             */
+            virtual void DestroyImage(Image& image) = 0;
+            /**
+             * @brief Immediately destroys the shader resource view, and sets the handle to NULL
+             */
+            virtual void DestroyShaderResource(ShaderResourceId& srv) = 0;
+            /**
+             * @brief Immediately destroys the unordered access view, and sets the handle to NULL
+             */
+            virtual void DestroyUnorderedAccess(UnorderedAccessId& uav) = 0;
+            /**
+             * @brief Immediately destroys the sampler, and sets the handle to NULL
+             */
+            virtual void DestroySampler(SamplerId& sampler) = 0;
+
+            /**
+             * @brief Immediately destroys the render target, and sets the handle to NULL
+             */
+            virtual void DestroyRenderTarget(RenderTarget& renderTarget) = 0;
+            /**
+             * @brief Immediately destroys the raster pipeline, and sets the handle to NULL
+             */
+            virtual void DestroyRasterPipeline(RasterPipeline& pipeline) = 0;
+            /**
+             * @brief Immediately destroys the compute pipeline, and sets the handle to NULL
+             */
+            virtual void DestroyComputePipeline(ComputePipeline& pipeline) = 0;
+            /**
+             * @brief Immediately destroys the swap chain, and sets the handle to NULL
+             */
+            virtual void DestroySwapChain(ISwapChain*& swapChain) = 0;
+            /**
+             * @brief Immediately destroys the semaphore, and sets the handle to NULL
+             */
+            virtual void DestroySemaphore(Semaphore& semaphore) = 0;
+            /**
+             * @brief Immediately destroys the fence, and sets the handle to NULL
+             */
+            virtual void DestroyFence(IFence*& fence) = 0;
+
+            // Convenience overloads
+            PYRO_FORCEINLINE void Destroy(DeviceMemory& memory) { DestroyDeviceMemory(memory); }
+            PYRO_FORCEINLINE void Destroy(Buffer& buffer) { DestroyBuffer(buffer); }
+            PYRO_FORCEINLINE void Destroy(Image& image) { DestroyImage(image); }
+            PYRO_FORCEINLINE void Destroy(ShaderResourceId& srv) { DestroyShaderResource(srv); }
+            PYRO_FORCEINLINE void Destroy(UnorderedAccessId& uav) { DestroyUnorderedAccess(uav); }
+            PYRO_FORCEINLINE void Destroy(SamplerId& sampler) { DestroySampler(sampler); }
+
+            PYRO_FORCEINLINE void Destroy(RasterPipeline& pipeline) { DestroyRasterPipeline(pipeline); }
+            PYRO_FORCEINLINE void Destroy(ComputePipeline& pipeline) { DestroyComputePipeline(pipeline); }
+            PYRO_FORCEINLINE void Destroy(ISwapChain*& swapChain) { DestroySwapChain(swapChain); }
+            PYRO_FORCEINLINE void Destroy(RenderTarget& renderTarget) { DestroyRenderTarget(renderTarget); }
+            PYRO_FORCEINLINE void Destroy(Semaphore& semaphore) { DestroySemaphore(semaphore); }
+            PYRO_FORCEINLINE void Destroy(IFence*& fence) { DestroyFence(fence); }
+            PYRO_FORCEINLINE void Destroy(IEvent*& event) { throw "TODO"; }
+            PYRO_FORCEINLINE void Destroy(ITimelineQueryPool*& queryPool) { throw "TODO"; }
+
+            // ---------------------------------------------------------------------
+            // Support Queries
+            // ---------------------------------------------------------------------
+
+            /**
+             * @brief Selects the first supported format from a list of candidates.
+             */
+            PYRO_NODISCARD virtual eastl::optional<Format> PickSupportedFormat(
+                const eastl::span<Format>& candidates,
+                FormatFeatureFlags features) = 0;
+
+            /**
+             * @brief Retrieves all available command queues.
+             */
+            PYRO_NODISCARD virtual eastl::span<ICommandQueue*> GetCommandQueues() = 0;
+
+            /**
+             * @brief Retrieves the present (display) command queue.
+             */
+            PYRO_NODISCARD virtual ICommandQueue* GetPresentQueue() = 0;
+
+            // ---------------------------------------------------------------------
+            // Submission & Synchronization
+            // ---------------------------------------------------------------------
+
+            /**
+             * @brief Blocks until the device has finished all queued work.
+             */
+            virtual void WaitIdle() = 0;
+
+            /**
+             * @brief Submits work to a command queue.
+             */
+            virtual void SubmitQueue(const CommandQueueSubmitInfo& info) = 0;
+
+            /**
+             * @brief Presents an image to the swapchain using the present queue.
+             */
+            virtual void PresentQueue(const CommandQueuePresentInfo& info) = 0;
+
+            // ---------------------------------------------------------------------
+            // Device Properties
+            // ---------------------------------------------------------------------
+
+            /**
+             * @brief Returns general device properties.
+             */
+            PYRO_NODISCARD virtual const DeviceInfo& GetInfo() = 0;
+
+            /**
+             * @brief Returns hardware limits and capabilities.
+             */
+            PYRO_NODISCARD virtual const DeviceLimitsInfo& GetLimits() = 0;
+
+            // Convenience create overloads
+            PYRO_NODISCARD PYRO_FORCEINLINE DeviceMemory Create(const DeviceMemoryInfo& info) { return CreateDeviceMemory(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE Buffer Create(const BufferInfo& info) { return CreateBuffer(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE Image Create(const ImageInfo& info) { return CreateImage(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE SamplerId Create(const SamplerInfo& info) { return CreateSampler(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE RasterPipeline Create(const RasterPipelineInfo& info, const RasterPipelineShaderStages& stages) { return CreateRasterPipeline(info, stages); }
+            PYRO_NODISCARD PYRO_FORCEINLINE ComputePipeline Create(const ComputePipelineInfo& info, const ShaderInfo& shader) { return CreateComputePipeline(info, shader); }
+            PYRO_NODISCARD PYRO_FORCEINLINE ISwapChain* Create(const SwapChainInfo& info) { return CreateSwapChain(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE RenderTarget Create(const RenderTargetInfo& info) { return CreateRenderTarget(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE Semaphore Create(const SemaphoreInfo& info) { return CreateSemaphore(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE IFence* Create(const FenceInfo& info) { return CreateFence(info); }
+        };
+
+    } // namespace RHI
+} // namespace PyroshockStudios

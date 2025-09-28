@@ -1,0 +1,13 @@
+# ==== RHI Backends ====
+option(PYRO_RHI_BUILD_VULKAN "Build Vulkan Backend" ON)
+if(WIN32)
+    option(PYRO_RHI_BUILD_DX12 "Build DirectX 12 Backend" ON)
+else()
+    # Ensure the option exists on non-Windows platforms (but default OFF)
+    set(PYRO_RHI_BUILD_DX12 OFF CACHE BOOL "Build DirectX 12 Backend (Windows only)" FORCE)
+endif()
+if(APPLE)
+    option(PYRO_RHI_BUILD_METAL "Build Metal Backend" ON)
+else()
+    set(PYRO_RHI_BUILD_METAL OFF CACHE BOOL "Build Metal Backend (Apple only)" FORCE)
+endif()
