@@ -3,7 +3,7 @@ file(GLOB_RECURSE ENDF6_SRC
       "${SH_SRC}/*.hpp")
 
 add_library(PyroRHI INTERFACE)
-add_library(Pyroshock::RHI ALIAS PyroRHI)
+add_library(PyroRHI::PyroRHI ALIAS PyroRHI)
 
 foreach(_source IN ITEMS ${ENDF6_SRC})
     get_filename_component(_source_path "${_source}" PATH)
