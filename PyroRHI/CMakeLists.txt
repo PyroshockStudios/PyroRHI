@@ -25,4 +25,4 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 
 target_compile_features(PyroRHI INTERFACE cxx_std_23)
 
-target_link_libraries(PyroRHI INTERFACE Pyroshock::Common)
+target_link_libraries(PyroRHI INTERFACE PyroCommon::PyroCommon)
