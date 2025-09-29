@@ -2,7 +2,7 @@ set(SH_SRC ${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB_RECURSE ENDF6_SRC
       "${SH_SRC}/*.hpp"
       "${SH_SRC}/*.cpp")
-
+message(STATUS "RHIVulkan sources: ${ENDF6_SRC}")
 add_library(RHIVulkan SHARED ${ENDF6_SRC})
 
 foreach(_source IN ITEMS ${ENDF6_SRC})
@@ -22,3 +22,6 @@ target_link_libraries(RHIVulkan PRIVATE
 xkbcommon
 )
 endif()
+
+add_custom_target(BuildPyroImplRHIVulkan ALL DEPENDS RHIVulkan)
+set_target_properties(BuildPyroImplRHIVulkan PROPERTIES FOLDER "PyroBuildRHI")
