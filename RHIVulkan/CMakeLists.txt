@@ -1,4 +1,4 @@
-set(SH_SRC ${CMAKE_SOURCE_DIR}/RHIVulkan)
+set(SH_SRC ${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB_RECURSE ENDF6_SRC
       "${SH_SRC}/*.hpp"
       "${SH_SRC}/*.cpp")
@@ -19,7 +19,6 @@ target_link_libraries(RHIVulkan PRIVATE PyroRHI::PyroRHI volk::volk VulkanMemory
 if (UNIX AND NOT APPLE) 
 # needed for surface creation
 target_link_libraries(RHIVulkan PRIVATE 
-wayland-client
 xkbcommon
 )
 endif()
