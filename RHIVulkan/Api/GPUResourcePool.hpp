@@ -22,14 +22,14 @@
 
 #pragma once
 
-// TODO: replace with EASTL
-#include <atomic>
 #include <cassert>
-#include <mutex>
-#include <shared_mutex>
 
 #include <EASTL/array.h>
-// #include <EASTL/atomic.h>
+#include <EASTL/atomic.h>
+#include <shared_mutex>
+#include <mutex>
+// TODO?
+//#include<EATHREAD / eathread_mutex.h>
 #include <EASTL/bit.h>
 #include <EASTL/optional.h>
 #include <EASTL/unique_ptr.h>
@@ -86,7 +86,7 @@ namespace PyroshockStudios {
             static constexpr inline usize PAGE_SIZE = 1u << PAGE_BITS;
             static constexpr inline usize PAGE_MASK = PAGE_SIZE - 1u;
             static constexpr inline usize PAGE_COUNT = MAX_RESOURCE_COUNT / PAGE_SIZE;
-            using VersionAndRefcntT = std::atomic_uint64_t;
+            using VersionAndRefcntT = eastl::atomic<u64>;
             static constexpr inline u64 VERSION_ZOMBIE_BIT = u64(1) << u64(63);
             static constexpr inline u64 VERSION_COUNT_MASK = ~(VERSION_ZOMBIE_BIT);
             using PageT = eastl::array<eastl::pair<ResourceT, VersionAndRefcntT>, PAGE_SIZE>;
@@ -98,7 +98,7 @@ namespace PyroshockStudios {
             std::mutex mPageAllocMtx = {};
             mutable std::mutex mUseAfterFreeChecMtx = {};
 
-            std::array<std::unique_ptr<PageT>, PAGE_COUNT> pages = {};
+            eastl::array<eastl::unique_ptr<PageT>, PAGE_COUNT> pages = {};
 
             void VerifyResourceId(GPUResourceId id) const {
                 usize page = id.index >> PAGE_BITS;
@@ -124,13 +124,13 @@ namespace PyroshockStudios {
                 usize offset = index & PAGE_MASK;
 
                 if (!pages[page]) {
-                    pages[page] = std::make_unique<PageT>();
+                    pages[page] = eastl::make_unique<PageT>();
                     for (u32 i = 0; i < PAGE_SIZE; ++i) {
                         pages[page]->at(i).second = 0; // set all version numbers to 0 (invalid)
                     }
                 }
 
-                pages[page]->at(offset).second = std::max<u8>(pages[page]->at(offset).second, 1); // make sure the version is at least one
+                pages[page]->at(offset).second = eastl::max<u8>(pages[page]->at(offset).second, 1); // make sure the version is at least one
 
                 u32 version = pages[page]->at(offset).second;
                 return { GPUResourceId{ .index = index, .version = version }, pages[page]->at(offset).first };
@@ -145,7 +145,7 @@ namespace PyroshockStudios {
                 assert(pages[page]->at(offset).second == id.version && "detected double delete for a resource id");
                 std::unique_lock page_alloc_lock{ mPageAllocMtx };
 
-                pages[page]->at(offset).second = std::max<u8>(pages[page]->at(offset).second + 1, 1); // the max is needed, as version = 0 is invalid
+                pages[page]->at(offset).second = eastl::max<u8>(pages[page]->at(offset).second + 1, 1); // the max is needed, as version = 0 is invalid
 
                 mFreeIndexStack.push_back(id.index);
             }

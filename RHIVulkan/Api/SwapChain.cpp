@@ -173,7 +173,6 @@ namespace PyroshockStudios::RHIVulkan {
 #elif PYRO_PLATFORM_MACOS
         VkMacOSSurfaceCreateInfoMVK createInfo{
             .sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK,
-            .flags = VK_MAC_OS,
             .pView = reinterpret_cast<void*>(mInfo.nativeWindow)
         };
         auto func = reinterpret_cast<PFN_vkCreateMacOSSurfaceMVK>(vkGetInstanceProcAddr(mDevice->Context()->GetVkInstance(), "vkCreateMacOSSurfaceMVK"));

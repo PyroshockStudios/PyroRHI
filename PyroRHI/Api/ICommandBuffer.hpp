@@ -278,7 +278,7 @@ namespace PyroshockStudios {
         };
 
         struct ResetEventInfo {
-            IEvent& event;
+            IEvent* event;
             PipelineStageFlags stage = {};
 
             PYRO_NODISCARD bool operator==(const ResetEventInfo&) const = default;
@@ -286,13 +286,13 @@ namespace PyroshockStudios {
         };
 
         struct WriteTimestampInfo {
-            ITimelineQueryPool& queryPool;
+            ITimelineQueryPool* queryPool;
             PipelineStageFlags stage = {};
             u32 queryIndex = {};
         };
 
         struct ResetTimestampsInfo {
-            ITimelineQueryPool& queryPool;
+            ITimelineQueryPool* queryPool;
             u32 firstIndex = {};
             u32 count = {};
         };
