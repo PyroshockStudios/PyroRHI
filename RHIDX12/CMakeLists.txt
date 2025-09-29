@@ -21,3 +21,6 @@ target_link_libraries(RHIDX12 PRIVATE
     comdlg32.lib advapi32.lib shell32.lib
     ole32.lib oleaut32.lib
 )
+
+add_custom_target(BuildPyroImplRHIDX12 ALL DEPENDS RHIDX12)
+set_target_properties(BuildPyroImplRHIDX12 PROPERTIES FOLDER "PyroBuildRHI")
