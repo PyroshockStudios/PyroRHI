@@ -27,13 +27,13 @@ add_subdirectory(vendor)
 
 add_subdirectory(PyroRHI)
 
-if (PYRO_RENDERER_BUILD_RHI_VULKAN)
+if (PYRO_RHI_BUILD_VULKAN)
 add_subdirectory(RHIVulkan)
 endif()
-if (PYRO_RENDERER_BUILD_RHI_DX12)
+if (PYRO_RHI_BUILD_DX12)
 add_subdirectory(RHIDX12)
 endif()
-if (PYRO_RENDERER_BUILD_RHI_METAL)
+if (PYRO_RHI_BUILD_METAL)
 add_subdirectory(RHIMetal)
 endif()
 
