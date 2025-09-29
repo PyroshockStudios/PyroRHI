@@ -34,7 +34,7 @@ if (PYRO_RHI_BUILD_DX12)
 add_subdirectory(RHIDX12)
 endif()
 if (PYRO_RHI_BUILD_METAL)
-add_subdirectory(RHIMetal)
+#add_subdirectory(RHIMetal)
 endif()
 
 
