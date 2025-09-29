@@ -21,13 +21,18 @@
 // SOFTWARE.
 
 #include "Core.hpp"
+#include <PyroCommon/Logger.hpp>
 #include <comdef.h>
 #include <libassert/assert.hpp>
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
+        const ILogStream* gDX12Sink = nullptr;
+
         void CheckD3DResult(HRESULT result) {
-            ASSERT(result == S_OK, ("Expected S_OK but found " + eastl::string(_com_error(result).ErrorMessage())).c_str());
+            if (result == S_OK)
+                return;
+            Logger::Fatal(gDX12Sink, "Direct3D 12 error! Expected S_OK but found '{}' ({})", _com_error(result).ErrorMessage(), reinterpret_cast<void*>(result));
         }
     } // namespace RHIDX12
 } // namespace PyroshockStudios

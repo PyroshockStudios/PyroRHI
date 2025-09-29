@@ -47,7 +47,7 @@ namespace PyroshockStudios {
                 D3D12_FEATURE_DATA_D3D12_OPTIONS options{};
                 mDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options));
                 if (options.ResourceBindingTier < 2) {
-                    Logger::Fatal("Insufficient resource binding tier! Minimum is resource binding tier 2!");
+                    Logger::Fatal(gDX12Sink, "Insufficient resource binding tier! Minimum is resource binding tier 2!");
                 }
             }
             {
@@ -956,7 +956,7 @@ namespace PyroshockStudios {
                 it->second.first = 0;
                 return it->second.second;
             }
-            Logger::Trace("[D3D12] Copying descriptor tables");
+            Logger::Trace(gDX12Sink, "[D3D12] Copying descriptor tables");
 
             DescriptorTableInfo tableInfo{};
             D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
@@ -1046,6 +1046,8 @@ namespace PyroshockStudios {
             eastl::string name = eastl::string("Blit image pipeline state DXGI format=") + eastl::to_string((UINT)format) + ", Array=" +
                                  (bArray ? "true" : "false");
             D3DSetDebugName(entry, name.c_str());
+
+            Logger::Trace(gDX12Sink, "[D3D12] Creating image blit pipeline state object");
 
             return entry.Get();
         }

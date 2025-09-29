@@ -74,6 +74,7 @@ namespace PyroshockStudios {
             u32 appVersion = {};
             u32 engineVersion = {};
             RHIOptionData options[PYRO_RHI_MAX_OPTIONS] = {};
+            const ILogStream* pLoggerSink = nullptr;
         };
 
         struct RHIContextApiInfo {

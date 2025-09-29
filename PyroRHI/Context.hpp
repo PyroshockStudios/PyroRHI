@@ -22,6 +22,7 @@
 
 #pragma once
 #include <PyroCommon/Core.hpp>
+#include <PyroCommon/LoggerInterface.hpp>
 #include <PyroRHI/Core.hpp>
 #include <PyroRHI/Api/Forward.hpp>
 #include <PyroRHI/Shader/Forward.hpp>
@@ -46,7 +47,7 @@ namespace PyroshockStudios {
             u32 bufferImageRowAlignment = 0;
         };
 
-        class RHIContext : DeleteCopy, DeleteMove {
+        class RHIContext : ILoggerAware, DeleteCopy, DeleteMove {
         public:
             RHIContext() {}
             virtual ~RHIContext() {}

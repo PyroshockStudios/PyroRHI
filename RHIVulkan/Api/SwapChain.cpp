@@ -91,7 +91,7 @@ namespace PyroshockStudios::RHIVulkan {
             }
         }
         if (finalFormat.format == VK_FORMAT_UNDEFINED) {
-            Logger::Fatal("SwapChain format is not available!");
+            Logger::Fatal(gVulkanSink, "SwapChain format is not available!");
         }
         mInfo.extent = { mSupportInfo.capabilities.currentExtent.width, mSupportInfo.capabilities.currentExtent.height };
         TrySetPresentMode(info.presentMode);
@@ -121,7 +121,7 @@ namespace PyroshockStudios::RHIVulkan {
             mImageAcquireSemaphores[mImageAcquireIndex],
             VK_NULL_HANDLE,
             &mImageIndex);
-        return result == VK_SUCCESS ? GetBackBuffer(mImageIndex) : Image{};
+        return result == VK_SUCCESS ? GetBackBuffer(mImageIndex) : PYRO_NULL_IMAGE;
     }
 
     void VulkanSwapChain::Resize() {

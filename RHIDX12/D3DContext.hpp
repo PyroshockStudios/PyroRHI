@@ -33,7 +33,7 @@ namespace PyroshockStudios {
         };
         class D3DContext : public RHIContext {
         public:
-            D3DContext(const D3DContextArgs& args);
+            D3DContext(const D3DContextArgs& args, const ILogStream* logSink);
             ~D3DContext();
             void GetHardwareAdapter(
                 IDXGIFactory1* pFactory,
@@ -43,6 +43,7 @@ namespace PyroshockStudios {
             const RHIProperties& Properties() override;
             IShaderFeatureSet* ShaderFeatureSet() override;
 
+            void InjectLogger(const ILogStream* stream) override;
         private:
             D3DDevice* mDevice = nullptr;
             HMODULE mPixRuntimeDll = {};

@@ -75,20 +75,20 @@ PYRO_EXPORT void PYRO_CDECL CreateRHIContext(const RHICreateInfo* pCreateInfo, R
 
         switch (option.optionIndex) {
         case eValidation:
-            Logger::Trace("RHI load option: Enabled validation layers");
+            Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Enabled validation layers");
             contextArgs.bEnableValidation = true;
             break;
         case eDevice:
-            Logger::Trace("RHI load option: Chose physical device index {}", option.intValue);
+            Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Chose physical device index {}", option.intValue);
             contextArgs.preferredPhysicalDevice = option.intValue;
             break;
         default:
-            Logger::Trace("Invalid RHI load option ignored!");
+            Logger::Warn(pCreateInfo->pLoggerSink, "Invalid RHI load option ignored");
             break;
         }
     }
 
-    pApi->loadedContext = new VulkanContext(contextArgs);
+    pApi->loadedContext = new VulkanContext(contextArgs, pCreateInfo->pLoggerSink);
 }
 PYRO_EXPORT void PYRO_CDECL DestroyRHIContext(RHIContextApiInfo* pApi) {
     VulkanContext* ctx = static_cast<VulkanContext*>(pApi->loadedContext);

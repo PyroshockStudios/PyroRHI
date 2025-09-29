@@ -38,7 +38,7 @@ namespace PyroshockStudios {
         };
         class VulkanContext : public RHIContext {
         public:
-            VulkanContext(const VulkanContextArgs& args);
+            VulkanContext(const VulkanContextArgs& args, const ILogStream* logSink);
             ~VulkanContext();
 
             IDevice* CreateDevice() override;
@@ -51,6 +51,8 @@ namespace PyroshockStudios {
             VkInstance GetVkInstance() {
                 return mInstance;
             }
+
+            void InjectLogger(const ILogStream* stream) override;
 
         private:
             void CreateAllocationCallbacks();

@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "GPUResourcePool.hpp"
+#include <PyroCommon/Logger.hpp>
 #include <PyroRHI/Api/ICommandBuffer.hpp>
 #include <format>
 #include <libassert/assert.hpp>
@@ -159,8 +160,8 @@ namespace PyroshockStudios {
         }
 
         void GPUShaderResourceTable::Cleanup(VkDevice device, const VkAllocationCallbacks* allocator) {
-            [[maybe_unused]] auto printRemaining = [&](std::string prefix, auto& pages) {
-                std::string ret{ prefix + "\nthis can happen due to not waiting for the gpu to finish executing, as Shockwave defers destruction. List of survivors:\n" };
+            [[maybe_unused]] auto printRemaining = [&](eastl::string prefix, auto& pages) {
+                eastl::string ret{ prefix + "\nthis can happen due to not waiting for the gpu to finish executing, as the renderer may defer destruction. List of survivors:\n" };
                 for (auto& page : pages) {
                     if (page) {
                         for (auto& slot : *page) {
@@ -175,13 +176,13 @@ namespace PyroshockStudios {
                                 handleInvalid = slot.first.vkSampler == VK_NULL_HANDLE;
                             }
                             if (!handleInvalid) {
-                                ret += "debug name : \"" + std::string(slot.first.info.name.c_str()) + "\"";
+                                ret += "debug name : \"" + slot.first.info.name + "\"";
                                 ret += "\n";
                             }
                         }
                     }
                 }
-                return ret;
+                Logger::Warn(gVulkanSink, ret);
             };
 
             if (mBufferSlots.mFreeIndexStack.size() != mBufferSlots.mNextIndex - 1) {
@@ -416,5 +417,5 @@ namespace PyroshockStudios {
                 CheckVkResult(result);
             }
         }
-    }
-}
+    } // namespace RHIVulkan
+} // namespace PyroshockStudios

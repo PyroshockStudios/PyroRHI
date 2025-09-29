@@ -26,6 +26,7 @@
 #include <directx/d3dx12.h>
 
 #include <PyroCommon/Core.hpp>
+#include <PyroCommon/LoggerInterface.hpp>
 #include <PyroRHI/Api/Util.hpp>
 
 #include <Windows.h>
@@ -50,6 +51,7 @@ extern PFN_SetMarkerOnCommandList gPixSetMarkerOnCommandListFn;
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
+        extern const ILogStream* gDX12Sink;
 
 #define D3DSetDebugName(interf, str)                                                                \
     do {                                                                                            \

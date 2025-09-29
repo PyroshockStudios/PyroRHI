@@ -24,6 +24,7 @@
 #include <EASTL/vector.h>
 #include <RHIDX12/Api/Device.hpp>
 #include <PyroRHI/Shader/IShaderFeatureSet.hpp>
+#include <PyroCommon/Logger.hpp>
 #include <iostream>
 #include <wrl.h>
 
@@ -33,12 +34,15 @@ PFN_SetMarkerOnCommandList gPixSetMarkerOnCommandListFn = nullptr;
 
 namespace PyroshockStudios::RHIDX12 {
     using namespace ::Microsoft::WRL;
-    D3DContext::D3DContext(const D3DContextArgs& args) {
+    D3DContext::D3DContext(const D3DContextArgs& args, const ILogStream* logSink) {
+        D3DContext::InjectLogger(logSink);
         mPixRuntimeDll = LoadLibraryA("WinPixEventRuntime.dll");
         if (mPixRuntimeDll) {
             gPixBeginEventOnCommandListFn = (PFN_BeginEventOnCommandList)GetProcAddress(mPixRuntimeDll, "PIXBeginEventOnCommandList");
             gPixEndEventOnCommandListFn = (PFN_EndEventOnCommandList)GetProcAddress(mPixRuntimeDll, "PIXEndEventOnCommandList");
             gPixSetMarkerOnCommandListFn = (PFN_SetMarkerOnCommandList)GetProcAddress(mPixRuntimeDll, "PIXSetMarkerOnCommandList");
+
+            Logger::Info(gDX12Sink, "Found PIX Debugger");
         }
 
         UINT dxgiFactoryFlags = 0;
@@ -196,5 +200,8 @@ namespace PyroshockStudios::RHIDX12 {
         // for now
         static ShaderFeatureSetD3D12 stub{};
         return &stub;
+    }
+    void D3DContext::InjectLogger(const ILogStream* stream) {
+        gDX12Sink = stream;
     }
 }

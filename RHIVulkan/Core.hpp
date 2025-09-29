@@ -23,6 +23,7 @@
 #pragma once
 
 #include <PyroCommon/Core.hpp>
+#include <PyroCommon/LoggerInterface.hpp>
 #include <PyroRHI/Api/Util.hpp>
 #include <cassert>
 
@@ -68,6 +69,8 @@
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
+        extern const ILogStream* gVulkanSink;
+
         constexpr u32 MAX_VK_BINDLESS_BUFFERS = 32768;
         constexpr u32 MAX_VK_BINDLESS_IMAGES = 32768;
         constexpr u32 MAX_VK_BINDLESS_SAMPLERS = 2048;

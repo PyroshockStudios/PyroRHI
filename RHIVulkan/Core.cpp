@@ -21,10 +21,13 @@
 // SOFTWARE.
 
 #include "Core.hpp"
+#include <PyroCommon/Logger.hpp>
 #include <libassert/assert.hpp>
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
+        const ILogStream* gVulkanSink = nullptr;
+
         const char* ToString(VkResult result) {
             switch (result) {
             case VK_SUCCESS: {
@@ -194,7 +197,9 @@ namespace PyroshockStudios {
         }
 
         void CheckVkResult(VkResult result) {
-            ASSERT(result == VK_SUCCESS, "Expected VK_SUCCESS but found " + std::string{ ToString(result) });
+            if (result == VK_SUCCESS)
+                return;
+            Logger::Fatal(gVulkanSink, "Vulkan error! Expected VK_SUCCESS but found '{}' ({})", ToString(result), static_cast<int>(result));
         }
     } // namespace RHIVulkan
 } // namespace PyroshockStudios

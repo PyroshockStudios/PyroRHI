@@ -43,7 +43,7 @@ namespace PyroshockStudios {
         PYRO_FORCEINLINE static constexpr VkImageViewType ToVkImageViewType(ImageViewType type) { return static_cast<VkImageViewType>(type); }
 
         VulkanDevice::VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice) : mContext(context), mPhysicalDevice(physicalDevice) {
-            Logger::Trace("Creating Vulkan Device");
+            Logger::Trace(gVulkanSink, "Creating Vulkan Device");
 
             VkPhysicalDeviceBufferDeviceAddressFeatures physicalDeviceBufferDeviceAddressFeatures = {
                 .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
@@ -133,7 +133,7 @@ namespace PyroshockStudios {
                         lineFeatures.pNext = lastPhysicalDevicePnext;
                         lastPhysicalDevicePnext = reinterpret_cast<void*>(&lineFeatures);
 
-                        Logger::Info(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME " with 'smoothLines' is supported on this device.");
+                        Logger::Info(gVulkanSink, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME " with 'smoothLines' is supported on this device.");
                         mVulkanCaps.bVK_EXT_line_rasterization = true;
                         extensions.push_back(extension.extensionName);
                     }
@@ -188,7 +188,7 @@ namespace PyroshockStudios {
                 }
             }
             if (queueFamilyIndex == 0xFFFFFFFF) {
-                Logger::Fatal("Failed to find a suitable vulkan queue!!");
+                Logger::Fatal(gVulkanSink, "Failed to find a suitable command queue!!");
             }
 
             eastl::array<f32, 1> queue_priorities = { queueCreateInfo.priority };
@@ -217,7 +217,6 @@ namespace PyroshockStudios {
             auto result = vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, mContext->GetVkAllocator(), &mDevice);
             CheckVkResult(result);
 
-
             volkLoadDevice(mDevice);
             volkLoadDeviceTable(&mDeviceTable, mDevice);
 
@@ -226,13 +225,13 @@ namespace PyroshockStudios {
             vkCmdEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(vkGetInstanceProcAddr(mContext->GetVkInstance(), "vkCmdEndDebugUtilsLabelEXT"));
 
             if (vkSetDebugUtilsObjectNameEXT != nullptr) {
-                Logger::Trace("vkSetDebugUtilsObjectNameEXT is available");
+                Logger::Info(gVulkanSink, "vkSetDebugUtilsObjectNameEXT is available");
             }
             if (vkCmdBeginDebugUtilsLabelEXT != nullptr) {
-                Logger::Trace("vkCmdBeginDebugUtilsLabelEXT is available");
+                Logger::Info(gVulkanSink, "vkCmdBeginDebugUtilsLabelEXT is available");
             }
             if (vkCmdEndDebugUtilsLabelEXT != nullptr) {
-                Logger::Trace("vkCmdEndDebugUtilsLabelEXT is available");
+                Logger::Info(gVulkanSink, "vkCmdEndDebugUtilsLabelEXT is available");
             }
             VkQueue queue = VK_NULL_HANDLE;
             vkGetDeviceQueue(mDevice, queueFamilyIndex, 0, &queue);
@@ -357,8 +356,6 @@ namespace PyroshockStudios {
             mCommandBufferPool->Cleanup(this);
             delete mCommandBufferPool;
 
-            // vkDestroyDescriptorPool(vk_device, vk_descriptor_pool, nullptr);
-            // vkDestroySemaphore(this->vk_device, this->vk_main_queue_gpu_timeline_semaphore, nullptr);
             vmaDestroyAllocator(mVmaAllocator);
 
             for (ICommandQueue* queue : mCommandQueues) {

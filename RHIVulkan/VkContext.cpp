@@ -148,7 +148,8 @@ namespace PyroshockStudios::RHIVulkan {
         context->mNumAllocatedBytes -= size;
     }
 
-    VulkanContext::VulkanContext(const VulkanContextArgs& args) : mPreferredDeviceIndex(args.preferredPhysicalDevice) {
+    VulkanContext::VulkanContext(const VulkanContextArgs& args, const ILogStream* logSink) : mPreferredDeviceIndex(args.preferredPhysicalDevice) {
+        VulkanContext::InjectLogger(logSink);
         volkInitialize();
 
         eastl::vector<char const*> explicitExtensions = {};
@@ -198,11 +199,12 @@ namespace PyroshockStudios::RHIVulkan {
                 enabledExtensions.push_back(ext);
             }
         }
-
+        eastl::string enabledextensionStr = "";
         for (auto& extenstion : enabledExtensions) {
-            std::cout << "enabled vulkan extensions: " << extenstion << std::endl;
+            enabledextensionStr += "\n    ";
+            enabledextensionStr += extenstion;
         }
-
+        Logger::Info(gVulkanSink, "Enabled Extensions:{}", enabledextensionStr);
         const VkApplicationInfo appInfo = {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext = nullptr,
@@ -237,7 +239,7 @@ namespace PyroshockStudios::RHIVulkan {
         }
         vkDestroyInstance(mInstance, &mAllocator);
         if (mNumAllocations > 0) {
-            Logger::Error("Leaked " + eastl::to_string(mNumAllocatedBytes) + " bytes! (" + eastl::to_string(mNumAllocations) + " leaked allocations)");
+            Logger::Error(gVulkanSink, "Leaked " + eastl::to_string(mNumAllocatedBytes) + " bytes! (" + eastl::to_string(mNumAllocations) + " leaked allocations)");
         }
     }
 
@@ -266,7 +268,7 @@ namespace PyroshockStudios::RHIVulkan {
                     unsuitableDeviceInfos.emplace(device, eastl::move(whatNotFound));
                     continue;
                 }
-                Logger::Trace("Found physical device: " + eastl::string(vkPhysicalDeviceProperties.deviceName));
+                Logger::Trace(gVulkanSink, "Found physical device: " + eastl::string(vkPhysicalDeviceProperties.deviceName));
                 if (vkPhysicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
                     vkPhysicalDevice = device;
                     break;
@@ -286,7 +288,7 @@ namespace PyroshockStudios::RHIVulkan {
                         notFoundList += str;
                         notFoundList += "\n";
                     }
-                    Logger::Warn("Preferred device " + eastl::string(vkPhysicalDeviceProperties.deviceName) + " is not supported! Reason: " + notFoundList);
+                    Logger::Warn(gVulkanSink, "Preferred device " + eastl::string(vkPhysicalDeviceProperties.deviceName) + " is not supported! Reason: " + notFoundList);
                 }
             }
         }
@@ -299,21 +301,21 @@ namespace PyroshockStudios::RHIVulkan {
                 vkPhysicalDevice = vkPhysicalDevices[0];
             }
             if (vkPhysicalDevice == VK_NULL_HANDLE) {
-                Logger::Error("Failed to pick any vulkan device!");
+                Logger::Error(gVulkanSink, "Failed to pick any vulkan device!");
                 for (const auto& [devc, errors] : unsuitableDeviceInfos) {
                     vkGetPhysicalDeviceProperties(devc, &vkPhysicalDeviceProperties);
-                    Logger::Error("Device " + eastl::string(vkPhysicalDeviceProperties.deviceName) + " is not suitable for the following reasons:");
+                    Logger::Error( gVulkanSink, "Device " + eastl::string(vkPhysicalDeviceProperties.deviceName) + " is not suitable for the following reasons:");
                     for (const auto& msg : errors) {
-                        Logger::Error("\t" + eastl::string(msg));
+                        Logger::Error(gVulkanSink, "\t" + eastl::string(msg));
                     }
                 }
-                Logger::Fatal("Vulkan device creation error!");
+                Logger::Fatal(gVulkanSink, "Vulkan device creation error!");
             }
             vkGetPhysicalDeviceProperties(vkPhysicalDevice, &vkPhysicalDeviceProperties);
-            Logger::Warn("Selected fallback device " + eastl::string(vkPhysicalDeviceProperties.deviceName));
+            Logger::Warn(gVulkanSink, "Selected fallback device " + eastl::string(vkPhysicalDeviceProperties.deviceName));
         }
 
-        Logger::Info("Using physical device: " + eastl::string(vkPhysicalDeviceProperties.deviceName));
+        Logger::Info(gVulkanSink, "Using physical device: " + eastl::string(vkPhysicalDeviceProperties.deviceName));
 
         VulkanDevice* device = new VulkanDevice(this, vkPhysicalDevice);
         mCreatedDevices.push_back(device);
@@ -369,6 +371,10 @@ namespace PyroshockStudios::RHIVulkan {
         // for now
         static SlangVulkan13FeatureSetStub stub{};
         return &stub;
+    }
+
+    void VulkanContext::InjectLogger(const ILogStream* stream) {
+        gVulkanSink = stream;
     }
 
     void VulkanContext::CreateAllocationCallbacks() {

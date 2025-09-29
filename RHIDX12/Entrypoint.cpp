@@ -75,16 +75,16 @@ PYRO_EXPORT void PYRO_CDECL CreateRHIContext(const RHICreateInfo* pCreateInfo, R
 
         switch (option.optionIndex) {
         case eDebug:
-            Logger::Trace("RHI load option: Enabled debug layers");
+            Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Enabled debug layers");
             contextArgs.bDebug = true;
             break;
         default:
-            Logger::Trace("Invalid RHI load option ignored!");
+            Logger::Warn(pCreateInfo->pLoggerSink, "Invalid RHI load option ignored!");
             break;
         }
     }
 
-    pApi->loadedContext = new D3DContext(contextArgs);
+    pApi->loadedContext = new D3DContext(contextArgs, pCreateInfo->pLoggerSink);
 }
 PYRO_EXPORT void PYRO_CDECL DestroyRHIContext(RHIContextApiInfo* pApi) {
     D3DContext* ctx = static_cast<D3DContext*>(pApi->loadedContext);
