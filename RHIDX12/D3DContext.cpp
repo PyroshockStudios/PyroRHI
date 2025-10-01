@@ -158,9 +158,11 @@ namespace PyroshockStudios::RHIDX12 {
     const RHIProperties& D3DContext::Properties() {
         const static RHIProperties set{
             .bBufferDeviceAddress = false,
-            .bScalarLayout = true,
-            .bDrawIndirectCount = true,
+            .bDrawIndirectCount = false,
             .bUint8IndexBuffer = false,
+            .bTesselationShader = true,
+            .bGeometryShader = true,
+            .bBCnTextureCompression = true,
             .viewportConvention = RHIViewportConvention::LeftHanded_OriginBottomLeft,
             .bufferImageRowAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT,
         };
