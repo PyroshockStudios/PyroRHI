@@ -35,6 +35,7 @@ namespace PyroshockStudios {
             void SubmitSwapChain(ISwapChain* swapChain) override;
             void WaitIdle() override;
             const CommandQueueInfo& Info() const override;
+            f64 GetTimestampTickPeriodNs() const override;
 
             ID3D12CommandQueue* InternalQueue() {
                 return mCommandQueue.Get();

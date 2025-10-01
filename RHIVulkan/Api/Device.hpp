@@ -96,8 +96,7 @@ namespace PyroshockStudios {
             ISwapChain* CreateSwapChain(const SwapChainInfo& info) override;
             Semaphore CreateSemaphore(const SemaphoreInfo& info) override;
             IFence* CreateFence(const FenceInfo& info) override;
-            IEvent* CreateEvent(const EventInfo& info) override;
-            ITimelineQueryPool* CreateTimelineQueryPool(const TimelineQueryPoolInfo& info) override;
+            ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
 
             ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) override;
 
@@ -114,6 +113,7 @@ namespace PyroshockStudios {
             virtual void DestroySwapChain(ISwapChain*& swapChain) override;
             virtual void DestroySemaphore(Semaphore& semaphore) override;
             virtual void DestroyFence(IFence*& fence) override;
+            virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) override;
 
             eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) override;
 
@@ -121,6 +121,9 @@ namespace PyroshockStudios {
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
             void PresentQueue(const CommandQueuePresentInfo& info) override;
 
+            const VkPhysicalDeviceProperties& GetVkPhysicalDeviceProperties() {
+                return mPhysicalDeviceProperties;
+            }
         public:
             Image NewSwapChainImage(VkImage swapchainImage, VkFormat format, u32 index, ImageUsageFlags usage, const ImageInfo& imageInfo);
 
@@ -134,7 +137,7 @@ namespace PyroshockStudios {
             }
 
             const DeviceInfo& GetInfo() override;
-            const DeviceLimitsInfo& GetLimits() override;
+            const DevicePropertiesInfo& GetProperties() override;
 
             VulkanContext* Context() {
                 return mContext;
@@ -179,9 +182,10 @@ namespace PyroshockStudios {
             IFence* mMainQueueGpuFence = {};
 
             DeviceInfo mInfo = {};
-            DeviceLimitsInfo mLimits = {};
+            DevicePropertiesInfo mProperties = {};
 
             VulkanContext* mContext;
+            VkPhysicalDeviceProperties mPhysicalDeviceProperties;
             VkPhysicalDevice mPhysicalDevice;
             VkDevice mDevice;
 

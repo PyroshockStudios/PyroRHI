@@ -508,19 +508,6 @@ namespace PyroshockStudios {
             RayTracing = 2
         };
 
-        struct TimelineQueryPoolInfo {
-            u32 queryCount = {};
-            eastl::string name = {};
-        };
-
-        struct ITimelineQueryPool {
-            ITimelineQueryPool() = default;
-            virtual ~ITimelineQueryPool() = default;
-
-            PYRO_NODISCARD virtual const TimelineQueryPoolInfo& Info() const = 0;
-            PYRO_NODISCARD virtual eastl::vector<u64> GetQueryResults(u32 startIndex, u32 count) = 0;
-        };
-
         struct CommandQueueFlagsProperties {
             using Data = u32;
         };

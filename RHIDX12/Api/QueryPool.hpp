@@ -21,41 +21,36 @@
 // SOFTWARE.
 
 #pragma once
-#include <PyroCommon/Core.hpp>
-#include <PyroCommon/LoggerInterface.hpp>
-#include <PyroRHI/Core.hpp>
-#include <PyroRHI/Api/Forward.hpp>
-#include <PyroRHI/Shader/Forward.hpp>
+#include <PyroRHI/Api/IQueryPool.hpp>
+#include <RHIDX12/Core.hpp>
 
 namespace PyroshockStudios {
-    inline namespace RHI {
-        struct IShaderFeatureSet;
-        enum struct RHIViewportConvention {
-            None,
-            LeftHanded_OriginTopLeft,
-            LeftHanded_OriginBottomLeft,
-            RightHanded_OriginTopLeft,
-            RightHanded_OriginBottomLeft
-        };
-        struct RHIProperties {
-            bool bBufferDeviceAddress = false;
-            bool bDrawIndirectCount = false;
-            bool bUint8IndexBuffer = false;
-            bool bTesselationShader = false;
-            bool bGeometryShader = false;
-            bool bBCnTextureCompression = false;
-            RHIViewportConvention viewportConvention = RHIViewportConvention::None;
-        };
+    namespace RHIDX12 {
+        class D3DDevice;
 
-        class RHIContext : ILoggerAware, DeleteCopy, DeleteMove {
+        class D3DTimestampQueryPool : public ITimestampQueryPool, DeleteCopy, DeleteMove {
         public:
-            RHIContext() {}
-            virtual ~RHIContext() {}
+            D3DTimestampQueryPool(D3DDevice* device, const TimestampQueryPoolInfo& info);
+            ~D3DTimestampQueryPool();
+            const TimestampQueryPoolInfo& Info() const override {
+                return mInfo;
+            }
 
-            virtual IDevice* CreateDevice() = 0;
+            eastl::span<const u64> GetTimestamps(u32 startIndex, u32 count) const override;
 
-            virtual const RHIProperties& Properties() = 0;
-            virtual IShaderFeatureSet* ShaderFeatureSet() = 0;
+            ID3D12QueryHeap* GetInternalHeap() {
+                return mQueryPool.Get();
+            }
+            ID3D12Resource* GetReadbackBuffer() {
+                return mReadbackBuffer.Get();
+            }
+
+        private:
+            mutable void* mMappedResult = nullptr;
+            ComPtr<ID3D12QueryHeap> mQueryPool = {};
+            ComPtr<ID3D12Resource> mReadbackBuffer = {};
+            D3DDevice* mDevice;
+            TimestampQueryPoolInfo mInfo;
         };
-    }
-}
+    } // namespace RHIDX12
+} // namespace PyroshockStudios

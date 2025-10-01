@@ -73,7 +73,6 @@ namespace PyroshockStudios {
             void DestroyComputePipelineDeferred(ComputePipeline pipeline) override;
 
             void WriteTimestamp(const WriteTimestampInfo& info) override;
-            void ResetTimestamps(const ResetTimestampsInfo& info) override;
             void BeginLabel(const CommandLabelInfo& info) override;
             void EndLabel() override;
             void BeginRenderPass(const RenderPassBeginInfo& info) override;

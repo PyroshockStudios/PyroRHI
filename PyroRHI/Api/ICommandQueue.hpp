@@ -72,6 +72,10 @@ namespace PyroshockStudios {
              */
             virtual const CommandQueueInfo& Info() const = 0;
 
+            /**
+             * @brief Gets the nanoseconds per tick of timestamp queries in this command queue.
+             */
+            virtual f64 GetTimestampTickPeriodNs() const = 0;
         protected:
             virtual ~ICommandQueue() = default;
             friend struct IDevice;

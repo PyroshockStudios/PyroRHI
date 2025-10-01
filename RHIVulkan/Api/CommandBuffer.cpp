@@ -22,10 +22,9 @@
 
 #include "CommandBuffer.hpp"
 #include "CommandQueue.hpp"
-
 #include "Device.hpp"
-
 #include "Pipeline.hpp"
+#include "QueryPool.hpp"
 #include "RenderTarget.hpp"
 
 #include <RHIVulkan/VkContext.hpp>
@@ -349,9 +348,9 @@ namespace PyroshockStudios::RHIVulkan {
 
     void VulkanCommandBuffer::SignalEvent(const EventSignalInfo& info) {
         ASSERT(false, "TODO");
-        //VkEvent event;
-        // event = ...
-        //vkCmdSetEvent(mCommandBuffer, event, info.stage);
+        // VkEvent event;
+        //  event = ...
+        // vkCmdSetEvent(mCommandBuffer, event, info.stage);
     }
 
     void VulkanCommandBuffer::WaitEvents(const eastl::span<const EventWaitInfo>& infos) {
@@ -367,9 +366,9 @@ namespace PyroshockStudios::RHIVulkan {
 
     void VulkanCommandBuffer::ResetEvent(const ResetEventInfo& info) {
         ASSERT(false, "TODO");
-        //VkEvent event;
-        // event = ...
-        //vkCmdResetEvent(mCommandBuffer, event, ToVkPipelineStageFlags(info.stage));
+        // VkEvent event;
+        //  event = ...
+        // vkCmdResetEvent(mCommandBuffer, event, ToVkPipelineStageFlags(info.stage));
     }
 
     void VulkanCommandBuffer::DestroyDeviceMemoryDeferred(DeviceMemory memory) {
@@ -463,17 +462,7 @@ namespace PyroshockStudios::RHIVulkan {
     }
 
     void VulkanCommandBuffer::WriteTimestamp(const WriteTimestampInfo& info) {
-        ASSERT(false, "TODO");
-       // VkQueryPool pool;
-        // pool = ...
-        //vkCmdWriteTimestamp2(mCommandBuffer, ToVkPipelineStageFlags(info.stage), pool, info.queryIndex);
-    }
-
-    void VulkanCommandBuffer::ResetTimestamps(const ResetTimestampsInfo& info) {
-        ASSERT(false, "TODO");
-        //VkQueryPool pool;
-        // pool = ...
-        //vkCmdResetQueryPool(mCommandBuffer, pool, info.firstIndex, info.count);
+        vkCmdWriteTimestamp2(mCommandBuffer, ToVkPipelineStageFlags(info.stage), static_cast<VulkanTimestampQueryPool*>(info.queryPool)->GetVkQueryPool(), info.queryIndex);
     }
 
     void VulkanCommandBuffer::BeginLabel(const CommandLabelInfo& info) {

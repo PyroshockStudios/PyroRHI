@@ -25,6 +25,7 @@
 #include "CommandBuffer.hpp"
 #include "CommandQueue.hpp"
 #include "Pipeline.hpp"
+#include "QueryPool.hpp"
 #include "RenderTarget.hpp"
 #include "SwapChain.hpp"
 #include "Sync.hpp"
@@ -325,36 +326,39 @@ namespace PyroshockStudios {
             VkSampleCountFlags countsSampled = sampledColorSampleCounts & sampledDepthSampleCounts & sampledIntegerSampleCounts & sampledStencilSampleCounts;
 
             if (counts & VK_SAMPLE_COUNT_64_BIT) {
-                mLimits.maxRenderTargetSamples = RasterizationSamples::e64;
+                mProperties.maxRenderTargetSamples = RasterizationSamples::e64;
             } else if (counts & VK_SAMPLE_COUNT_32_BIT) {
-                mLimits.maxRenderTargetSamples = RasterizationSamples::e32;
+                mProperties.maxRenderTargetSamples = RasterizationSamples::e32;
             } else if (counts & VK_SAMPLE_COUNT_16_BIT) {
-                mLimits.maxRenderTargetSamples = RasterizationSamples::e16;
+                mProperties.maxRenderTargetSamples = RasterizationSamples::e16;
             } else if (counts & VK_SAMPLE_COUNT_8_BIT) {
-                mLimits.maxRenderTargetSamples = RasterizationSamples::e8;
+                mProperties.maxRenderTargetSamples = RasterizationSamples::e8;
             } else if (counts & VK_SAMPLE_COUNT_4_BIT) {
-                mLimits.maxRenderTargetSamples = RasterizationSamples::e4;
+                mProperties.maxRenderTargetSamples = RasterizationSamples::e4;
             } else if (counts & VK_SAMPLE_COUNT_2_BIT) {
-                mLimits.maxRenderTargetSamples = RasterizationSamples::e2;
+                mProperties.maxRenderTargetSamples = RasterizationSamples::e2;
             } else {
-                mLimits.maxRenderTargetSamples = RasterizationSamples::e1;
+                mProperties.maxRenderTargetSamples = RasterizationSamples::e1;
             }
 
             if (countsSampled & VK_SAMPLE_COUNT_64_BIT) {
-                mLimits.maxShaderResourceImageSamples = RasterizationSamples::e64;
+                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e64;
             } else if (countsSampled & VK_SAMPLE_COUNT_32_BIT) {
-                mLimits.maxShaderResourceImageSamples = RasterizationSamples::e32;
+                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e32;
             } else if (countsSampled & VK_SAMPLE_COUNT_16_BIT) {
-                mLimits.maxShaderResourceImageSamples = RasterizationSamples::e16;
+                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e16;
             } else if (countsSampled & VK_SAMPLE_COUNT_8_BIT) {
-                mLimits.maxShaderResourceImageSamples = RasterizationSamples::e8;
+                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e8;
             } else if (countsSampled & VK_SAMPLE_COUNT_4_BIT) {
-                mLimits.maxShaderResourceImageSamples = RasterizationSamples::e4;
+                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e4;
             } else if (countsSampled & VK_SAMPLE_COUNT_2_BIT) {
-                mLimits.maxShaderResourceImageSamples = RasterizationSamples::e2;
+                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e2;
             } else {
-                mLimits.maxShaderResourceImageSamples = RasterizationSamples::e1;
+                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e1;
             }
+            // while not required, it's more efficient, so we just enforce this to incur less driver overhead
+            mProperties.bufferImageRowAlignment = physicalDeviceProperties.limits.optimalBufferCopyRowPitchAlignment;
+            mPhysicalDeviceProperties = physicalDeviceProperties;
         }
 
         VulkanDevice::~VulkanDevice() {
@@ -854,6 +858,12 @@ namespace PyroshockStudios {
             fence = nullptr;
         }
 
+        void VulkanDevice::DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) {
+            VulkanTimestampQueryPool* q = static_cast<VulkanTimestampQueryPool*>(queryPool);
+            delete q;
+            queryPool = nullptr;
+        }
+
         VulkanSwapChainSupportInfo VulkanDevice::GetSwapChainSupport(VkSurfaceKHR surface) const {
             VulkanSwapChainSupportInfo support{};
             vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, surface, &support.capabilities);
@@ -950,14 +960,8 @@ namespace PyroshockStudios {
             return new VulkanFence(semaphore, this, info);
         }
 
-        IEvent* VulkanDevice::CreateEvent(const EventInfo& info) {
-            ASSERT(false, "TODO");
-            return {};
-        }
-
-        ITimelineQueryPool* VulkanDevice::CreateTimelineQueryPool(const TimelineQueryPoolInfo& info) {
-            ASSERT(false, "TODO");
-            return {};
+        ITimestampQueryPool* VulkanDevice::CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) {
+            return new VulkanTimestampQueryPool(this, info);
         }
 
         eastl::optional<Format> VulkanDevice::PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) {
@@ -1105,8 +1109,8 @@ namespace PyroshockStudios {
             ASSERT(false, "TODO");
             return mInfo;
         }
-        const DeviceLimitsInfo& VulkanDevice::GetLimits() {
-            return mLimits;
+        const DevicePropertiesInfo& VulkanDevice::GetProperties() {
+            return mProperties;
         }
 
         Image VulkanDevice::NewSwapChainImage(VkImage swapchainImage, VkFormat format, u32 index, ImageUsageFlags usage, const ImageInfo& imageInfo) {

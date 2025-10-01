@@ -27,6 +27,7 @@
 #include "ICommandBuffer.hpp"
 #include "ICommandQueue.hpp"
 #include "IFence.hpp"
+#include "IQueryPool.hpp"
 #include "ISwapChain.hpp"
 #include "Pipeline.hpp"
 #include "Semaphore.hpp"
@@ -46,19 +47,21 @@ namespace PyroshockStudios {
             eastl::string vendor = {};
             u32 driverVersion = {};
 
-            PYRO_NODISCARD  bool operator==(const DeviceInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DeviceInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const DeviceInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DeviceInfo&) const = default;
         };
 
         /**
-         * @brief Describes the limits of the device.
+         * @brief Describes the properties of the device.
          */
-        struct DeviceLimitsInfo {
+        struct DevicePropertiesInfo {
+            // TODO, refactor this into a bit mask?
             RasterizationSamples maxRenderTargetSamples = RasterizationSamples::e1;
             RasterizationSamples maxShaderResourceImageSamples = RasterizationSamples::e1;
+            u32 bufferImageRowAlignment = 0;
 
-            PYRO_NODISCARD  bool operator==(const DeviceLimitsInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DeviceLimitsInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const DevicePropertiesInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DevicePropertiesInfo&) const = default;
         };
 
         /**
@@ -78,8 +81,8 @@ namespace PyroshockStudios {
              */
             eastl::span<eastl::pair<IFence* /*fence*/, u64 /*wait index*/>> signalFences = {};
 
-            PYRO_NODISCARD  bool operator==(const CommandQueueSubmitInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const CommandQueueSubmitInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const CommandQueueSubmitInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const CommandQueueSubmitInfo&) const = default;
         };
         /**
          * Parameters for presenting the swap chains inside of a command queue.
@@ -94,8 +97,8 @@ namespace PyroshockStudios {
              */
             eastl::span<Semaphore> waitSemaphores = {};
 
-            PYRO_NODISCARD  bool operator==(const CommandQueuePresentInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const CommandQueuePresentInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const CommandQueuePresentInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const CommandQueuePresentInfo&) const = default;
         };
 
         /**
@@ -286,8 +289,10 @@ namespace PyroshockStudios {
              * @brief Creates a fence with the specified parameters
              */
             PYRO_NODISCARD virtual IFence* CreateFence(const FenceInfo& info) = 0;
-            PYRO_NODISCARD virtual IEvent* CreateEvent(const EventInfo& info) = 0;
-            PYRO_NODISCARD virtual ITimelineQueryPool* CreateTimelineQueryPool(const TimelineQueryPoolInfo& info) = 0;
+            /**
+             * @brief Creates a query pool for GPU command timestamps
+             */
+            PYRO_NODISCARD virtual ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) = 0;
 
             /**
              * @brief Retrives a newly available command buffer for recording commands.
@@ -348,6 +353,10 @@ namespace PyroshockStudios {
              * @brief Immediately destroys the fence, and sets the handle to NULL
              */
             virtual void DestroyFence(IFence*& fence) = 0;
+            /**
+             * @brief Immediately destroys the query pool, and sets the handle to NULL
+             */
+            virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) = 0;
 
             // Convenience overloads
             PYRO_FORCEINLINE void Destroy(DeviceMemory& memory) { DestroyDeviceMemory(memory); }
@@ -363,8 +372,7 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE void Destroy(RenderTarget& renderTarget) { DestroyRenderTarget(renderTarget); }
             PYRO_FORCEINLINE void Destroy(Semaphore& semaphore) { DestroySemaphore(semaphore); }
             PYRO_FORCEINLINE void Destroy(IFence*& fence) { DestroyFence(fence); }
-            PYRO_FORCEINLINE void Destroy(IEvent*& event) { throw "TODO"; }
-            PYRO_FORCEINLINE void Destroy(ITimelineQueryPool*& queryPool) { throw "TODO"; }
+            PYRO_FORCEINLINE void Destroy(ITimestampQueryPool*& queryPool) { DestroyTimestampQueryPool(queryPool); }
 
             // ---------------------------------------------------------------------
             // Support Queries
@@ -418,7 +426,7 @@ namespace PyroshockStudios {
             /**
              * @brief Returns hardware limits and capabilities.
              */
-            PYRO_NODISCARD virtual const DeviceLimitsInfo& GetLimits() = 0;
+            PYRO_NODISCARD virtual const DevicePropertiesInfo& GetProperties() = 0;
 
             // Convenience create overloads
             PYRO_NODISCARD PYRO_FORCEINLINE DeviceMemory Create(const DeviceMemoryInfo& info) { return CreateDeviceMemory(info); }
@@ -431,6 +439,7 @@ namespace PyroshockStudios {
             PYRO_NODISCARD PYRO_FORCEINLINE RenderTarget Create(const RenderTargetInfo& info) { return CreateRenderTarget(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE Semaphore Create(const SemaphoreInfo& info) { return CreateSemaphore(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE IFence* Create(const FenceInfo& info) { return CreateFence(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE ITimestampQueryPool* Create(const TimestampQueryPoolInfo& info) { return CreateTimestampQueryPool(info); }
         };
 
     } // namespace RHI

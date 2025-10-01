@@ -164,7 +164,6 @@ namespace PyroshockStudios::RHIDX12 {
             .bGeometryShader = true,
             .bBCnTextureCompression = true,
             .viewportConvention = RHIViewportConvention::LeftHanded_OriginBottomLeft,
-            .bufferImageRowAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT,
         };
         return set;
     }
