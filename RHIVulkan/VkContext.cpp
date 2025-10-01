@@ -318,12 +318,11 @@ namespace PyroshockStudios::RHIVulkan {
             Logger::Warn(gVulkanSink, "Selected fallback device " + eastl::string(vkPhysicalDeviceProperties.deviceName));
         }
 
-            vkGetPhysicalDeviceFeatures(vkPhysicalDevice, &vkPhysicalDeviceFeatures);
+        vkGetPhysicalDeviceFeatures(vkPhysicalDevice, &vkPhysicalDeviceFeatures);
         Logger::Info(gVulkanSink, "Using physical device: " + eastl::string(vkPhysicalDeviceProperties.deviceName));
 
         VulkanDevice* device = new VulkanDevice(this, vkPhysicalDevice, vkPhysicalDeviceFeatures);
         mCreatedDevices.push_back(device);
-
 
         rhiProps = {
             .bBufferDeviceAddress = device->mVulkanCaps.bVK_EXT_buffer_device_address,
@@ -333,7 +332,6 @@ namespace PyroshockStudios::RHIVulkan {
             .bGeometryShader = vkPhysicalDeviceFeatures.geometryShader == VK_TRUE,
             .bBCnTextureCompression = vkPhysicalDeviceFeatures.textureCompressionBC == VK_TRUE,
             .viewportConvention = RHIViewportConvention::LeftHanded_OriginTopLeft,
-            .bufferImageRowAlignment = 1,
         };
 
         return device;

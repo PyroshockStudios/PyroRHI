@@ -27,6 +27,9 @@ namespace PyroshockStudios {
         struct IDevice;
         struct ICommandBuffer;
         struct ICommandQueue;
+        struct ITimestampQueryPool;
+        struct IOcclusionQueryPool;
+        struct IStatisticsQueryPool;
         struct ISwapChain;
         struct IFence;
         class RHIContext;

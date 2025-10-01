@@ -35,6 +35,7 @@
 #include <PyroRHI/Api/Pipeline.hpp>
 #include <PyroRHI/Api/RenderTarget.hpp>
 #include <PyroRHI/Api/Sync.hpp>
+#include <PyroRHI/Api/Sync.hpp>
 #include <PyroRHI/Api/Types.hpp>
 
 namespace PyroshockStudios {
@@ -285,16 +286,22 @@ namespace PyroshockStudios {
             PYRO_NODISCARD bool operator!=(const ResetEventInfo&) const = default;
         };
 
+        /**
+         * @brief Parameters for writing a timestamp on the command buffer.
+         */
         struct WriteTimestampInfo {
-            ITimelineQueryPool* queryPool;
+            /**
+             * @brief A NON-NULL Query pool to write to.
+             */
+            ITimestampQueryPool* queryPool = nullptr;
+            /**
+             * @brief During which pipeline stage the timestamp should be written.
+             */
             PipelineStageFlags stage = {};
+            /**
+             * @brief Which query should be written to.
+             */
             u32 queryIndex = {};
-        };
-
-        struct ResetTimestampsInfo {
-            ITimelineQueryPool* queryPool;
-            u32 firstIndex = {};
-            u32 count = {};
         };
 
         /**
@@ -752,11 +759,6 @@ namespace PyroshockStudios {
              * @brief Writes a timestamp into a query pool for GPU profiling.
              */
             virtual void WriteTimestamp(const WriteTimestampInfo& info) = 0;
-
-            /**
-             * @brief Resets a range of timestamps in a query pool.
-             */
-            virtual void ResetTimestamps(const ResetTimestampsInfo& info) = 0;
 
             /**
              * @brief Begins a labeled region for debugging or profiling. This can be nested.

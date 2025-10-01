@@ -40,6 +40,7 @@ namespace PyroshockStudios {
             const CommandQueueInfo& Info() const override {
                 return mInfo;
             }
+            f64 GetTimestampTickPeriodNs() const override;
             VkQueue GetVkQueue() {
                 return mQueue;
             }

@@ -64,5 +64,10 @@ namespace PyroshockStudios {
         const CommandQueueInfo& D3DCommandQueue::Info() const {
             return mInfo;
         }
+        f64 D3DCommandQueue::GetTimestampTickPeriodNs() const {
+            UINT64 freq = 0;
+            CheckD3DResult(mCommandQueue->GetTimestampFrequency(&freq));
+            return freq;
+        }
     }
 }

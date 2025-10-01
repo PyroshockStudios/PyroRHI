@@ -25,11 +25,12 @@
 #include "CommandQueue.hpp"
 #include "GPUResource.hpp"
 #include "Pipeline.hpp"
+#include "QueryPool.hpp"
 #include "RenderTarget.hpp"
 #include "SwapChain.hpp"
 #include "Sync.hpp"
-#include <RHIDX12/InternalShaders.hpp>
 #include <PyroCommon/Logger.hpp>
+#include <RHIDX12/InternalShaders.hpp>
 
 #include <libassert/assert.hpp>
 
@@ -54,6 +55,7 @@ namespace PyroshockStudios {
                 D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{};
                 mDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel));
             }
+            mProperties.bufferImageRowAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
             {
                 // FIXME better querying?
                 D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msaaLevels{};
@@ -64,8 +66,8 @@ namespace PyroshockStudios {
                     msaaLevels.SampleCount = s;
                     mDevice->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msaaLevels, sizeof(msaaLevels));
                     if (msaaLevels.NumQualityLevels > 0) {
-                        mLimits.maxRenderTargetSamples = static_cast<RasterizationSamples>(s);
-                        mLimits.maxShaderResourceImageSamples = mLimits.maxRenderTargetSamples;
+                        mProperties.maxRenderTargetSamples = static_cast<RasterizationSamples>(s);
+                        mProperties.maxShaderResourceImageSamples = mProperties.maxRenderTargetSamples;
                         break;
                     }
                 }
@@ -709,11 +711,8 @@ namespace PyroshockStudios {
             FenceInfo i = info;
             return new D3DFence(this, eastl::move(i));
         }
-        IEvent* D3DDevice::CreateEvent(const EventInfo& info) {
-            return nullptr;
-        }
-        ITimelineQueryPool* D3DDevice::CreateTimelineQueryPool(const TimelineQueryPoolInfo& info) {
-            return nullptr;
+        ITimestampQueryPool* D3DDevice::CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) {
+            return new D3DTimestampQueryPool(this, info);
         }
         ICommandBuffer* D3DDevice::GetCommandBuffer(const CommandBufferInfo& info) {
             D3DCommandBuffer* commands = nullptr;
@@ -817,6 +816,10 @@ namespace PyroshockStudios {
             delete static_cast<D3DFence*>(fence);
             fence = nullptr;
         }
+        void D3DDevice::DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) {
+            delete static_cast<D3DTimestampQueryPool*>(queryPool);
+            queryPool = nullptr;
+        }
         eastl::optional<Format> D3DDevice::PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) {
             return eastl::optional<Format>();
         }
@@ -874,8 +877,8 @@ namespace PyroshockStudios {
             static DeviceInfo x{};
             return x;
         }
-        const DeviceLimitsInfo& D3DDevice::GetLimits() {
-            return mLimits;
+        const DevicePropertiesInfo& D3DDevice::GetProperties() {
+            return mProperties;
         }
 
         // This creates the necessary SRVs/RTVs for image blits

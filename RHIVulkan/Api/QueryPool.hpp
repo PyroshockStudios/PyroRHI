@@ -21,41 +21,32 @@
 // SOFTWARE.
 
 #pragma once
-#include <PyroCommon/Core.hpp>
-#include <PyroCommon/LoggerInterface.hpp>
-#include <PyroRHI/Core.hpp>
-#include <PyroRHI/Api/Forward.hpp>
-#include <PyroRHI/Shader/Forward.hpp>
+#include <PyroRHI/Api/IQueryPool.hpp>
+#include <RHIVulkan/Core.hpp>
 
 namespace PyroshockStudios {
-    inline namespace RHI {
-        struct IShaderFeatureSet;
-        enum struct RHIViewportConvention {
-            None,
-            LeftHanded_OriginTopLeft,
-            LeftHanded_OriginBottomLeft,
-            RightHanded_OriginTopLeft,
-            RightHanded_OriginBottomLeft
-        };
-        struct RHIProperties {
-            bool bBufferDeviceAddress = false;
-            bool bDrawIndirectCount = false;
-            bool bUint8IndexBuffer = false;
-            bool bTesselationShader = false;
-            bool bGeometryShader = false;
-            bool bBCnTextureCompression = false;
-            RHIViewportConvention viewportConvention = RHIViewportConvention::None;
-        };
+    namespace RHIVulkan {
+        class VulkanDevice;
 
-        class RHIContext : ILoggerAware, DeleteCopy, DeleteMove {
+        class VulkanTimestampQueryPool : public ITimestampQueryPool, DeleteCopy, DeleteMove {
         public:
-            RHIContext() {}
-            virtual ~RHIContext() {}
+            VulkanTimestampQueryPool(VulkanDevice* device, const TimestampQueryPoolInfo& info);
+            ~VulkanTimestampQueryPool();
+            const TimestampQueryPoolInfo& Info() const override {
+                return mInfo;
+            }
 
-            virtual IDevice* CreateDevice() = 0;
+            eastl::span<const u64> GetTimestamps(u32 startIndex, u32 count) const override;
 
-            virtual const RHIProperties& Properties() = 0;
-            virtual IShaderFeatureSet* ShaderFeatureSet() = 0;
+            VkQueryPool GetVkQueryPool() {
+                return mQueryPool;
+            }
+
+        private:
+            VkQueryPool mQueryPool;
+            VulkanDevice* mDevice;
+            TimestampQueryPoolInfo mInfo;
+            mutable eastl::vector<u64> mResultBuffer = {};
         };
-    }
-}
+    } // namespace RHIVulkan
+} // namespace PyroshockStudios

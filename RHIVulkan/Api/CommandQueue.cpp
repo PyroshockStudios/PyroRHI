@@ -48,4 +48,7 @@ namespace PyroshockStudios::RHIVulkan {
     void VulkanCommandQueue::WaitIdle() {
         vkQueueWaitIdle(mQueue);
     }
+    f64 VulkanCommandQueue::GetTimestampTickPeriodNs() const {
+        return static_cast<f64>(mDevice->GetVkPhysicalDeviceProperties().limits.timestampPeriod);
+    }
 }

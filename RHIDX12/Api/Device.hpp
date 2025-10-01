@@ -119,8 +119,7 @@ namespace PyroshockStudios {
             ISwapChain* CreateSwapChain(const SwapChainInfo& info) override;
             Semaphore CreateSemaphore(const SemaphoreInfo& info) override;
             IFence* CreateFence(const FenceInfo& info) override;
-            IEvent* CreateEvent(const EventInfo& info) override;
-            ITimelineQueryPool* CreateTimelineQueryPool(const TimelineQueryPoolInfo& info) override;
+            ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
 
             ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) override;
             void DestroyDeviceMemory(DeviceMemory& memory) override;
@@ -135,6 +134,7 @@ namespace PyroshockStudios {
             void DestroySwapChain(ISwapChain*& swapChain) override;
             void DestroySemaphore(Semaphore& semaphore) override;
             void DestroyFence(IFence*& fence) override;
+            void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) override;
 
             virtual eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) override;
             virtual eastl::span<ICommandQueue*> GetCommandQueues() override;
@@ -143,7 +143,7 @@ namespace PyroshockStudios {
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
             void PresentQueue(const CommandQueuePresentInfo& info) override;
             const DeviceInfo& GetInfo() override;
-            const DeviceLimitsInfo& GetLimits() override;
+            const DevicePropertiesInfo& GetProperties() override;
 
             void ImageAddIfNecessaryBlitSupport(D3DImageResourceData& data);
             const DescriptorTableInfo& GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc);
@@ -203,7 +203,7 @@ namespace PyroshockStudios {
             eastl::vector<eastl::pair<UINT64 /*fence value*/, ZombieDeleter>> mDeferredDeletes;
 
             eastl::vector<D3DCommandBuffer*> mPooledCommandBuffers = {};
-            DeviceLimitsInfo mLimits{};
+            DevicePropertiesInfo mProperties{};
 
             ComPtr<ID3D12CommandSignature> mIndirectDrawSignature = {};
             ComPtr<ID3D12CommandSignature> mIndirectDrawIndexedSignature = {};

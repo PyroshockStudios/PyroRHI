@@ -24,6 +24,7 @@
 #include "Device.hpp"
 #include "GPUResource.hpp"
 #include "Pipeline.hpp"
+#include "QueryPool.hpp"
 #include "RenderTarget.hpp"
 
 #include <DirectXMath.h>
@@ -217,7 +218,7 @@ namespace PyroshockStudios {
             D3D12_CPU_DESCRIPTOR_HANDLE handle = mDevice->ResourcePool().mUAVHeap.Resolve(info.view);
             mDevice->InternalDevice()->CopyDescriptorsSimple(1U, heap->GetCPUDescriptorHandleForHeapStart(), handle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-            ID3D12Resource* resource;
+            ID3D12Resource* resource = {};
             bool bUintClear = false;
             bool bRepeatFirst = false;
             const auto& vinfo = mDevice->ResourcePool().mUAVHeap.GetInfo(info.view);
@@ -482,10 +483,15 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::WriteTimestamp(const WriteTimestampInfo& info) {
+            auto* pool = static_cast<D3DTimestampQueryPool*>(info.queryPool);
+
+            mCommandList->EndQuery(pool->GetInternalHeap(),
+                D3D12_QUERY_TYPE_TIMESTAMP, info.queryIndex);
+            auto& pair = mPendingQueryPoolMinMaxResolves[pool];
+            pair.first = eastl::min(pair.first, info.queryIndex);
+            pair.second = eastl::max(pair.second, info.queryIndex);
         }
 
-        void D3DCommandBuffer::ResetTimestamps(const ResetTimestampsInfo& info) {
-        }
 
         void D3DCommandBuffer::BeginLabel(const CommandLabelInfo& info) {
             if (!gPixBeginEventOnCommandListFn)
@@ -506,7 +512,7 @@ namespace PyroshockStudios {
         void D3DCommandBuffer::BeginRenderPass(const RenderPassBeginInfo& info) {
             D3D12_RECT renderArea = ToD3D12Rect(info.renderArea);
             eastl::fixed_vector<D3D12_CPU_DESCRIPTOR_HANDLE, 8> renderTargets{};
-            D3D12_CPU_DESCRIPTOR_HANDLE depthStencil;
+            D3D12_CPU_DESCRIPTOR_HANDLE depthStencil = {};
 
             for (const auto& colTarg : info.colorAttachments) {
                 auto rt = eastl::bit_cast<D3DRenderTarget*>(colTarg.target);
@@ -752,7 +758,7 @@ namespace PyroshockStudios {
                 mCommandList->ExecuteIndirect(signature,
                     1, resource,
                     info.indirectBufferOffset + i * info.drawCommandStride, nullptr, 0);
-            } 
+            }
             // set back to 0
             if (info.drawCount > 1) {
                 mCommandList->SetGraphicsRoot32BitConstant(17, 0, 0);
@@ -789,6 +795,14 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::Complete() {
+            for (auto& [pool, minmax] : mPendingQueryPoolMinMaxResolves) {
+                auto [min, max] = minmax;
+                mCommandList->ResolveQueryData(pool->GetInternalHeap(),
+                    D3D12_QUERY_TYPE_TIMESTAMP, min, max - min + 1 /*turn index into COUNT*/,
+                    pool->GetReadbackBuffer(), min * sizeof(UINT64));
+            }
+
+            mPendingQueryPoolMinMaxResolves.clear();
             CheckD3DResult(mCommandList->Close());
             mCurrentRasterPipeline = nullptr;
             mInvalidatedVertexBufferBindings.clear();

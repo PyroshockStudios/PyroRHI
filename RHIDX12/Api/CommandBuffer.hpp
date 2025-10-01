@@ -30,6 +30,7 @@ namespace PyroshockStudios {
     namespace RHIDX12 {
         class D3DDevice;
         class D3DRasterPipeline;
+        class D3DTimestampQueryPool;
         class D3DCommandBuffer : public ICommandBuffer, DeleteCopy, DeleteMove {
         public:
             D3DCommandBuffer(D3DDevice* device, ComPtr<ID3D12GraphicsCommandList>&& commandList, ComPtr<ID3D12CommandAllocator>&& allocator);
@@ -58,7 +59,6 @@ namespace PyroshockStudios {
             void DestroyRasterPipelineDeferred(RasterPipeline pipeline) override;
             void DestroyComputePipelineDeferred(ComputePipeline pipeline) override;
             void WriteTimestamp(const WriteTimestampInfo& info) override;
-            void ResetTimestamps(const ResetTimestampsInfo& info) override;
             void BeginLabel(const CommandLabelInfo& info) override;
             void EndLabel() override;
             void BeginRenderPass(const RenderPassBeginInfo& info) override;
@@ -117,6 +117,7 @@ namespace PyroshockStudios {
             DescriptorTableInfo mGraphicsLastBoundUAVDescriptorTable = {};
             DescriptorTableInfo mComputeLastBoundUAVDescriptorTable = {};
             LinearUploadBuffer* mCurrentLinearUploadBuffer = {};
+            eastl::hash_map<D3DTimestampQueryPool*, eastl::pair<u32, u32>> mPendingQueryPoolMinMaxResolves = {};
             D3DDevice* mDevice = {};
         };
     } // namespace RHIDX12
