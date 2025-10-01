@@ -52,13 +52,13 @@ namespace PyroshockStudios {
                 desc.SampleDesc.Count = 1;
                 desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
                 CD3DX12_HEAP_PROPERTIES heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
-                device->InternalDevice()->CreateCommittedResource(
+               CheckD3DResult(device->InternalDevice()->CreateCommittedResource(
                     &heap,
                     D3D12_HEAP_FLAG_NONE,
                     &desc,
-                    D3D12_RESOURCE_STATE_GENERIC_READ, // must be GENERIC_READ for upload heaps
+                    D3D12_RESOURCE_STATE_RESOLVE_DEST, // must be GENERIC_READ for upload heaps
                     nullptr,
-                    IID_PPV_ARGS(&mReadbackBuffer));
+                    IID_PPV_ARGS(&mReadbackBuffer)));
                 D3D12_RANGE range{};
                 range.Begin = 0;
                 range.End = desc.Width;
