@@ -42,20 +42,12 @@ namespace PyroshockStudios {
     namespace RHIVulkan {
         PYRO_FORCEINLINE static constexpr VkImageViewType ToVkImageViewType(ImageViewType type) { return static_cast<VkImageViewType>(type); }
 
-        VulkanDevice::VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice) : mContext(context), mPhysicalDevice(physicalDevice) {
+        VulkanDevice::VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features)
+            : mContext(context), mPhysicalDevice(physicalDevice) {
             Logger::Trace(gVulkanSink, "Creating Vulkan Device");
-
-            VkPhysicalDeviceBufferDeviceAddressFeatures physicalDeviceBufferDeviceAddressFeatures = {
-                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
-                .pNext = nullptr,
-                .bufferDeviceAddress = VK_TRUE,
-                .bufferDeviceAddressCaptureReplay = VK_FALSE,
-                .bufferDeviceAddressMultiDevice = VK_FALSE,
-            };
 
             VkPhysicalDeviceDescriptorIndexingFeatures physicalDeviceDescriptorIndexingFeatures = {
                 .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
-                .pNext = reinterpret_cast<void*>(&physicalDeviceBufferDeviceAddressFeatures),
                 .shaderInputAttachmentArrayDynamicIndexing = VK_FALSE,
                 .shaderUniformTexelBufferArrayDynamicIndexing = VK_FALSE,
                 .shaderStorageTexelBufferArrayDynamicIndexing = VK_FALSE,
@@ -121,7 +113,7 @@ namespace PyroshockStudios {
             vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
 
             VkPhysicalDeviceLineRasterizationFeaturesEXT lineFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT };
-
+            VkPhysicalDeviceBufferDeviceAddressFeatures physicalDeviceBufferDeviceAddressFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES };
             for (VkExtensionProperties& extension : availableExtensions) {
                 if (strcmp(extension.extensionName, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME) == 0) {
                     VkPhysicalDeviceFeatures2 features2{
@@ -129,12 +121,32 @@ namespace PyroshockStudios {
                         .pNext = &lineFeatures,
                     };
                     vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
-                    if (lineFeatures.smoothLines) {
+                    if (lineFeatures.smoothLines == VK_TRUE) {
                         lineFeatures.pNext = lastPhysicalDevicePnext;
                         lastPhysicalDevicePnext = reinterpret_cast<void*>(&lineFeatures);
 
                         Logger::Info(gVulkanSink, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME " with 'smoothLines' is supported on this device.");
                         mVulkanCaps.bVK_EXT_line_rasterization = true;
+                        extensions.push_back(extension.extensionName);
+                    }
+                }
+                if (strcmp(extension.extensionName, VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME) == 0) {
+                    VkPhysicalDeviceFeatures2 features2{
+                        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+                        .pNext = &physicalDeviceBufferDeviceAddressFeatures,
+                    };
+                    vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
+                    if (features2.features.shaderInt64 == VK_TRUE && physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress == VK_TRUE) {
+                        physicalDeviceBufferDeviceAddressFeatures.pNext = lastPhysicalDevicePnext;
+                        lastPhysicalDevicePnext = reinterpret_cast<void*>(&physicalDeviceBufferDeviceAddressFeatures);
+
+                        Logger::Info(gVulkanSink, VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME " is supported on this device.");
+
+                        physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+                        physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressCaptureReplay = VK_FALSE;
+                        physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressMultiDevice = VK_FALSE;
+
+                        mVulkanCaps.bVK_EXT_buffer_device_address = true;
                         extensions.push_back(extension.extensionName);
                     }
                 }
@@ -146,23 +158,21 @@ namespace PyroshockStudios {
                 .features = {
                     .imageCubeArray = VK_TRUE,
                     .independentBlend = VK_TRUE,
-                    .geometryShader = VK_TRUE,
-                    .tessellationShader = VK_TRUE,
+                    .geometryShader = features.geometryShader,
+                    .tessellationShader = features.tessellationShader,
                     .sampleRateShading = VK_TRUE,
                     .multiDrawIndirect = VK_TRUE,
                     .drawIndirectFirstInstance = VK_TRUE,
                     .depthClamp = VK_TRUE,
                     .fillModeNonSolid = VK_TRUE,
-                    .wideLines = VK_TRUE,
+                    .wideLines = features.wideLines,
                     .samplerAnisotropy = VK_TRUE,
-                    .textureCompressionBC = VK_TRUE,
+                    .textureCompressionBC = features.textureCompressionBC,
                     .fragmentStoresAndAtomics = VK_TRUE,
                     .shaderImageGatherExtended = VK_TRUE,
                     .shaderStorageImageMultisample = VK_TRUE,
-                    //.shaderStorageImageReadWithoutFormat = VK_FALSE,
-                    //.shaderStorageImageWriteWithoutFormat = VK_TRUE,
                     .shaderClipDistance = VK_TRUE,
-                    .shaderInt64 = VK_TRUE,
+                    .shaderInt64 = mVulkanCaps.bVK_EXT_buffer_device_address ? VK_TRUE : VK_FALSE,
                 }
             };
 
@@ -449,7 +459,7 @@ namespace PyroshockStudios {
         Image VulkanDevice::CreateImage(const ImageInfo& info) {
             auto [id, ret] = mResourceTable.mImageSlots.NewSlot();
             ret.info = info;
-            
+
             VkImageCreateInfo vkImageCreateInfo = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
                 .pNext = nullptr,
@@ -866,7 +876,7 @@ namespace PyroshockStudios {
         }
 
         RasterPipeline VulkanDevice::CreateRasterPipeline(const RasterPipelineInfo& info, const RasterPipelineShaderStages& rasterShaderStages) {
-            return RasterPipeline( new VulkanRasterPipeline(this, info, rasterShaderStages));
+            return RasterPipeline(new VulkanRasterPipeline(this, info, rasterShaderStages));
         }
 
         ComputePipeline VulkanDevice::CreateComputePipeline(const ComputePipelineInfo& info, const ShaderInfo& computeShaderInfo) {

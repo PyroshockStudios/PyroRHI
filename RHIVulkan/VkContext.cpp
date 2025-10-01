@@ -37,8 +37,7 @@ namespace PyroshockStudios::RHIVulkan {
         whatWasntFound.clear();
 
         // --- Query all features first ---
-        VkPhysicalDeviceBufferDeviceAddressFeatures bufferAddressFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES };
-        VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES, &bufferAddressFeatures };
+        VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES };
         VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES, &descriptorIndexingFeatures };
         VkPhysicalDeviceSynchronization2Features sync2Features{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES, &dynamicRenderingFeatures };
         VkPhysicalDeviceTimelineSemaphoreFeatures timelineSemaphoreFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES, &sync2Features };
@@ -56,8 +55,6 @@ namespace PyroshockStudios::RHIVulkan {
         // Vulkan 1.0 core features
         AddFeatureIfMissing(features.features.imageCubeArray, "imageCubeArray");
         AddFeatureIfMissing(features.features.independentBlend, "independentBlend");
-        AddFeatureIfMissing(features.features.geometryShader, "geometryShader");
-        AddFeatureIfMissing(features.features.tessellationShader, "tessellationShader");
         AddFeatureIfMissing(features.features.sampleRateShading, "sampleRateShading");
         AddFeatureIfMissing(features.features.multiDrawIndirect, "multiDrawIndirect");
         AddFeatureIfMissing(features.features.drawIndirectFirstInstance, "drawIndirectFirstInstance");
@@ -65,7 +62,6 @@ namespace PyroshockStudios::RHIVulkan {
         AddFeatureIfMissing(features.features.fillModeNonSolid, "fillModeNonSolid");
         AddFeatureIfMissing(features.features.wideLines, "wideLines");
         AddFeatureIfMissing(features.features.samplerAnisotropy, "samplerAnisotropy");
-        AddFeatureIfMissing(features.features.textureCompressionBC, "textureCompressionBC");
         AddFeatureIfMissing(features.features.fragmentStoresAndAtomics, "fragmentStoresAndAtomics");
         AddFeatureIfMissing(features.features.shaderImageGatherExtended, "shaderImageGatherExtended");
         AddFeatureIfMissing(features.features.shaderStorageImageMultisample, "shaderStorageImageMultisample");
@@ -90,9 +86,6 @@ namespace PyroshockStudios::RHIVulkan {
 
         AddFeatureIfMissing(dynamicRenderingFeatures.dynamicRendering, "Vulkan 1.3 Dynamic Rendering");
 
-        // Optional but recommended
-        AddFeatureIfMissing(bufferAddressFeatures.bufferDeviceAddress, "Vulkan 1.3 Buffer Device Address");
-        AddFeatureIfMissing(features.features.shaderInt64, "Vulkan 1.3 shaderInt64");
         AddFeatureIfMissing(scalarBlockLayoutFeatures.scalarBlockLayout, "Vulkan 1.3 Scalar Block Layout");
 
         // --- Check properties ---
@@ -159,10 +152,15 @@ namespace PyroshockStudios::RHIVulkan {
 
         eastl::vector<char const*> implicitExtensions = {};
         implicitExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+#ifdef PYRO_PLATFORM_WINDOWS
         implicitExtensions.push_back("VK_KHR_win32_surface");
+#elif defined(PYRO_PLATFORM_LINUX)
         implicitExtensions.push_back("VK_KHR_xlib_surface");
         implicitExtensions.push_back("VK_KHR_wayland_surface");
-
+#elif defined(PYRO_PLATFORM_MACOS)
+        implicitExtensions.push_back("VK_EXT_metal_surface");
+        implicitExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+#endif
         eastl::vector<VkExtensionProperties> instance_extensions = {};
         uint32_t instance_extension_count = {};
         auto result = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr);
@@ -218,7 +216,11 @@ namespace PyroshockStudios::RHIVulkan {
         const VkInstanceCreateInfo instanceCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pNext = nullptr,
+#ifdef PYRO_PLATFORM_MACOS
+            .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
+#else
             .flags = {},
+#endif
             .pApplicationInfo = &appInfo,
             .enabledLayerCount = 0u,
             .ppEnabledLayerNames = nullptr,
@@ -256,6 +258,7 @@ namespace PyroshockStudios::RHIVulkan {
 
         VkPhysicalDevice vkPhysicalDevice = {};
         VkPhysicalDeviceProperties vkPhysicalDeviceProperties = {};
+        VkPhysicalDeviceFeatures vkPhysicalDeviceFeatures = {};
 
         eastl::hash_set<VkPhysicalDevice> unsuitableDevices = {};
         eastl::hash_map<VkPhysicalDevice, eastl::vector<eastl::string>> unsuitableDeviceInfos = {};
@@ -304,7 +307,7 @@ namespace PyroshockStudios::RHIVulkan {
                 Logger::Error(gVulkanSink, "Failed to pick any vulkan device!");
                 for (const auto& [devc, errors] : unsuitableDeviceInfos) {
                     vkGetPhysicalDeviceProperties(devc, &vkPhysicalDeviceProperties);
-                    Logger::Error( gVulkanSink, "Device " + eastl::string(vkPhysicalDeviceProperties.deviceName) + " is not suitable for the following reasons:");
+                    Logger::Error(gVulkanSink, "Device " + eastl::string(vkPhysicalDeviceProperties.deviceName) + " is not suitable for the following reasons:");
                     for (const auto& msg : errors) {
                         Logger::Error(gVulkanSink, "\t" + eastl::string(msg));
                     }
@@ -315,23 +318,29 @@ namespace PyroshockStudios::RHIVulkan {
             Logger::Warn(gVulkanSink, "Selected fallback device " + eastl::string(vkPhysicalDeviceProperties.deviceName));
         }
 
+            vkGetPhysicalDeviceFeatures(vkPhysicalDevice, &vkPhysicalDeviceFeatures);
         Logger::Info(gVulkanSink, "Using physical device: " + eastl::string(vkPhysicalDeviceProperties.deviceName));
 
-        VulkanDevice* device = new VulkanDevice(this, vkPhysicalDevice);
+        VulkanDevice* device = new VulkanDevice(this, vkPhysicalDevice, vkPhysicalDeviceFeatures);
         mCreatedDevices.push_back(device);
+
+
+        rhiProps = {
+            .bBufferDeviceAddress = device->mVulkanCaps.bVK_EXT_buffer_device_address,
+            .bDrawIndirectCount = true,
+            .bUint8IndexBuffer = true,
+            .bTesselationShader = vkPhysicalDeviceFeatures.tessellationShader == VK_TRUE,
+            .bGeometryShader = vkPhysicalDeviceFeatures.geometryShader == VK_TRUE,
+            .bBCnTextureCompression = vkPhysicalDeviceFeatures.textureCompressionBC == VK_TRUE,
+            .viewportConvention = RHIViewportConvention::LeftHanded_OriginTopLeft,
+            .bufferImageRowAlignment = 1,
+        };
+
         return device;
     }
 
     const RHIProperties& VulkanContext::Properties() {
-        const static RHIProperties set{
-            .bBufferDeviceAddress = true,
-            .bScalarLayout = true,
-            .bDrawIndirectCount = true,
-            .bUint8IndexBuffer = true,
-            .viewportConvention = RHIViewportConvention::LeftHanded_OriginTopLeft,
-            .bufferImageRowAlignment = 1,
-        };
-        return set;
+        return rhiProps;
     }
 
     IShaderFeatureSet* VulkanContext::ShaderFeatureSet() {

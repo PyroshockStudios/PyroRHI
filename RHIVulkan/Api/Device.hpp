@@ -53,11 +53,12 @@ namespace PyroshockStudios {
 
         struct VulkanDeviceCapabilities {
             bool bVK_EXT_line_rasterization = false;
+            bool bVK_EXT_buffer_device_address = false;
         };
 
         class VulkanDevice : public IDevice, DeleteCopy, DeleteMove {
         public:
-            VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice);
+            VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features);
             virtual ~VulkanDevice() override;
 
             bool IsBufferValid(Buffer handle) const override;

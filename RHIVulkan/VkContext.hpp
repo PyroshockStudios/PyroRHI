@@ -71,6 +71,8 @@ namespace PyroshockStudios {
 
             usize mNumAllocations = {};
             usize mNumAllocatedBytes = {};
+
+             RHIProperties rhiProps = {};
         };
     } // namespace RHIVulkan
 } // namespace PyroshockStudios

@@ -38,11 +38,12 @@ namespace PyroshockStudios {
             RightHanded_OriginBottomLeft
         };
         struct RHIProperties {
-            // this might be the only thing that is actually mandatory, unless we have some other path for the rendergraph... 
             bool bBufferDeviceAddress = false;
-            bool bScalarLayout = false;
             bool bDrawIndirectCount = false;
             bool bUint8IndexBuffer = false;
+            bool bTesselationShader = false;
+            bool bGeometryShader = false;
+            bool bBCnTextureCompression = false;
             RHIViewportConvention viewportConvention = RHIViewportConvention::None;
             u32 bufferImageRowAlignment = 0;
         };
