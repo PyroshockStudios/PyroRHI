@@ -57,7 +57,7 @@ namespace PyroshockStudios {
         eastl::span<const u64> VulkanTimestampQueryPool::GetTimestamps(u32 startIndex, u32 count) const {
             ASSERT((startIndex + count) <= mInfo.queryCount, "Timestamp query out of bounds!");
             VkResult result = vkGetQueryPoolResults(mDevice->GetVkDevice(), mQueryPool, startIndex, count,
-                mResultBuffer.size() * sizeof(u64), mResultBuffer.data() + startIndex, sizeof(u64), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_PARTIAL_BIT);
+                mResultBuffer.size() * sizeof(u64), mResultBuffer.data() + startIndex, sizeof(u64), VK_QUERY_RESULT_64_BIT);
             if (result == VK_NOT_READY) {
                 return {};
             } else {

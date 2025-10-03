@@ -541,7 +541,7 @@ namespace PyroshockStudios {
 
             // Determine heap type based on memory allocation domain
 
-            if (info.memoryBlock != PYRO_NULL_MEMORY_BLOCK) {
+            if (info.memoryBlock == PYRO_NULL_MEMORY_BLOCK) {
                 D3D12MA::ALLOCATION_DESC allocDesc = {};
                 allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
 
@@ -913,7 +913,13 @@ namespace PyroshockStudios {
         void D3DDevice::DestroyBuffer(Buffer& buffer) {
             auto& data = mResourcePool->Get(buffer);
             if (data.mappedMemory) {
-                data.resource->Unmap(0, &data.range);
+                bool bReadback = false;
+                if (data.info.memoryBlock) {
+                    bReadback = mResourcePool->Get(data.info.memoryBlock).info.domain == MemoryAllocationDomain::HostReadback;
+                } else {
+                    bReadback = data.info.allocationDomain == MemoryAllocationDomain::HostReadback;
+                }
+                data.resource->Unmap(0, bReadback ? nullptr : &data.range);
             }
             if (data.virtualAlloc.AllocHandle != 0) {
                 auto& block = mResourcePool->Get(data.info.memoryBlock);

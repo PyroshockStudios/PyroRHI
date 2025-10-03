@@ -57,7 +57,7 @@ namespace PyroshockStudios {
                     &heap,
                     D3D12_HEAP_FLAG_NONE,
                     &desc,
-                    D3D12_RESOURCE_STATE_RESOLVE_DEST, // must be GENERIC_READ for upload heaps
+                    D3D12_RESOURCE_STATE_COPY_DEST, 
                     nullptr,
                     IID_PPV_ARGS(&mReadbackBuffer)));
                 D3D12_RANGE range{};
@@ -69,10 +69,7 @@ namespace PyroshockStudios {
             }
         }
         D3DTimestampQueryPool::~D3DTimestampQueryPool() {
-            D3D12_RANGE range{};
-            range.Begin = 0;
-            range.End = mInfo.queryCount * sizeof(u64);
-            mReadbackBuffer->Unmap(0, &range);
+            mReadbackBuffer->Unmap(0, nullptr);
         }
 
         eastl::span<const u64> D3DTimestampQueryPool::GetTimestamps(u32 startIndex, u32 count) const {
