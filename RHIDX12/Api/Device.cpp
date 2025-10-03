@@ -283,8 +283,8 @@ namespace PyroshockStudios {
             return id.index != 0;
         }
         const MemoryBlockInfo& D3DDevice::GetMemoryBlockInfo(MemoryBlock memory) const {
-            static MemoryBlockInfo mem;
-            return mem;
+            ASSERT(IsValid(memory));
+            return mResourcePool->Get(memory).info;
         }
         const BufferInfo& D3DDevice::GetBufferInfo(Buffer buffer) const {
             ASSERT(IsValid(buffer));
