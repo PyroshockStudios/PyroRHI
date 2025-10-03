@@ -61,24 +61,26 @@ namespace PyroshockStudios {
          * @brief Suballocation strategy for virtual allocations within a MemoryBlock
          */
         enum struct VirtualSuballocationStrategy : i32 {
-            Default = 0, /**< Default implementation */
-            Fast = 1, /**< Fast suballocation mode. Might sacrifice space usage */
-            SpaceEfficient = 2 /**< Space efficient suballocation mode. Might sacrifice suballocation performance */
-        }
+            Default = 0,        /**< Default implementation */
+            SpaceEfficient = 1, /**< Space efficient suballocation mode. Might sacrifice suballocation performance */
+            TimeEfficient = 2,  /**< Fast suballocation mode. Might sacrifice space usage */
+            AggressiveRing = 3, /**< Fastest suballocation mode. This will severely sacrifice space usage. Not recommended for anything except for ring buffers, where spaces are FiFo recycled*/
+        };
 
         /**
          * @brief Parameters for creating a GPU memory block for virtual allocations.
          */
         struct MemoryBlockInfo {
-            BufferUsageFlags bufferUsage = {};                                            /**< Intended possible usages of subsequent buffers (e.g., vertex, uniform). */
-            ImageUsageFlags imageUsage = {};                                              /**< Intended possible usages of subsequent images (e.g., sampled, unordered access). */
-            DeviceSize size = {};                                                         /**< Memory size in bytes. */
-            VirtualSuballocationStrategy strategy = VirtualSuballocationStrategy::Default;/**< Strategy used by resources creating allocations. */
-            MemoryAllocationDomain domain = MemoryAllocationDomain::DeviceLocal;          /**< Memory Block Domain. */
-            eastl::string name = {};                                                      /**< Optional debug name for the memory handle. */
+            BufferUsageFlags bufferUsage = {};                                             /**< Intended possible usages of subsequent buffers (e.g., vertex, uniform). */
+            ImageUsageFlags imageUsage = {};                                               /**< Intended possible usages of subsequent images (e.g., sampled, unordered access). */
+            DeviceSize size = {};                                                          /**< Memory size in bytes. */
+            VirtualSuballocationStrategy strategy = VirtualSuballocationStrategy::Default; /**< Strategy used by resources creating allocations. */
+            MemoryAllocationDomain domain = MemoryAllocationDomain::DeviceLocal;           /**< Memory Block Domain. */
+            u32 minAlignment = 1;                                                          /**< Minimum suballocation alignment. *MUST* be a multiple of 2*/
+            eastl::string name = {};                                                       /**< Optional debug name for the memory handle. */
 
-            PYRO_NODISCARD  bool operator==(const MemoryBlockInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const MemoryBlockInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const MemoryBlockInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const MemoryBlockInfo&) const = default;
         };
 
         //-------------------------------------------------------------------------------------------------
@@ -107,20 +109,20 @@ namespace PyroshockStudios {
              * @brief Optional memory block handle for virtual allocations.
              * If `memoryBlock` is `PYRO_NULL_MEMORY_BLOCK`, then the buffer will create its own allocation handle.
              */
-            MemoryBlock memoryBlock = PYRO_NULL_MEMORY_BLOCK;                            
-            BufferCreateFlags flags = BufferCreateFlagsBits::NONE;                        /**< Buffer creation flags. */
-            DeviceSize size = {};                                                         /**< Buffer size in bytes. */
-            BufferUsageFlags usage = {};                                                  /**< Intended usage of the buffer (e.g., vertex, uniform). */
-            BufferLayout initialLayout = BufferLayout::Undefined;                         /**< Initial state of the buffer. */
+            MemoryBlock memoryBlock = PYRO_NULL_MEMORY_BLOCK;
+            BufferCreateFlags flags = BufferCreateFlagsBits::NONE; /**< Buffer creation flags. */
+            DeviceSize size = {};                                  /**< Buffer size in bytes. */
+            BufferUsageFlags usage = {};                           /**< Intended usage of the buffer (e.g., vertex, uniform). */
+            BufferLayout initialLayout = BufferLayout::Undefined;  /**< Initial state of the buffer. */
             /**
              * @brief Memory allocation domain.
-             * If `memoryPool` is not `PYRO_NULL_MEMORY_BLOCK`, then `allocationDomain` will be ignored. 
+             * If `memoryPool` is not `PYRO_NULL_MEMORY_BLOCK`, then `allocationDomain` will be ignored.
              */
-            MemoryAllocationDomain allocationDomain = MemoryAllocationDomain::DeviceLocal; 
-            eastl::string name = {};                                                      /**< Optional debug name for the buffer. */
+            MemoryAllocationDomain allocationDomain = MemoryAllocationDomain::DeviceLocal;
+            eastl::string name = {}; /**< Optional debug name for the buffer. */
 
-            PYRO_NODISCARD  bool operator==(const BufferInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const BufferInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const BufferInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const BufferInfo&) const = default;
         };
 
         //-------------------------------------------------------------------------------------------------
@@ -151,7 +153,7 @@ namespace PyroshockStudios {
              * @brief Optional memory block handle for virtual allocations.
              * If `memoryBlock` is `PYRO_NULL_MEMORY_BLOCK`, then the image will create its own allocation handle.
              */
-            MemoryBlock memoryBlock = PYRO_NULL_MEMORY_BLOCK;  
+            MemoryBlock memoryBlock = PYRO_NULL_MEMORY_BLOCK;
             ImageCreateFlags flags = ImageCreateFlagBits::NONE; /**< Image creation flags. */
             u32 dimensions = 2;                                 /**< Number of dimensions (1D, 2D, 3D). */
             Format format = Format::RGBA8Unorm;                 /**< Pixel format of the image. */
@@ -191,8 +193,8 @@ namespace PyroshockStudios {
             BorderColor borderColor = BorderColor::TransparentBlackFloat;      /**< Border color for texture sampling. */
             eastl::string name = {};                                           /**< Optional debug name for the sampler. */
 
-            PYRO_NODISCARD  bool operator==(const SamplerInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const SamplerInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const SamplerInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const SamplerInfo&) const = default;
         };
 
         //-------------------------------------------------------------------------------------------------

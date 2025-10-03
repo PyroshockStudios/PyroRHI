@@ -87,7 +87,7 @@ namespace PyroshockStudios::RHIDX12 {
 
             infoQueue->AddStorageFilterEntries(&filter);
         }
-        mDevice = new D3DDevice(eastl::move(device), eastl::move(factory));
+        mDevice = new D3DDevice(eastl::move(device), eastl::move(factory), eastl::move(hardwareAdapter));
     }
     D3DContext::~D3DContext() {
         if (mPixRuntimeDll) {

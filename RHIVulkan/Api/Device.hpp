@@ -130,6 +130,10 @@ namespace PyroshockStudios {
 
             VulkanSwapChainSupportInfo GetSwapChainSupport(VkSurfaceKHR surface) const;
 
+            uint32_t FindMemoryTypeIndex(
+                uint32_t memoryTypeBits,                  
+                VkMemoryPropertyFlags requiredProperties);
+
             eastl::span<ICommandQueue*> GetCommandQueues() override {
                 return mCommandQueues;
             }

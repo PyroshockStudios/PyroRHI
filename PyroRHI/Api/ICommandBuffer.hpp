@@ -287,19 +287,19 @@ namespace PyroshockStudios {
         };
 
         /**
-         * @brief Parameters for resetting timestamp queries on the command buffer.
+         * @brief Parameters for invalidating timestamp queries on the command buffer.
          */
-        struct ResetTimestampQueryInfo {
+        struct InvalidateTimestampQueryInfo {
             /**
-             * @brief A NON-NULL Query pool to reset to.
+             * @brief A NON-NULL Query pool to invalidate a range.
              */
             ITimestampQueryPool* queryPool = nullptr;
             /**
-             * @brief First query to be reset.
+             * @brief First query to be invalidated.
              */
             u32 firstQuery = {};
             /**
-             * @brief How many queries to reset.
+             * @brief How many queries to invalidate.
              */
             u32 queryCount = {};
         };
@@ -774,9 +774,9 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
 
             /**
-             * @brief Resets the timestamps of the query pool.
+             * @brief Invalidates the timestamps of the query pool. Required before using in a frame.
              */
-            virtual void ResetTimestampQuery(const ResetTimestampQueryInfo& info) = 0;
+            virtual void InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) = 0;
             /**
              * @brief Writes a timestamp into a query pool for GPU profiling.
              */

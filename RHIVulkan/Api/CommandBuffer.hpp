@@ -62,7 +62,7 @@ namespace PyroshockStudios {
             void WaitEvent(const EventWaitInfo& info) override;
             void ResetEvent(const ResetEventInfo& info) override;
 
-            void DestroyDeviceMemoryDeferred(DeviceMemory memory) override;
+            void DestroyMemoryBlockDeferred(MemoryBlock memory) override;
             void DestroyBufferDeferred(Buffer buffer) override;
             void DestroyImageDeferred(Image image) override;
             void DestroyShaderResourceDeferred(ShaderResourceId srv) override;
@@ -72,6 +72,7 @@ namespace PyroshockStudios {
             void DestroyRasterPipelineDeferred(RasterPipeline pipeline) override;
             void DestroyComputePipelineDeferred(ComputePipeline pipeline) override;
 
+            void InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) override;
             void WriteTimestamp(const WriteTimestampInfo& info) override;
             void BeginLabel(const CommandLabelInfo& info) override;
             void EndLabel() override;

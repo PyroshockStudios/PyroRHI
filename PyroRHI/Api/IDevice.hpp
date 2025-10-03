@@ -160,7 +160,7 @@ namespace PyroshockStudios {
             /**
              * @brief Retrieves memory block description.
              */
-            PYRO_NODISCARD virtual const MemoryBlockInfo& GetDeviceMemoryInfo(MemoryBlock memory) const = 0;
+            PYRO_NODISCARD virtual const MemoryBlockInfo& GetMemoryBlockInfo(MemoryBlock memory) const = 0;
 
             /**
              * @brief Retrieves buffer description.
@@ -369,7 +369,7 @@ namespace PyroshockStudios {
             virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) = 0;
 
             // Convenience overloads
-            PYRO_FORCEINLINE void Destroy(MemoryBlock& memory) { DestroyDeviceMemory(memory); }
+            PYRO_FORCEINLINE void Destroy(MemoryBlock& memory) { DestroyMemoryBlock(memory); }
             PYRO_FORCEINLINE void Destroy(Buffer& buffer) { DestroyBuffer(buffer); }
             PYRO_FORCEINLINE void Destroy(Image& image) { DestroyImage(image); }
             PYRO_FORCEINLINE void Destroy(ShaderResourceId& srv) { DestroyShaderResource(srv); }
@@ -439,7 +439,7 @@ namespace PyroshockStudios {
             PYRO_NODISCARD virtual const DevicePropertiesInfo& GetProperties() = 0;
 
             // Convenience create overloads
-            PYRO_NODISCARD PYRO_FORCEINLINE MemoryBlock Create(const MemoryBlockInfo& info) { return CreateDeviceMemory(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE MemoryBlock Create(const MemoryBlockInfo& info) { return CreateMemoryBlock(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE Buffer Create(const BufferInfo& info) { return CreateBuffer(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE Image Create(const ImageInfo& info) { return CreateImage(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE SamplerId Create(const SamplerInfo& info) { return CreateSampler(info); }

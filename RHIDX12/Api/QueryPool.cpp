@@ -36,6 +36,7 @@ namespace PyroshockStudios {
                 desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
 
                 CheckD3DResult(device->InternalDevice()->CreateQueryHeap(&desc, IID_PPV_ARGS(&mQueryPool)));
+                D3DSetDebugName(mQueryPool, info.name.c_str());
             }
 
 
@@ -64,6 +65,7 @@ namespace PyroshockStudios {
                 range.End = desc.Width;
 
                 CheckD3DResult(mReadbackBuffer->Map(0, &range, &mMappedResult));
+                D3DSetDebugName(mQueryPool, (info.name + " (Readback Buffer)").c_str());
             }
         }
         D3DTimestampQueryPool::~D3DTimestampQueryPool() {

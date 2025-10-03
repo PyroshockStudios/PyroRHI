@@ -371,11 +371,11 @@ namespace PyroshockStudios::RHIVulkan {
         // vkCmdResetEvent(mCommandBuffer, event, ToVkPipelineStageFlags(info.stage));
     }
 
-    void VulkanCommandBuffer::DestroyDeviceMemoryDeferred(DeviceMemory memory) {
+    void VulkanCommandBuffer::DestroyMemoryBlockDeferred(MemoryBlock memory) {
         mZombieInfo->zombies.push_back({
             .resource = eastl::bit_cast<void*>(memory),
             .deleter = [](VulkanDevice* device, void* resource) {
-                auto x = eastl::bit_cast<DeviceMemory>(resource);
+                auto x = eastl::bit_cast<MemoryBlock>(resource);
                 device->Destroy(x);
             },
         });
@@ -459,6 +459,10 @@ namespace PyroshockStudios::RHIVulkan {
                 device->Destroy(x);
             },
         });
+    }
+
+    void VulkanCommandBuffer::InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) {
+        vkCmdResetQueryPool(mCommandBuffer, static_cast<VulkanTimestampQueryPool*>(info.queryPool)->GetVkQueryPool(), info.firstQuery, info.queryCount);
     }
 
     void VulkanCommandBuffer::WriteTimestamp(const WriteTimestampInfo& info) {

@@ -42,8 +42,8 @@ namespace PyroshockStudios {
         constexpr UINT64 MAX_FRAMES_UAV_TABLE_CACHE_UNUSED_LIFETIME = 60;
         constexpr UINT64 MAX_FRAMES_LINEAR_UPLOAD_BUFFER_UNSUED_LIFETIME = 100;
 
-        D3DDevice::D3DDevice(ComPtr<ID3D12Device>&& device, ComPtr<IDXGIFactory4>&& factory)
-            : mDevice(eastl::move(device)), mFactory(eastl::move(factory)) {
+        D3DDevice::D3DDevice(ComPtr<ID3D12Device>&& device, ComPtr<IDXGIFactory4>&& factory, ComPtr<IDXGIAdapter1>&& adapter)
+            : mDevice(eastl::move(device)), mFactory(eastl::move(factory)), mAdapter(eastl::move(adapter)) {
             {
                 D3D12_FEATURE_DATA_D3D12_OPTIONS options{};
                 mDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options));
@@ -243,6 +243,13 @@ namespace PyroshockStudios {
                 cmdSigDesc.ByteStride = sizeof(DispatchArgumentBuffer);
                 CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDispatchSignature)));
             }
+            {
+                D3D12MA::ALLOCATOR_DESC allocatorDesc{};
+                allocatorDesc.pDevice = mDevice.Get();
+                allocatorDesc.pAllocationCallbacks = nullptr;
+                allocatorDesc.pAdapter = mAdapter.Get();
+                CheckD3DResult(D3D12MA::CreateAllocator(&allocatorDesc, mAllocator.GetAddressOf()));
+            }
         }
         D3DDevice::~D3DDevice() {
             WaitIdle();
@@ -256,6 +263,9 @@ namespace PyroshockStudios {
                 delete buf;
             }
             delete mCommandQueue;
+        }
+        bool D3DDevice::IsMemoryBlockValid(MemoryBlock handle) const {
+            return handle != PYRO_NULL_MEMORY_BLOCK;
         }
         bool D3DDevice::IsBufferValid(Buffer handle) const {
             return handle != PYRO_NULL_BUFFER;
@@ -272,8 +282,8 @@ namespace PyroshockStudios {
         bool D3DDevice::IsSamplerValid(SamplerId id) const {
             return id.index != 0;
         }
-        const DeviceMemoryInfo& D3DDevice::GetDeviceMemoryInfo(DeviceMemory memory) const {
-            static DeviceMemoryInfo mem;
+        const MemoryBlockInfo& D3DDevice::GetMemoryBlockInfo(MemoryBlock memory) const {
+            static MemoryBlockInfo mem;
             return mem;
         }
         const BufferInfo& D3DDevice::GetBufferInfo(Buffer buffer) const {
@@ -321,73 +331,170 @@ namespace PyroshockStudios {
             ASSERT(IsValid(image));
             return 0;
         }
-        DeviceMemory D3DDevice::CreateDeviceMemory(const DeviceMemoryInfo& info) {
-            return PYRO_NULL_DEVICE_MEMORY;
+        MemoryBlock D3DDevice::CreateMemoryBlock(const MemoryBlockInfo& info) {
+            auto [memory, data] = mResourcePool->AllocMemoryBlock();
+            data.info = info;
+            D3D12_HEAP_TYPE heapType = {};
+            switch (info.domain) {
+            case MemoryAllocationDomain::DeviceLocal:
+                heapType = D3D12_HEAP_TYPE_DEFAULT;
+                break;
+            case MemoryAllocationDomain::HostStaging:
+            case MemoryAllocationDomain::HostRandomWrite:
+                heapType = D3D12_HEAP_TYPE_UPLOAD;
+                break;
+            case MemoryAllocationDomain::HostReadback:
+                heapType = D3D12_HEAP_TYPE_READBACK;
+                break;
+            default:
+                ASSERT(false, "Invalid heap type!");
+                break;
+            }
+
+            D3D12_HEAP_DESC heapDec = {};
+            heapDec.SizeInBytes = info.size;
+            heapDec.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+
+            heapDec.Properties = CD3DX12_HEAP_PROPERTIES(heapType);
+            if (info.bufferUsage == 0) {
+                heapDec.Flags |= D3D12_HEAP_FLAG_DENY_BUFFERS;
+            } else {
+                heapDec.Flags |= D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+            }
+            mDevice->CreateHeap(&heapDec, IID_PPV_ARGS(&data.heap));
+            D3DSetDebugName(data.heap, info.name.c_str());
+            D3D12MA::VIRTUAL_BLOCK_DESC vblockDesc = {};
+            vblockDesc.Size = info.size;
+            if (info.strategy == VirtualSuballocationStrategy::AggressiveRing) {
+                D3D12MA::VIRTUAL_BLOCK_DESC vblockDesc = {};
+                vblockDesc.Flags |= D3D12MA::VIRTUAL_BLOCK_FLAG_ALGORITHM_LINEAR;
+            }
+            D3D12MA::CreateVirtualBlock(&vblockDesc, data.block.GetAddressOf());
+            return memory;
         }
         Buffer D3DDevice::CreateBuffer(const BufferInfo& info) {
             auto [buffer, data] = mResourcePool->AllocBuffer();
             data.lastValidState = ToD3D12BufferResourceState(info.initialLayout);
             data.info = info;
+
+            // Describe the buffer
             D3D12_RESOURCE_DESC bufferDesc = {};
-            bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+            bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+            bufferDesc.Alignment = 0;
             bufferDesc.Width = info.size;
             bufferDesc.Height = 1;
             bufferDesc.DepthOrArraySize = 1;
             bufferDesc.MipLevels = 1;
+            bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
             bufferDesc.SampleDesc.Count = 1;
             bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
             bufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-            if (info.usage & BufferUsageFlagBits::UNORDERED_ACCESS) {
+
+            if (info.usage & BufferUsageFlagBits::UNORDERED_ACCESS)
                 bufferDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-            }
-            if ((info.usage & BufferUsageFlagBits::SHADER_RESOURCE) == BufferUsageFlagBits::NONE) {
+
+            if ((info.usage & BufferUsageFlagBits::SHADER_RESOURCE) == BufferUsageFlagBits::NONE)
                 bufferDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
-            }
-            bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+
+            // Map MemoryAllocationUsage to heap type & initial state
             D3D12_RESOURCE_STATES state = ToD3D12BufferResourceState(info.initialLayout);
+
+            // Fill buffer data
+            data.range.Begin = 0;
+            data.range.End = info.size;
+            data.desc = bufferDesc;
             bool bMap = false;
-            D3D12_HEAP_TYPE heapType = {};
-            switch (info.allocateUsage) {
-            case MemoryAllocationUsage::DedicatedMemory:
-                heapType = D3D12_HEAP_TYPE_DEFAULT;
+
+            switch (info.memoryBlock == PYRO_NULL_MEMORY_BLOCK ? info.allocationDomain : mResourcePool->Get(info.memoryBlock).info.domain) {
+            case MemoryAllocationDomain::DeviceLocal:
                 break;
-            case MemoryAllocationUsage::HostStaging:
-            case MemoryAllocationUsage::HostRandomWrite:
+            case MemoryAllocationDomain::HostStaging:
+            case MemoryAllocationDomain::HostRandomWrite:
                 ASSERT(info.initialLayout == BufferLayout::ReadOnly || info.initialLayout == BufferLayout::TransferSrc);
-                heapType = D3D12_HEAP_TYPE_UPLOAD;
                 state = D3D12_RESOURCE_STATE_GENERIC_READ;
                 bMap = true;
                 break;
-            case MemoryAllocationUsage::HostReadback:
-                heapType = D3D12_HEAP_TYPE_READBACK;
+            case MemoryAllocationDomain::HostReadback:
                 bMap = true;
                 break;
             default:
                 ASSERT(false, "Invalid heap type!");
                 break;
             }
-            CD3DX12_HEAP_PROPERTIES heap = CD3DX12_HEAP_PROPERTIES(heapType);
-            // TODO: incorporate D3D12MA
-            CheckD3DResult(mDevice->CreateCommittedResource(
-                &heap,
-                D3D12_HEAP_FLAG_NONE,
-                &bufferDesc,
-                state,
-                nullptr,
-                IID_PPV_ARGS(&data.resource)));
-            D3DSetDebugName(data.resource, info.name.c_str());
-            data.range.Begin = 0;
-            data.range.End = info.size;
-            if (bMap) {
-                CheckD3DResult(data.resource->Map(0, &data.range, reinterpret_cast<void**>(&data.mappedMemory)));
+
+            if (info.memoryBlock == PYRO_NULL_MEMORY_BLOCK) {
+                // Allocate with D3D12MA
+                D3D12MA::ALLOCATION_DESC allocDesc = {};
+                switch (info.allocationDomain) {
+                case MemoryAllocationDomain::DeviceLocal:
+                    allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+                    break;
+                case MemoryAllocationDomain::HostStaging:
+                case MemoryAllocationDomain::HostRandomWrite:
+                    allocDesc.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+                    break;
+                case MemoryAllocationDomain::HostReadback:
+                    allocDesc.HeapType = D3D12_HEAP_TYPE_READBACK;
+                    break;
+                default:
+                    ASSERT(false, "Invalid heap type!");
+                    break;
+                }
+
+                HRESULT hr = mAllocator->CreateResource(
+                    &allocDesc,
+                    &bufferDesc,
+                    state,
+                    nullptr, // optimized clear value (unused for buffers)
+                    data.allocation.GetAddressOf(),
+                    IID_PPV_ARGS(&data.resource));
+                CheckD3DResult(hr);
+
+            } else {
+                auto& block = mResourcePool->Get(info.memoryBlock);
+                D3D12MA::VIRTUAL_ALLOCATION_DESC allocDesc = {};
+                D3D12_RESOURCE_ALLOCATION_INFO resourceAllocInfo = mDevice->GetResourceAllocationInfo(0, 1, &bufferDesc);
+                allocDesc.Size = resourceAllocInfo.SizeInBytes;
+                allocDesc.Alignment = resourceAllocInfo.Alignment;
+                switch (block.info.strategy) {
+                case VirtualSuballocationStrategy::AggressiveRing:
+                case VirtualSuballocationStrategy::TimeEfficient:
+                    allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_TIME;
+                    break;
+                case VirtualSuballocationStrategy::SpaceEfficient:
+                    allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
+                    break;
+                default:
+                    break;
+                }
+                UINT64 offset;
+                HRESULT hr = block.block->Allocate(&allocDesc, &data.virtualAlloc, &offset);
+                mDevice->CreatePlacedResource(
+                    block.heap.Get(), // heap from above
+                    offset,           // offset of this virtual slice
+                    &bufferDesc,
+                    state,
+                    nullptr,
+                    IID_PPV_ARGS(&data.resource));
+                CheckD3DResult(hr);
+                ++block.debugRefs;
             }
-            data.desc = bufferDesc;
+            D3DSetDebugName(data.resource, info.name.c_str());
+
+            if (bMap) {
+                D3D12_RANGE range = { 0, info.size };
+                CheckD3DResult(data.resource->Map(0, &range, reinterpret_cast<void**>(&data.mappedMemory)));
+            }
             return buffer;
         }
         Image D3DDevice::CreateImage(const ImageInfo& info) {
             auto [image, data] = mResourcePool->AllocImage();
             data.info = info;
+
+            // Track resource states for each subresource
             data.lastValidStates.resize(info.arrayLayerCount * info.mipLevelCount, D3D12_RESOURCE_STATE_COMMON);
+
+            // Describe the texture
             D3D12_RESOURCE_DESC textureDesc = {};
             textureDesc.MipLevels = info.mipLevelCount;
             textureDesc.Format = ToDXGIFormat(info.format);
@@ -397,20 +504,26 @@ namespace PyroshockStudios {
             textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
             bool dsv = RHIUtil::FormatIsDepthStencil(info.format);
-            if (info.usage & ImageUsageFlagBits::RENDER_TARGET && !dsv || info.usage & ImageUsageFlagBits::BLIT_DST) {
+
+            if ((info.usage & ImageUsageFlagBits::RENDER_TARGET && !dsv) ||
+                (info.usage & ImageUsageFlagBits::BLIT_DST)) {
                 textureDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
             }
+
             if (info.usage & ImageUsageFlagBits::RENDER_TARGET && dsv) {
                 textureDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
                 if ((info.usage & (ImageUsageFlagBits::SHADER_RESOURCE | ImageUsageFlagBits::BLIT_SRC)) == ImageUsageFlagBits::NONE) {
                     textureDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
                 }
             }
+
             if (info.usage & ImageUsageFlagBits::UNORDERED_ACCESS) {
                 textureDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
             }
+
             textureDesc.SampleDesc.Count = info.sampleCount;
             textureDesc.SampleDesc.Quality = 0;
+
             switch (info.dimensions) {
             case 1:
                 textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE1D;
@@ -423,21 +536,58 @@ namespace PyroshockStudios {
                 break;
             default:
                 ASSERT(false, "Invalid texture dimension");
+                break;
             }
 
-            CD3DX12_HEAP_PROPERTIES heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-            // TODO: incorporate D3D12MA
-            CheckD3DResult(mDevice->CreateCommittedResource(
-                &heap,
-                D3D12_HEAP_FLAG_NONE,
-                &textureDesc,
-                D3D12_RESOURCE_STATE_COMMON,
-                nullptr,
-                IID_PPV_ARGS(&data.resource)));
-            data.desc = textureDesc;
+            // Determine heap type based on memory allocation domain
 
+            if (info.memoryBlock != PYRO_NULL_MEMORY_BLOCK) {
+                D3D12MA::ALLOCATION_DESC allocDesc = {};
+                allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+
+                HRESULT hr = mAllocator->CreateResource(
+                    &allocDesc,
+                    &textureDesc,
+                    D3D12_RESOURCE_STATE_COMMON,
+                    nullptr, // optimized clear value if needed
+                    data.allocation.GetAddressOf(),
+                    IID_PPV_ARGS(&data.resource));
+                CheckD3DResult(hr);
+            } else {
+                auto& block = mResourcePool->Get(info.memoryBlock);
+                D3D12MA::VIRTUAL_ALLOCATION_DESC allocDesc = {};
+                D3D12_RESOURCE_ALLOCATION_INFO resourceAllocInfo = mDevice->GetResourceAllocationInfo(0, 1, &textureDesc);
+                allocDesc.Size = resourceAllocInfo.SizeInBytes;
+                allocDesc.Alignment = resourceAllocInfo.Alignment;
+                switch (block.info.strategy) {
+                case VirtualSuballocationStrategy::AggressiveRing:
+                case VirtualSuballocationStrategy::TimeEfficient:
+                    allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_TIME;
+                    break;
+                case VirtualSuballocationStrategy::SpaceEfficient:
+                    allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
+                    break;
+                default:
+                    break;
+                }
+                UINT64 offset;
+                HRESULT hr = block.block->Allocate(&allocDesc, &data.virtualAlloc, &offset);
+                mDevice->CreatePlacedResource(
+                    block.heap.Get(), // heap from above
+                    offset,           // offset of this virtual slice
+                    &textureDesc,
+                    D3D12_RESOURCE_STATE_COMMON,
+                    nullptr,
+                    IID_PPV_ARGS(&data.resource));
+                CheckD3DResult(hr);
+                ++block.debugRefs;
+            }
+
+            data.desc = textureDesc;
             D3DSetDebugName(data.resource, info.name.c_str());
+
             ImageAddIfNecessaryBlitSupport(data);
+
             return image;
         }
         ShaderResourceId D3DDevice::CreateShaderResource(const GPUResourceInfo& info) {
@@ -754,13 +904,21 @@ namespace PyroshockStudios {
 
             return commands;
         }
-        void D3DDevice::DestroyDeviceMemory(DeviceMemory& memory) {
-            memory = PYRO_NULL_DEVICE_MEMORY;
+        void D3DDevice::DestroyMemoryBlock(MemoryBlock& memory) {
+            auto& data = mResourcePool->Get(memory);
+            ASSERT(data.debugRefs == 0, "All resources using this memory block must be freed beforehand!");
+            mResourcePool->ReleaseMemoryBlock(memory);
+            memory = PYRO_NULL_MEMORY_BLOCK;
         }
         void D3DDevice::DestroyBuffer(Buffer& buffer) {
             auto& data = mResourcePool->Get(buffer);
             if (data.mappedMemory) {
                 data.resource->Unmap(0, &data.range);
+            }
+            if (data.virtualAlloc.AllocHandle != 0) {
+                auto& block = mResourcePool->Get(data.info.memoryBlock);
+                block.block->FreeAllocation(data.virtualAlloc);
+                --block.debugRefs;
             }
             mResourcePool->ReleaseBuffer(buffer);
             buffer = PYRO_NULL_BUFFER;
@@ -769,6 +927,11 @@ namespace PyroshockStudios {
             auto& imgSlot = mResourcePool->Get(image);
             for (GPUResourceId id : imgSlot.blitImageRTVs) {
                 mResourcePool->mRTVHeap.ReleaseSlot(id);
+            }
+            if (imgSlot.virtualAlloc.AllocHandle != 0) {
+                auto& block = mResourcePool->Get(imgSlot.info.memoryBlock);
+                block.block->FreeAllocation(imgSlot.virtualAlloc);
+                --block.debugRefs;
             }
             mResourcePool->ReleaseImage(image);
             image = PYRO_NULL_IMAGE;

@@ -22,9 +22,12 @@
 
 #pragma once
 #include <EASTL/hash_map.h>
+#include <EASTL/atomic.h>
 #include <EASTL/vector.h>
-#include <RHIDX12/Core.hpp>
 #include <PyroRHI/Api/GPUResource.hpp>
+#include <RHIDX12/Core.hpp>
+#include <D3D12MemAlloc.h>
+
 namespace PyroshockStudios {
     namespace RHIDX12 {
         struct DescriptorTableInfo {
@@ -111,9 +114,16 @@ namespace PyroshockStudios {
             ComPtr<ID3D12DescriptorHeap> mHeap = {};
             UINT mIncSz{};
         };
-
+        struct D3DMemoryBlockResourceData {
+            MemoryBlockInfo info = {};
+            ComPtr<ID3D12Heap> heap = {};
+            ComPtr<D3D12MA::VirtualBlock> block = {};
+            u32 debugRefs = 0;
+        };
         struct D3DBufferResourceData {
             ComPtr<ID3D12Resource> resource = {};
+            ComPtr<D3D12MA::Allocation> allocation = {};
+            D3D12MA::VirtualAllocation virtualAlloc = {};
             D3D12_RESOURCE_DESC desc = {};
             BufferInfo info = {};
             // Required for keeping track of the "UNDEFINED" state
@@ -123,6 +133,8 @@ namespace PyroshockStudios {
         };
         struct D3DImageResourceData {
             ComPtr<ID3D12Resource> resource = {};
+            ComPtr<D3D12MA::Allocation> allocation = {};
+            D3D12MA::VirtualAllocation virtualAlloc = {};
             D3D12_RESOURCE_DESC desc = {};
             ImageInfo info = {};
             // Required for keeping track of the "UNDEFINED" state
@@ -142,12 +154,15 @@ namespace PyroshockStudios {
             GPUResourcePool(D3DDevice* device, UINT maxRtvs, UINT maxDsvs, UINT maxSRVs, UINT maxUAVs, UINT maxSamplers);
             ~GPUResourcePool();
 
+            eastl::pair<MemoryBlock, D3DMemoryBlockResourceData&> AllocMemoryBlock();
             eastl::pair<Buffer, D3DBufferResourceData&> AllocBuffer();
             eastl::pair<Image, D3DImageResourceData&> AllocImage();
 
+            void ReleaseMemoryBlock(MemoryBlock buffer);
             void ReleaseBuffer(Buffer buffer);
             void ReleaseImage(Image image);
 
+            D3DMemoryBlockResourceData& Get(MemoryBlock handle);
             D3DBufferResourceData& Get(Buffer handle);
             D3DImageResourceData& Get(Image handle);
 
@@ -158,11 +173,13 @@ namespace PyroshockStudios {
             D3DHeapManager<D3DRenderTargetData> mDSVHeap;
 
         private:
+            eastl::hash_map<MemoryBlock, D3DMemoryBlockResourceData> mMemoryBlockResources = {};
             eastl::hash_map<Buffer, D3DBufferResourceData> mBufferResources = {};
             eastl::hash_map<Image, D3DImageResourceData> mImageResources = {};
 
-            u32 mImageCounter = 1;
-            u32 mBufferCounter = 1;
+            eastl::atomic<u32> mMemoryBlockCounter = 1;
+            eastl::atomic<u32> mBufferCounter = 1;
+            eastl::atomic<u32> mImageCounter = 1;
         };
     } // namespace RHIDX12
 } // namespace PyroshockStudios

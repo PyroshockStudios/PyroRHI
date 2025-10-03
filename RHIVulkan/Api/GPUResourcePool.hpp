@@ -81,9 +81,14 @@ namespace PyroshockStudios {
 
         struct ImplVmaVirtualBlockSlot {
             MemoryBlockInfo info = {};
-            VmaVirtualBlock vmaBlock = {};
-            VmaAllocation vmaAllocation = {};
-        }
+            VmaVirtualBlock vmaBlock = VK_NULL_HANDLE;
+            VmaAllocation vmaAllocation = VK_NULL_HANDLE;
+            VmaAllocationInfo vmaAllocationInfo = {};
+            VkMemoryRequirements requirements = {};
+            bool zombie = {};
+            // eastl::atomic<u32> debugReferences = 0;
+            u32 debugReferences = 0;
+        };
 
         template <typename ResourceT>
         struct GpuResourcePool {

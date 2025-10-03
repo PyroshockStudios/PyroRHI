@@ -22,10 +22,10 @@
 
 #pragma once
 #include <EASTL/hash_set.h>
-#include <RHIDX12/Api/GPUResource.hpp>
-#include <RHIDX12/Api/Device.hpp>
-#include <RHIDX12/Core.hpp>
 #include <PyroRHI/Api/ICommandBuffer.hpp>
+#include <RHIDX12/Api/Device.hpp>
+#include <RHIDX12/Api/GPUResource.hpp>
+#include <RHIDX12/Core.hpp>
 namespace PyroshockStudios {
     namespace RHIDX12 {
         class D3DDevice;
@@ -49,7 +49,8 @@ namespace PyroshockStudios {
             void WaitEvents(const eastl::span<const EventWaitInfo>& infos) override;
             void WaitEvent(const EventWaitInfo& info) override;
             void ResetEvent(const ResetEventInfo& info) override;
-            void DestroyDeviceMemoryDeferred(DeviceMemory memory) override;
+            void InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) override;
+            void DestroyMemoryBlockDeferred(MemoryBlock memory) override;
             void DestroyBufferDeferred(Buffer buffer) override;
             void DestroyImageDeferred(Image image) override;
             void DestroyShaderResourceDeferred(ShaderResourceId srv) override;
@@ -92,6 +93,7 @@ namespace PyroshockStudios {
 
             eastl::vector<ZombieDeleter> mDeferredDeleteOps = {};
             eastl::vector<LinearUploadBuffer*> mPendingReturnLinearUploadBuffers = {};
+
         private:
             inline void FlushPendingVertexBufferBinds();
             inline void FlushPendingUnorderedAccessViewBinds();
