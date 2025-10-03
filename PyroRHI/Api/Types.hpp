@@ -584,8 +584,8 @@ namespace PyroshockStudios {
         };
 
 
-        enum struct MemoryAllocationUsage : i32 {
-            DedicatedMemory = 0,
+        enum struct MemoryAllocationDomain : i32 {
+            DeviceLocal = 0,
             HostStaging = 1,
             HostRandomWrite = 2,
             HostReadback = 3

@@ -61,13 +61,14 @@ namespace PyroshockStudios {
             VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features);
             virtual ~VulkanDevice() override;
 
+            bool IsMemoryBlockValid(MemoryBlock handle) const override;
             bool IsBufferValid(Buffer handle) const override;
             bool IsImageValid(Image handle) const override;
             bool IsShaderResourceValid(ShaderResourceId id) const override;
             bool IsUnorderedAccessValid(UnorderedAccessId id) const override;
             bool IsSamplerValid(SamplerId id) const override;
 
-            const DeviceMemoryInfo& GetDeviceMemoryInfo(DeviceMemory memory) const override;
+            const MemoryBlockInfo& GetMemoryBlockInfo(MemoryBlock memory) const override;
             const BufferInfo& GetBufferInfo(Buffer buffer) const override;
             const ImageInfo& GetImageInfo(Image image) const override;
             const GPUResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const override;
@@ -83,7 +84,7 @@ namespace PyroshockStudios {
 
             DeviceSize ImageSizeRequirements(Image image) const override;
 
-            DeviceMemory CreateDeviceMemory(const DeviceMemoryInfo& info) override;
+            MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;
             Image CreateImage(const ImageInfo& info) override;
             ShaderResourceId CreateShaderResource(const GPUResourceInfo& info) override;
@@ -100,7 +101,7 @@ namespace PyroshockStudios {
 
             ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) override;
 
-            virtual void DestroyDeviceMemory(DeviceMemory& memory) override;
+            virtual void DestroyMemoryBlock(MemoryBlock& memory) override;
             virtual void DestroyBuffer(Buffer& buffer) override;
             virtual void DestroyImage(Image& image) override;
             virtual void DestroyShaderResource(ShaderResourceId& srv) override;
@@ -129,6 +130,10 @@ namespace PyroshockStudios {
 
             VulkanSwapChainSupportInfo GetSwapChainSupport(VkSurfaceKHR surface) const;
 
+            uint32_t FindMemoryTypeIndex(
+                uint32_t memoryTypeBits,                  
+                VkMemoryPropertyFlags requiredProperties);
+
             eastl::span<ICommandQueue*> GetCommandQueues() override {
                 return mCommandQueues;
             }
@@ -152,12 +157,14 @@ namespace PyroshockStudios {
                 return mResourceTable;
             }
 
+            ImplVmaVirtualBlockSlot& Slot(MemoryBlock block);
             ImplBufferSlot& Slot(Buffer buffer);
             ImplImageSlot& Slot(Image image);
             ImplResourceViewSlot& Slot(ShaderResourceId id);
             ImplResourceViewSlot& Slot(UnorderedAccessId id);
             ImplSamplerSlot& Slot(SamplerId id);
 
+            const ImplVmaVirtualBlockSlot& Slot(MemoryBlock block) const;
             const ImplBufferSlot& Slot(Buffer buffer) const;
             const ImplImageSlot& Slot(Image image) const;
             const ImplResourceViewSlot& Slot(ShaderResourceId id) const;

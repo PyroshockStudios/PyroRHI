@@ -392,11 +392,15 @@ namespace PyroshockStudios {
         void D3DCommandBuffer::ResetEvent(const ResetEventInfo& info) {
         }
 
-        void D3DCommandBuffer::DestroyDeviceMemoryDeferred(DeviceMemory memory) {
+        void D3DCommandBuffer::InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) {
+            /*NOP*/
+        }
+
+        void D3DCommandBuffer::DestroyMemoryBlockDeferred(MemoryBlock memory) {
             mDeferredDeleteOps.push_back({
                 .resource = eastl::bit_cast<void*>(memory),
                 .deleter = [](D3DDevice* device, void* resource) {
-                    auto x = eastl::bit_cast<DeviceMemory>(resource);
+                    auto x = eastl::bit_cast<MemoryBlock>(resource);
                     device->Destroy(x);
                 },
             });

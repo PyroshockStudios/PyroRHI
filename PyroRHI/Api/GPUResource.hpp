@@ -24,6 +24,8 @@
 #include <EASTL/bit.h>
 #include <EASTL/compare.h>
 #include <EASTL/functional.h>
+#include <EASTL/optional.h>
+#include <EASTL/string.h>
 
 #include "Types.hpp"
 #include <PyroRHI/Core.hpp>
@@ -33,7 +35,7 @@ namespace PyroshockStudios {
         struct IDevice;
 
         /// @brief Handle to GPU memory.
-        RHI_TYPED_HANDLE64(DeviceMemory);
+        RHI_TYPED_HANDLE64(MemoryBlock);
 
         /// @brief Handle to a GPU buffer resource.
         RHI_TYPED_HANDLE64(Buffer);
@@ -41,8 +43,8 @@ namespace PyroshockStudios {
         /// @brief Handle to a GPU image resource.
         RHI_TYPED_HANDLE64(Image);
 
-        /// @brief Null (invalid) buffer handle.
-        constexpr DeviceMemory PYRO_NULL_DEVICE_MEMORY = DeviceMemory{};
+        /// @brief Null (invalid) memory block handle.
+        constexpr MemoryBlock PYRO_NULL_MEMORY_BLOCK = MemoryBlock{};
 
         /// @brief Null (invalid) buffer handle.
         constexpr Buffer PYRO_NULL_BUFFER = Buffer{};
@@ -56,23 +58,34 @@ namespace PyroshockStudios {
         //-------------------------------------------------------------------------------------------------
 
         /**
-         * @brief Parameters for creating a GPU memory pool.
+         * @brief Suballocation strategy for virtual allocations within a MemoryBlock
          */
-        struct DeviceMemoryInfo {
-            BufferUsageFlags bufferUsage = {};                                            /**< Intended possible usages of subsequent buffers (e.g., vertex, uniform). */
-            ImageUsageFlags imageUsage = {};                                              /**< Intended possible usages of subsequent images (e.g., sampled, unordered access). */
-            DeviceSize size = {};                                                         /**< Memory size in bytes. */
-            MemoryAllocationUsage allocateUsage = MemoryAllocationUsage::DedicatedMemory; /**< Memory allocation usage. */
-            eastl::string name = {};                                                      /**< Optional debug name for the memory handle. */
+        enum struct VirtualSuballocationStrategy : i32 {
+            Default = 0,        /**< Default implementation */
+            SpaceEfficient = 1, /**< Space efficient suballocation mode. Might sacrifice suballocation performance */
+            TimeEfficient = 2,  /**< Fast suballocation mode. Might sacrifice space usage */
+            AggressiveRing = 3, /**< Fastest suballocation mode. This will severely sacrifice space usage. Not recommended for anything except for ring buffers, where spaces are FiFo recycled*/
+        };
 
-            PYRO_NODISCARD  bool operator==(const DeviceMemoryInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DeviceMemoryInfo&) const = default;
+        /**
+         * @brief Parameters for creating a GPU memory block for virtual allocations.
+         */
+        struct MemoryBlockInfo {
+            BufferUsageFlags bufferUsage = {};                                             /**< Intended possible usages of subsequent buffers (e.g., vertex, uniform). */
+            ImageUsageFlags imageUsage = {};                                               /**< Intended possible usages of subsequent images (e.g., sampled, unordered access). */
+            DeviceSize size = {};                                                          /**< Memory size in bytes. */
+            VirtualSuballocationStrategy strategy = VirtualSuballocationStrategy::Default; /**< Strategy used by resources creating allocations. */
+            MemoryAllocationDomain domain = MemoryAllocationDomain::DeviceLocal;           /**< Memory Block Domain. */
+            u32 minAlignment = 1;                                                          /**< Minimum suballocation alignment. *MUST* be a multiple of 2*/
+            eastl::string name = {};                                                       /**< Optional debug name for the memory handle. */
+
+            PYRO_NODISCARD bool operator==(const MemoryBlockInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const MemoryBlockInfo&) const = default;
         };
 
         //-------------------------------------------------------------------------------------------------
         // Buffer Creation Structures
         //-------------------------------------------------------------------------------------------------
-
 
         struct BufferCreateFlagsProperties {
             using Data = u32;
@@ -93,23 +106,23 @@ namespace PyroshockStudios {
          */
         struct BufferInfo {
             /**
-             * @brief Optional device memory handle for virtual allocations.
-             * If `memoryPool` is `PYRO_NULL_DEVICE_MEMORY`, then the buffer will create it's own allocation handle.
+             * @brief Optional memory block handle for virtual allocations.
+             * If `memoryBlock` is `PYRO_NULL_MEMORY_BLOCK`, then the buffer will create its own allocation handle.
              */
-            DeviceMemory memoryPool = PYRO_NULL_DEVICE_MEMORY;                            
-            BufferCreateFlags flags = BufferCreateFlagsBits::NONE;                        /**< Buffer creation flags. */
-            DeviceSize size = {};                                                         /**< Buffer size in bytes. */
-            BufferUsageFlags usage = {};                                                  /**< Intended usage of the buffer (e.g., vertex, uniform). */
-            BufferLayout initialLayout = BufferLayout::Undefined;                         /**< Initial state of the buffer. */
+            MemoryBlock memoryBlock = PYRO_NULL_MEMORY_BLOCK;
+            BufferCreateFlags flags = BufferCreateFlagsBits::NONE; /**< Buffer creation flags. */
+            DeviceSize size = {};                                  /**< Buffer size in bytes. */
+            BufferUsageFlags usage = {};                           /**< Intended usage of the buffer (e.g., vertex, uniform). */
+            BufferLayout initialLayout = BufferLayout::Undefined;  /**< Initial state of the buffer. */
             /**
-             * @brief Memory allocation usage.
-             * If `memoryPool` is not `PYRO_NULL_DEVICE_MEMORY`, then `allocateUsage` will be ignored. 
+             * @brief Memory allocation domain.
+             * If `memoryPool` is not `PYRO_NULL_MEMORY_BLOCK`, then `allocationDomain` will be ignored.
              */
-            MemoryAllocationUsage allocateUsage = MemoryAllocationUsage::DedicatedMemory; 
-            eastl::string name = {};                                                      /**< Optional debug name for the buffer. */
+            MemoryAllocationDomain allocationDomain = MemoryAllocationDomain::DeviceLocal;
+            eastl::string name = {}; /**< Optional debug name for the buffer. */
 
-            PYRO_NODISCARD  bool operator==(const BufferInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const BufferInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const BufferInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const BufferInfo&) const = default;
         };
 
         //-------------------------------------------------------------------------------------------------
@@ -137,10 +150,10 @@ namespace PyroshockStudios {
          */
         struct ImageInfo {
             /**
-             * @brief Optional device memory handle for virtual allocations.
-             * If `memoryPool` is `PYRO_NULL_DEVICE_MEMORY`, then the image will create it's own allocation handle.
+             * @brief Optional memory block handle for virtual allocations.
+             * If `memoryBlock` is `PYRO_NULL_MEMORY_BLOCK`, then the image will create its own allocation handle.
              */
-            DeviceMemory memoryPool = PYRO_NULL_DEVICE_MEMORY;  
+            MemoryBlock memoryBlock = PYRO_NULL_MEMORY_BLOCK;
             ImageCreateFlags flags = ImageCreateFlagBits::NONE; /**< Image creation flags. */
             u32 dimensions = 2;                                 /**< Number of dimensions (1D, 2D, 3D). */
             Format format = Format::RGBA8Unorm;                 /**< Pixel format of the image. */
@@ -153,24 +166,6 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const ImageInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const ImageInfo&) const = default;
-        };
-
-        //-------------------------------------------------------------------------------------------------
-        // Subresource Layout
-        //-------------------------------------------------------------------------------------------------
-
-        /**
-         * @brief Memory layout information for an image subresource.
-         */
-        struct SubresourceLayout {
-            usize offset = 0;     /**< Offset from the start of the image in bytes. */
-            usize size = 0;       /**< Size of the subresource in bytes. */
-            usize rowPitch = 0;   /**< Row stride in bytes. */
-            usize arrayPitch = 0; /**< Array layer stride in bytes. */
-            usize depthPitch = 0; /**< Depth slice stride in bytes. */
-
-            PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const SubresourceLayout&) const = default;
-            PYRO_NODISCARD PYRO_FORCEINLINE bool operator!=(const SubresourceLayout&) const = default;
         };
 
         //-------------------------------------------------------------------------------------------------
@@ -198,8 +193,8 @@ namespace PyroshockStudios {
             BorderColor borderColor = BorderColor::TransparentBlackFloat;      /**< Border color for texture sampling. */
             eastl::string name = {};                                           /**< Optional debug name for the sampler. */
 
-            PYRO_NODISCARD  bool operator==(const SamplerInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const SamplerInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const SamplerInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const SamplerInfo&) const = default;
         };
 
         //-------------------------------------------------------------------------------------------------
@@ -337,8 +332,8 @@ namespace eastl {
     };
 
     template <>
-    struct hash<DeviceMemory> {
-        usize operator()(DeviceMemory k) const {
+    struct hash<MemoryBlock> {
+        usize operator()(MemoryBlock k) const {
             return eastl::hash<usize>{}(eastl::bit_cast<u64>(k));
         }
     };

@@ -378,8 +378,86 @@ namespace PyroshockStudios {
             vkDestroyDevice(mDevice, mContext->GetVkAllocator());
         }
 
-        DeviceMemory VulkanDevice::CreateDeviceMemory(const DeviceMemoryInfo& info) {
-            return PYRO_NULL_DEVICE_MEMORY;
+        MemoryBlock VulkanDevice::CreateMemoryBlock(const MemoryBlockInfo& info) {
+            ASSERT(info.size >= 4);
+            ASSERT(PYRO_VERIFY_ALIGNMENT(info.size, 4), "Memory MUST be dword aligned!");
+            ASSERT((info.bufferUsage == 0) != (info.imageUsage == 0), "Either buffer usage or image usage must be set!");
+
+            auto [id, ret] = mResourceTable.mVirtualBlockSlots.NewSlot();
+            ret.info = info;
+
+            VmaVirtualBlockCreateInfo blockCreateInfo = {};
+            blockCreateInfo.size = info.size;
+            if (info.strategy == VirtualSuballocationStrategy::AggressiveRing) {
+                blockCreateInfo.flags |= VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT;
+            }
+            blockCreateInfo.pAllocationCallbacks = mContext->GetVkAllocator();
+            CheckVkResult(vmaCreateVirtualBlock(&blockCreateInfo, &ret.vmaBlock));
+            VmaAllocationInfo vmaAllocationInfo = {};
+            VkMemoryPropertyFlags allocationProperties{};
+            VmaAllocationCreateFlags vmaAllocationFlags{};
+            switch (info.domain) {
+            case MemoryAllocationDomain::DeviceLocal:
+                allocationProperties |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+                break;
+            case MemoryAllocationDomain::HostStaging:
+                vmaAllocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+                allocationProperties |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+                break;
+            case MemoryAllocationDomain::HostRandomWrite:
+                vmaAllocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+                allocationProperties |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+                break;
+            case MemoryAllocationDomain::HostReadback:
+                vmaAllocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+                allocationProperties |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+                break;
+            }
+
+            if (((vmaAllocationFlags & VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT) != 0u) ||
+                ((vmaAllocationFlags & VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT) != 0u) ||
+                ((vmaAllocationFlags & VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT) != 0u)) {
+                vmaAllocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+            }
+
+            const VmaAllocationCreateInfo vmaAllocationCreateInfo = {
+                .flags = vmaAllocationFlags,
+                .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+                .requiredFlags = {},
+                .preferredFlags = {},
+                .memoryTypeBits = eastl::numeric_limits<u32>::max(),
+                .pool = VK_NULL_HANDLE,
+                .pUserData = nullptr,
+                .priority = 0.5f,
+            };
+            VkDeviceSize requiredAlignment = 1;
+            if (info.bufferUsage != 0) {
+                if (info.bufferUsage & BufferUsageFlagBits::SHADER_RESOURCE || info.bufferUsage & BufferUsageFlagBits::UNORDERED_ACCESS) {
+                    requiredAlignment = eastl::max(requiredAlignment, mPhysicalDeviceProperties.limits.minStorageBufferOffsetAlignment);
+                }
+                if (info.bufferUsage & BufferUsageFlagBits::UNIFORM_BUFFER) {
+                    requiredAlignment = eastl::max(requiredAlignment, mPhysicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
+                }
+            } else /*imageUsage != 0*/ {
+                // At minimum, respect bufferImageGranularity to avoid illegal aliasing.
+                requiredAlignment = eastl::max(requiredAlignment, mPhysicalDeviceProperties.limits.bufferImageGranularity);
+            }
+
+            ret.requirements.alignment = PYRO_ALIGN(static_cast<VkDeviceSize>(info.minAlignment), requiredAlignment);
+            ret.requirements.size = info.size;
+            ret.requirements.memoryTypeBits = FindMemoryTypeIndex(eastl::numeric_limits<u32>::max(), allocationProperties);
+            vmaAllocateMemory(mVmaAllocator, &ret.requirements, &vmaAllocationCreateInfo, &ret.vmaAllocation, &ret.vmaAllocationInfo);
+            if (vkSetDebugUtilsObjectNameEXT) {
+                const VkDebugUtilsObjectNameInfoEXT deviceMemNameInfo = {
+                    .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+                    .pNext = nullptr,
+                    .objectType = VK_OBJECT_TYPE_DEVICE_MEMORY,
+                    .objectHandle = eastl::bit_cast<uint64_t>(ret.vmaAllocationInfo.deviceMemory),
+                    .pObjectName = info.name.c_str(),
+                };
+                vkSetDebugUtilsObjectNameEXT(mDevice, &deviceMemNameInfo);
+            }
+            return eastl::bit_cast<MemoryBlock>(id);
         }
 
         Buffer VulkanDevice::CreateBuffer(const BufferInfo& info) {
@@ -398,15 +476,18 @@ namespace PyroshockStudios {
             bool hostAccessible = false;
             VmaAllocationInfo vmaAllocationInfo = {};
             VmaAllocationCreateFlags vmaAllocationFlags{};
-            switch (info.allocateUsage) {
-            case MemoryAllocationUsage::DedicatedMemory:
-                vmaAllocationFlags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+            VmaMemoryUsage usage = {};
+            switch (info.allocationDomain) {
+            case MemoryAllocationDomain::DeviceLocal:
+                usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
                 break;
-            case MemoryAllocationUsage::HostStaging:
+            case MemoryAllocationDomain::HostStaging:
+                usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
                 vmaAllocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
                 break;
-            case MemoryAllocationUsage::HostRandomWrite:
-            case MemoryAllocationUsage::HostReadback:
+            case MemoryAllocationDomain::HostRandomWrite:
+            case MemoryAllocationDomain::HostReadback:
+                usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
                 vmaAllocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
                 break;
             }
@@ -427,19 +508,46 @@ namespace PyroshockStudios {
                 .queueFamilyIndexCount = static_cast<u32>(mUniqueCommandQueueFamilies.size()),
                 .pQueueFamilyIndices = mUniqueCommandQueueFamilies.data(),
             };
-            const VmaAllocationCreateInfo vmaAllocationCreateInfo = {
-                .flags = vmaAllocationFlags,
-                .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-                .requiredFlags = {},
-                .preferredFlags = {},
-                .memoryTypeBits = eastl::numeric_limits<u32>::max(),
-                .pool = nullptr,
-                .pUserData = nullptr,
-                .priority = 0.5f,
-            };
-            VkResult result = vmaCreateBuffer(mVmaAllocator, &vkBufferCreateInfo, &vmaAllocationCreateInfo, &ret.vkBuffer, &ret.vmaAllocation, &vmaAllocationInfo);
-            CheckVkResult(result);
-            ret.allocationInfo = vmaAllocationInfo;
+            if (info.memoryBlock == PYRO_NULL_MEMORY_BLOCK) {
+                const VmaAllocationCreateInfo vmaAllocationCreateInfo = {
+                    .flags = vmaAllocationFlags,
+                    .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+                    .requiredFlags = {},
+                    .preferredFlags = {},
+                    .memoryTypeBits = eastl::numeric_limits<u32>::max(),
+                    .pool = VK_NULL_HANDLE,
+                    .pUserData = nullptr,
+                    .priority = 0.5f,
+                };
+                VkResult result = vmaCreateBuffer(mVmaAllocator, &vkBufferCreateInfo, &vmaAllocationCreateInfo, &ret.vkBuffer, &ret.vmaAllocation.Get<VmaAllocation>(), &vmaAllocationInfo);
+                CheckVkResult(result);
+                ret.allocationInfo = vmaAllocationInfo;
+            } else {
+                auto& blockInfo = Slot(info.memoryBlock);
+                CheckVkResult(vkCreateBuffer(mDevice, &vkBufferCreateInfo, mContext->GetVkAllocator(), &ret.vkBuffer));
+                VkMemoryRequirements requirements;
+                vkGetBufferMemoryRequirements(mDevice, ret.vkBuffer, &requirements);
+                VmaVirtualAllocationCreateInfo vmaVirtualAllocationCreateInfo = {
+                    .size = requirements.size,
+                    .alignment = requirements.alignment,
+                };
+                switch (blockInfo.info.strategy) {
+                case VirtualSuballocationStrategy::AggressiveRing:
+                case VirtualSuballocationStrategy::TimeEfficient:
+                    vmaVirtualAllocationCreateInfo.flags |= VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT;
+                    break;
+                case VirtualSuballocationStrategy::SpaceEfficient:
+                    vmaVirtualAllocationCreateInfo.flags |= VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT;
+                    break;
+                default:
+                    break;
+                }
+                VkDeviceSize offset;
+                vmaVirtualAllocate(blockInfo.vmaBlock, &vmaVirtualAllocationCreateInfo, &ret.vmaAllocation.Get<VmaVirtualAllocation>(), &offset);
+                CheckVkResult(vkBindBufferMemory(mDevice, ret.vkBuffer, blockInfo.vmaAllocationInfo.deviceMemory, offset));
+                vmaGetVirtualAllocationInfo(blockInfo.vmaBlock, ret.vmaAllocation.Get<VmaVirtualAllocation>(), &ret.allocationInfo.Get<VmaVirtualAllocationInfo>());
+                ++blockInfo.debugReferences;
+            }
             const VkBufferDeviceAddressInfo vkBufferDeviceAddressInfo = {
                 .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
                 .pNext = nullptr,
@@ -459,7 +567,6 @@ namespace PyroshockStudios {
             }
             return eastl::bit_cast<Buffer>(id);
         }
-
         Image VulkanDevice::CreateImage(const ImageInfo& info) {
             auto [id, ret] = mResourceTable.mImageSlots.NewSlot();
             ret.info = info;
@@ -510,20 +617,46 @@ namespace PyroshockStudios {
                 break;
             }
 
-            VmaAllocationInfo vmaAllocationInfo = {};
-            const VmaAllocationCreateInfo vmaAllocationCreateInfo = {
-                .flags = vmaAllocationFlags,
-                .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-                .requiredFlags = {},
-                .preferredFlags = {},
-                .memoryTypeBits = eastl::numeric_limits<u32>::max(),
-                .pool = nullptr,
-                .pUserData = nullptr,
-                .priority = 0.5f,
-            };
-            VkResult result = vmaCreateImage(mVmaAllocator, &vkImageCreateInfo, &vmaAllocationCreateInfo, &ret.vkImage, &ret.vmaAllocation, &vmaAllocationInfo);
-            CheckVkResult(result);
-            ret.allocationInfo = vmaAllocationInfo;
+            if (info.memoryBlock == PYRO_NULL_MEMORY_BLOCK) {
+                VmaAllocationInfo vmaAllocationInfo = {};
+                const VmaAllocationCreateInfo vmaAllocationCreateInfo = {
+                    .flags = vmaAllocationFlags,
+                    .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+                    .requiredFlags = {},
+                    .preferredFlags = {},
+                    .memoryTypeBits = eastl::numeric_limits<u32>::max(),
+                    .pool = VK_NULL_HANDLE,
+                    .pUserData = nullptr,
+                    .priority = 0.5f,
+                };
+                VkResult result = vmaCreateImage(mVmaAllocator, &vkImageCreateInfo, &vmaAllocationCreateInfo, &ret.vkImage, &ret.vmaAllocation.Get<VmaAllocation>(), &vmaAllocationInfo);
+                CheckVkResult(result);
+                ret.allocationInfo = vmaAllocationInfo;
+            } else {
+                auto& blockInfo = Slot(info.memoryBlock);
+                CheckVkResult(vkCreateImage(mDevice, &vkImageCreateInfo, mContext->GetVkAllocator(), &ret.vkImage));
+                VkMemoryRequirements requirements;
+                vkGetImageMemoryRequirements(mDevice, ret.vkImage, &requirements);
+                VmaVirtualAllocationCreateInfo vmaVirtualAllocationCreateInfo = {
+                    .size = requirements.size,
+                    .alignment = requirements.alignment,
+                };
+                switch (blockInfo.info.strategy) {
+                case VirtualSuballocationStrategy::TimeEfficient:
+                    vmaVirtualAllocationCreateInfo.flags |= VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT;
+                    break;
+                case VirtualSuballocationStrategy::SpaceEfficient:
+                    vmaVirtualAllocationCreateInfo.flags |= VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT;
+                    break;
+                default:
+                    break;
+                }
+                VkDeviceSize offset;
+                vmaVirtualAllocate(blockInfo.vmaBlock, &vmaVirtualAllocationCreateInfo, &ret.vmaAllocation.Get<VmaVirtualAllocation>(), &offset);
+                CheckVkResult(vkBindImageMemory(mDevice, ret.vkImage, blockInfo.vmaAllocationInfo.deviceMemory, offset));
+                vmaGetVirtualAllocationInfo(blockInfo.vmaBlock, ret.vmaAllocation.Get<VmaVirtualAllocation>(), &ret.allocationInfo.Get<VmaVirtualAllocationInfo>());
+                ++blockInfo.debugReferences;
+            }
             if (vkSetDebugUtilsObjectNameEXT) {
                 const VkDebugUtilsObjectNameInfoEXT imageNameInfo = {
                     .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
@@ -645,13 +778,10 @@ namespace PyroshockStudios {
             mResourceTable.WriteDescriptorSetImageView(mDevice, mResourceTable.mBindlessDescriptorSet,
                 ret.descriptor.Get<VkDescriptorImageInfo>().imageView, imageSlot.info.usage, id.index);
 
-
             return id;
         }
 
         SamplerId VulkanDevice::CreateSampler(const SamplerInfo& info) {
-            // ASSERT(!(info.mipmapFilter != Filter::CubicImg));
-
             auto [id, ret] = mResourceTable.mSamplerSlots.NewSlot();
             ret.info = info;
 
@@ -706,9 +836,8 @@ namespace PyroshockStudios {
             return RenderTarget(new VulkanRenderTarget(this, info));
         }
 
-        const DeviceMemoryInfo& VulkanDevice::GetDeviceMemoryInfo(DeviceMemory memory) const {
-            static DeviceMemoryInfo mem;
-            return mem;
+        const MemoryBlockInfo& VulkanDevice::GetMemoryBlockInfo(MemoryBlock memory) const {
+            return mResourceTable.mVirtualBlockSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(memory)).info;
         }
 
         const BufferInfo& VulkanDevice::GetBufferInfo(Buffer buffer) const {
@@ -755,7 +884,16 @@ namespace PyroshockStudios {
         }
 
         DeviceSize VulkanDevice::ImageSizeRequirements(Image image) const {
-            return Slot(image).allocationInfo.size;
+            auto& img = Slot(image);
+            if (img.info.memoryBlock) {
+                return img.allocationInfo.Get<VmaAllocationInfo>().size;
+            } else {
+                return img.allocationInfo.Get<VmaVirtualAllocationInfo>().size;
+            }
+        }
+
+        bool VulkanDevice::IsMemoryBlockValid(MemoryBlock memory) const {
+            return mResourceTable.mVirtualBlockSlots.IsIdValid(eastl::bit_cast<GPUResourceId>(memory));
         }
 
         bool VulkanDevice::IsBufferValid(Buffer buffer) const {
@@ -796,13 +934,26 @@ namespace PyroshockStudios {
             swapChain = nullptr;
         }
 
-        void VulkanDevice::DestroyDeviceMemory(DeviceMemory& memory) {
-            memory = PYRO_NULL_DEVICE_MEMORY;
+        void VulkanDevice::DestroyMemoryBlock(MemoryBlock& memory) {
+            ImplVmaVirtualBlockSlot& blockSlot = Slot(memory);
+            ASSERT(blockSlot.debugReferences == 0, "Not all references to this MemoryBlock have been freed yet!");
+            vmaFreeMemory(mVmaAllocator, blockSlot.vmaAllocation);
+            vmaDestroyVirtualBlock(blockSlot.vmaBlock);
+            blockSlot = {};
+            mResourceTable.mVirtualBlockSlots.ReturnSlot(eastl::bit_cast<GPUResourceId>(memory));
+            memory = PYRO_NULL_MEMORY_BLOCK;
         }
 
         void VulkanDevice::DestroyBuffer(Buffer& buffer) {
             ImplBufferSlot& bufferSlot = Slot(buffer);
-            vmaDestroyBuffer(mVmaAllocator, bufferSlot.vkBuffer, bufferSlot.vmaAllocation);
+            if (bufferSlot.info.memoryBlock) {
+                auto& block = Slot(bufferSlot.info.memoryBlock);
+                --block.debugReferences;
+                vkDestroyBuffer(mDevice, bufferSlot.vkBuffer, mContext->GetVkAllocator());
+                vmaVirtualFree(block.vmaBlock, bufferSlot.vmaAllocation.Get<VmaVirtualAllocation>());
+            } else {
+                vmaDestroyBuffer(mVmaAllocator, bufferSlot.vkBuffer, bufferSlot.vmaAllocation.Get<VmaAllocation>());
+            }
             bufferSlot = {};
             mResourceTable.mBufferSlots.ReturnSlot(eastl::bit_cast<GPUResourceId>(buffer));
             buffer = PYRO_NULL_BUFFER;
@@ -811,7 +962,14 @@ namespace PyroshockStudios {
         void VulkanDevice::DestroyImage(Image& image) {
             ImplImageSlot& imageSlot = Slot(image);
             if (imageSlot.swapchainImageIndex == NOT_OWNED_BY_SWAPCHAIN) {
-                vmaDestroyImage(mVmaAllocator, imageSlot.vkImage, imageSlot.vmaAllocation);
+                if (imageSlot.info.memoryBlock) {
+                    auto& block = Slot(imageSlot.info.memoryBlock);
+                    --block.debugReferences;
+                    vkDestroyImage(mDevice, imageSlot.vkImage, mContext->GetVkAllocator());
+                    vmaVirtualFree(block.vmaBlock, imageSlot.vmaAllocation.Get<VmaVirtualAllocation>());
+                } else {
+                    vmaDestroyImage(mVmaAllocator, imageSlot.vkImage, imageSlot.vmaAllocation.Get<VmaAllocation>());
+                }
             }
             imageSlot = {};
             mResourceTable.mImageSlots.ReturnSlot(eastl::bit_cast<GPUResourceId>(image));
@@ -883,6 +1041,19 @@ namespace PyroshockStudios {
                 vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, surface, &presentModeCount, support.presentModes.data());
             }
             return support;
+        }
+
+        uint32_t VulkanDevice::FindMemoryTypeIndex(uint32_t memoryTypeBits, VkMemoryPropertyFlags requiredProperties) {
+            VkPhysicalDeviceMemoryProperties memProps;
+            vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProps);
+            for (uint32_t i = 0; i < memProps.memoryTypeCount; i++) {
+                if ((memoryTypeBits & (1 << i)) &&
+                    (memProps.memoryTypes[i].propertyFlags & requiredProperties) == requiredProperties) {
+                    return i;
+                }
+            }
+            ASSERT(false, "failed to find a suitable memory type!");
+            return 0;
         }
 
         RasterPipeline VulkanDevice::CreateRasterPipeline(const RasterPipelineInfo& info, const RasterPipelineShaderStages& rasterShaderStages) {
@@ -1167,12 +1338,14 @@ namespace PyroshockStudios {
 
             return eastl::bit_cast<Image>(id);
         }
+        auto VulkanDevice::Slot(MemoryBlock id) -> ImplVmaVirtualBlockSlot& { return mResourceTable.mVirtualBlockSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
         auto VulkanDevice::Slot(Buffer id) -> ImplBufferSlot& { return mResourceTable.mBufferSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
         auto VulkanDevice::Slot(Image id) -> ImplImageSlot& { return mResourceTable.mImageSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
         auto VulkanDevice::Slot(ShaderResourceId id) -> ImplResourceViewSlot& { return mResourceTable.mResourceViewSlots.DereferenceId(id); }
         auto VulkanDevice::Slot(UnorderedAccessId id) -> ImplResourceViewSlot& { return mResourceTable.mResourceViewSlots.DereferenceId(id); }
         auto VulkanDevice::Slot(SamplerId id) -> ImplSamplerSlot& { return mResourceTable.mSamplerSlots.DereferenceId(id); }
 
+        auto VulkanDevice::Slot(MemoryBlock id) const -> const ImplVmaVirtualBlockSlot& { return mResourceTable.mVirtualBlockSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
         auto VulkanDevice::Slot(Buffer id) const -> const ImplBufferSlot& { return mResourceTable.mBufferSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
         auto VulkanDevice::Slot(Image id) const -> const ImplImageSlot& { return mResourceTable.mImageSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
         auto VulkanDevice::Slot(ShaderResourceId id) const -> const ImplResourceViewSlot& { return mResourceTable.mResourceViewSlots.DereferenceId(id); }

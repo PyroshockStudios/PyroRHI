@@ -116,6 +116,11 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
 
             /**
+             * @brief Check whether a memory block handle is valid.
+             */
+            PYRO_NODISCARD virtual bool IsMemoryBlockValid(MemoryBlock handle) const = 0;
+
+            /**
              * @brief Check whether a buffer handle is valid.
              */
             PYRO_NODISCARD virtual bool IsBufferValid(Buffer handle) const = 0;
@@ -141,6 +146,7 @@ namespace PyroshockStudios {
             PYRO_NODISCARD virtual bool IsSamplerValid(SamplerId id) const = 0;
 
             // Convenience overloads
+            PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(MemoryBlock handle) const { return IsMemoryBlockValid(handle); }
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(Buffer handle) const { return IsBufferValid(handle); }
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(Image handle) const { return IsImageValid(handle); }
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(ShaderResourceId id) const { return IsShaderResourceValid(id); }
@@ -152,9 +158,9 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
 
             /**
-             * @brief Retrieves device memory description.
+             * @brief Retrieves memory block description.
              */
-            PYRO_NODISCARD virtual const DeviceMemoryInfo& GetDeviceMemoryInfo(DeviceMemory memory) const = 0;
+            PYRO_NODISCARD virtual const MemoryBlockInfo& GetMemoryBlockInfo(MemoryBlock memory) const = 0;
 
             /**
              * @brief Retrieves buffer description.
@@ -237,16 +243,20 @@ namespace PyroshockStudios {
 
             /**
              * @brief Creates a block of device memory with the specified parameters
+             * This is to be used for virtual suballocations. This is significantly more efficient than
+             * creating a buffer without a specified block.
              */
-            PYRO_NODISCARD virtual DeviceMemory CreateDeviceMemory(const DeviceMemoryInfo& info) = 0;
+            PYRO_NODISCARD virtual MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) = 0;
             /**
              * @brief Creates a buffer with the specified parameters
-             * @note If the `memoryAllocation` is a valid handle, and the virtual allocation failed, then `PYRO_NULL_BUFFER` will be returned
+             * @note If the `memoryBlock` is a valid handle, and the virtual allocation failed, then `PYRO_NULL_BUFFER` will be returned
+             * This is *NOT* an error, and simply means that memory block ran out of space.
              */
             PYRO_NODISCARD virtual Buffer CreateBuffer(const BufferInfo& info) = 0;
             /**
              * @brief Creates an image with the specified parameters
-             * @note If the `memoryAllocation` is a valid handle, and the virtual allocation failed, then `PYRO_NULL_IMAGE` will be returned
+             * @note If the `memoryBlock` is a valid handle, and the virtual allocation failed, then `PYRO_NULL_IMAGE` will be returned
+             * This is *NOT* an error, and simply means that memory block ran out of space.
              */
             PYRO_NODISCARD virtual Image CreateImage(const ImageInfo& info) = 0;
             /**
@@ -304,10 +314,10 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
 
             /**
-             * @brief Immediately destroys the device memory, and sets the handle to NULL
+             * @brief Immediately destroys the memory block, and sets the handle to NULL
              * @note Make sure all resources making use of this memory handle have been destroyed prior to this!
              */
-            virtual void DestroyDeviceMemory(DeviceMemory& memory) = 0;
+            virtual void DestroyMemoryBlock(MemoryBlock& memory) = 0;
             /**
              * @brief Immediately destroys the buffer, and sets the handle to NULL
              */
@@ -359,7 +369,7 @@ namespace PyroshockStudios {
             virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) = 0;
 
             // Convenience overloads
-            PYRO_FORCEINLINE void Destroy(DeviceMemory& memory) { DestroyDeviceMemory(memory); }
+            PYRO_FORCEINLINE void Destroy(MemoryBlock& memory) { DestroyMemoryBlock(memory); }
             PYRO_FORCEINLINE void Destroy(Buffer& buffer) { DestroyBuffer(buffer); }
             PYRO_FORCEINLINE void Destroy(Image& image) { DestroyImage(image); }
             PYRO_FORCEINLINE void Destroy(ShaderResourceId& srv) { DestroyShaderResource(srv); }
@@ -429,7 +439,7 @@ namespace PyroshockStudios {
             PYRO_NODISCARD virtual const DevicePropertiesInfo& GetProperties() = 0;
 
             // Convenience create overloads
-            PYRO_NODISCARD PYRO_FORCEINLINE DeviceMemory Create(const DeviceMemoryInfo& info) { return CreateDeviceMemory(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE MemoryBlock Create(const MemoryBlockInfo& info) { return CreateMemoryBlock(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE Buffer Create(const BufferInfo& info) { return CreateBuffer(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE Image Create(const ImageInfo& info) { return CreateImage(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE SamplerId Create(const SamplerInfo& info) { return CreateSampler(info); }

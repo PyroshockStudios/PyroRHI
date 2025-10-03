@@ -287,6 +287,24 @@ namespace PyroshockStudios {
         };
 
         /**
+         * @brief Parameters for invalidating timestamp queries on the command buffer.
+         */
+        struct InvalidateTimestampQueryInfo {
+            /**
+             * @brief A NON-NULL Query pool to invalidate a range.
+             */
+            ITimestampQueryPool* queryPool = nullptr;
+            /**
+             * @brief First query to be invalidated.
+             */
+            u32 firstQuery = {};
+            /**
+             * @brief How many queries to invalidate.
+             */
+            u32 queryCount = {};
+        };
+
+        /**
          * @brief Parameters for writing a timestamp on the command buffer.
          */
         struct WriteTimestampInfo {
@@ -693,10 +711,10 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
 
             /**
-             * @brief Schedules a device memory handle to be destroyed after GPU execution.
+             * @brief Schedules a memory block handle to be destroyed after GPU execution.
              * @note Make sure all resources making use of this memory handle will have been destroyed prior to this!
              */
-            virtual void DestroyDeviceMemoryDeferred(DeviceMemory memory) = 0;
+            virtual void DestroyMemoryBlockDeferred(MemoryBlock memory) = 0;
 
             /**
              * @brief Schedules a buffer to be destroyed after GPU execution.
@@ -741,7 +759,7 @@ namespace PyroshockStudios {
             /**
              * @brief Overloads for DestroyDeferred to simplify deferred destruction calls.
              */
-            PYRO_FORCEINLINE void DestroyDeferred(DeviceMemory memory) { DestroyDeviceMemoryDeferred(memory); }
+            PYRO_FORCEINLINE void DestroyDeferred(MemoryBlock memory) { DestroyMemoryBlockDeferred(memory); }
             PYRO_FORCEINLINE void DestroyDeferred(Buffer buffer) { DestroyBufferDeferred(buffer); }
             PYRO_FORCEINLINE void DestroyDeferred(Image image) { DestroyImageDeferred(image); }
             PYRO_FORCEINLINE void DestroyDeferred(ShaderResourceId srv) { DestroyShaderResourceDeferred(srv); }
@@ -755,6 +773,10 @@ namespace PyroshockStudios {
             // Profiling & Debugging
             // ---------------------------------------------------------------------
 
+            /**
+             * @brief Invalidates the timestamps of the query pool. Required before using in a frame.
+             */
+            virtual void InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) = 0;
             /**
              * @brief Writes a timestamp into a query pool for GPU profiling.
              */

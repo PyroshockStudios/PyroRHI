@@ -32,26 +32,6 @@
 namespace PyroshockStudios {
     inline namespace RHI {
         struct IDevice;
-
-        struct StatisticQueryPoolFlagsProperties {
-            using Data = u32;
-        };
-        using StatisticQueryPoolFlags = Flags<StatisticQueryPoolFlagsProperties>;
-        struct StatisticQueryPoolBits {
-            static constexpr inline StatisticQueryPoolFlags NONE = { 0x00000000 };
-            static constexpr inline StatisticQueryPoolFlags INPUT_ASSEMBLY_VERTICES = { 0x00000001 };
-            static constexpr inline StatisticQueryPoolFlags INPUT_ASSEMBLY_PRIMITIVES = { 0x00000002 };
-            static constexpr inline StatisticQueryPoolFlags VERTEX_SHADER_INVOCATIONS = { 0x00000004 };
-            static constexpr inline StatisticQueryPoolFlags GEOMETRY_SHADER_INVOCATIONS = { 0x00000008 };
-            static constexpr inline StatisticQueryPoolFlags GEOMETRY_SHADER_PRIMITIVES = { 0x00000010 };
-            static constexpr inline StatisticQueryPoolFlags CLIPPING_INVOCATIONS = { 0x00000020 };
-            static constexpr inline StatisticQueryPoolFlags CLIPPING_PRIMITIVES = { 0x00000040 };
-            static constexpr inline StatisticQueryPoolFlags FRAGMENT_SHADER_INVOCATIONS = { 0x00000080 };
-            static constexpr inline StatisticQueryPoolFlags TESSELLATION_CONTROL_SHADER_PATCHES = { 0x00000100 };
-            static constexpr inline StatisticQueryPoolFlags TESSELLATION_EVALUATION_SHADER_INVOCATIONS = { 0x00000200 };
-            static constexpr inline StatisticQueryPoolFlags COMPUTE_SHADER_INVOCATIONS = { 0x00000400 };
-        };
-
         /**
         * @brief Info to create a query pool for timestamps
         */
@@ -81,41 +61,60 @@ namespace PyroshockStudios {
             friend struct IDevice;
         };
 
-        struct OcclusionQueryPoolInfo {
-            u32 queryCount = {};
-            eastl::string name = {};
+        // struct OcclusionQueryPoolInfo {
+        //     u32 queryCount = {};
+        //     eastl::string name = {};
 
-            PYRO_NODISCARD bool operator==(const OcclusionQueryPoolInfo&) const = default;
-            PYRO_NODISCARD bool operator!=(const OcclusionQueryPoolInfo&) const = default;
-        };
-        struct IOcclusionQueryPool {
-            IOcclusionQueryPool() = default;
+        //     PYRO_NODISCARD bool operator==(const OcclusionQueryPoolInfo&) const = default;
+        //     PYRO_NODISCARD bool operator!=(const OcclusionQueryPoolInfo&) const = default;
+        // };
+        // struct IOcclusionQueryPool {
+        //     IOcclusionQueryPool() = default;
 
-            PYRO_NODISCARD virtual const OcclusionQueryPoolInfo& Info() const = 0;
-            PYRO_NODISCARD virtual eastl::span<const b32> GetResults(u32 startIndex, u32 count) const = 0;
+        //     PYRO_NODISCARD virtual const OcclusionQueryPoolInfo& Info() const = 0;
+        //     PYRO_NODISCARD virtual eastl::span<const b32> GetResults(u32 startIndex, u32 count) const = 0;
 
-        protected:
-            virtual ~IOcclusionQueryPool() = default;
-            friend struct IDevice;
-        };
+        // protected:
+        //     virtual ~IOcclusionQueryPool() = default;
+        //     friend struct IDevice;
+        // };
 
-        struct StatisticsQueryPoolInfo {
-            StatisticQueryPoolFlags flags = StatisticQueryPoolBits::NONE;
-            u32 queryCount = {};
-            eastl::string name = {};
+        // struct StatisticQueryPoolFlagsProperties {
+        //     using Data = u32;
+        // };
+        // using StatisticQueryPoolFlags = Flags<StatisticQueryPoolFlagsProperties>;
+        // struct StatisticQueryPoolBits {
+        //     static constexpr inline StatisticQueryPoolFlags NONE = { 0x00000000 };
+        //     static constexpr inline StatisticQueryPoolFlags INPUT_ASSEMBLY_VERTICES = { 0x00000001 };
+        //     static constexpr inline StatisticQueryPoolFlags INPUT_ASSEMBLY_PRIMITIVES = { 0x00000002 };
+        //     static constexpr inline StatisticQueryPoolFlags VERTEX_SHADER_INVOCATIONS = { 0x00000004 };
+        //     static constexpr inline StatisticQueryPoolFlags GEOMETRY_SHADER_INVOCATIONS = { 0x00000008 };
+        //     static constexpr inline StatisticQueryPoolFlags GEOMETRY_SHADER_PRIMITIVES = { 0x00000010 };
+        //     static constexpr inline StatisticQueryPoolFlags CLIPPING_INVOCATIONS = { 0x00000020 };
+        //     static constexpr inline StatisticQueryPoolFlags CLIPPING_PRIMITIVES = { 0x00000040 };
+        //     static constexpr inline StatisticQueryPoolFlags FRAGMENT_SHADER_INVOCATIONS = { 0x00000080 };
+        //     static constexpr inline StatisticQueryPoolFlags TESSELLATION_CONTROL_SHADER_PATCHES = { 0x00000100 };
+        //     static constexpr inline StatisticQueryPoolFlags TESSELLATION_EVALUATION_SHADER_INVOCATIONS = { 0x00000200 };
+        //     static constexpr inline StatisticQueryPoolFlags COMPUTE_SHADER_INVOCATIONS = { 0x00000400 };
+        // };
 
-            PYRO_NODISCARD bool operator==(const StatisticsQueryPoolInfo&) const = default;
-            PYRO_NODISCARD bool operator!=(const StatisticsQueryPoolInfo&) const = default;
-        };
-        struct IStatisticsQueryPool {
-            IStatisticsQueryPool() = default;
+        // struct StatisticsQueryPoolInfo {
+        //     StatisticQueryPoolFlags flags = StatisticQueryPoolBits::NONE;
+        //     u32 queryCount = {};
+        //     eastl::string name = {};
 
-            PYRO_NODISCARD virtual const StatisticsQueryPoolInfo& Info() const = 0;
-            PYRO_NODISCARD virtual eastl::span<const u32> GetResults(u32 startIndex, u32 count) const = 0;
+        //     PYRO_NODISCARD bool operator==(const StatisticsQueryPoolInfo&) const = default;
+        //     PYRO_NODISCARD bool operator!=(const StatisticsQueryPoolInfo&) const = default;
+        // };
+        // struct IStatisticsQueryPool {
+        //     IStatisticsQueryPool() = default;
 
-        protected:
-            virtual ~IStatisticsQueryPool() = default;
-            friend struct IDevice;
-        };
+        //     PYRO_NODISCARD virtual const StatisticsQueryPoolInfo& Info() const = 0;
+        //     PYRO_NODISCARD virtual eastl::span<const u32> GetResults(u32 startIndex, u32 count) const = 0;
+
+        // protected:
+        //     virtual ~IStatisticsQueryPool() = default;
+        //     friend struct IDevice;
+        // };
     } // namespace RHI
 } // namespace PyroshockStudios

@@ -27,6 +27,7 @@
 #include <RHIDX12/Helper/LinearUploadBuffer.hpp>
 #include <PyroCommon/Util/HashCombine.hpp>
 #include <PyroRHI/Api/IDevice.hpp>
+#include <D3D12MemAlloc.h>
 
 
 namespace PyroshockStudios {
@@ -82,15 +83,16 @@ namespace PyroshockStudios {
 
         class D3DDevice : public IDevice, DeleteCopy, DeleteMove {
         public:
-            D3DDevice(ComPtr<ID3D12Device>&& device, ComPtr<IDXGIFactory4>&& factory);
+            D3DDevice(ComPtr<ID3D12Device>&& device, ComPtr<IDXGIFactory4>&& factory, ComPtr<IDXGIAdapter1>&& adapter);
             ~D3DDevice();
 
+            bool IsMemoryBlockValid(MemoryBlock handle) const override;
             bool IsBufferValid(Buffer handle) const override;
             bool IsImageValid(Image handle) const override;
             bool IsShaderResourceValid(ShaderResourceId id) const override;
             bool IsUnorderedAccessValid(UnorderedAccessId id) const override;
             bool IsSamplerValid(SamplerId id) const override;
-            const DeviceMemoryInfo& GetDeviceMemoryInfo(DeviceMemory memory) const override;
+            const MemoryBlockInfo& GetMemoryBlockInfo(MemoryBlock memory) const override;
             const BufferInfo& GetBufferInfo(Buffer buffer) const override;
             const ImageInfo& GetImageInfo(Image image) const override;
             const GPUResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const override;
@@ -107,7 +109,7 @@ namespace PyroshockStudios {
             DeviceSize ImageSizeRequirements(Image image) const override;
 
 
-            DeviceMemory CreateDeviceMemory(const DeviceMemoryInfo& info) override;
+            MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;
             Image CreateImage(const ImageInfo& info) override;
             ShaderResourceId CreateShaderResource(const GPUResourceInfo& info) override;
@@ -122,7 +124,7 @@ namespace PyroshockStudios {
             ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
 
             ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) override;
-            void DestroyDeviceMemory(DeviceMemory& memory) override;
+            void DestroyMemoryBlock(MemoryBlock& memory) override;
             void DestroyBuffer(Buffer& buffer) override;
             void DestroyImage(Image& image) override;
             void DestroyShaderResource(ShaderResourceId& srv) override;
@@ -178,9 +180,10 @@ namespace PyroshockStudios {
             void DestroyAllUAVDescriptorHeapCopies(UnorderedAccessId handle);
             void CollectGarbage();
 
+            ComPtr<IDXGIAdapter1> mAdapter = {};
             ComPtr<IDXGIFactory4> mFactory = {};
             ComPtr<ID3D12Device> mDevice = {};
-
+            ComPtr<D3D12MA::Allocator> mAllocator = {};
         public:
             ComPtr<ID3D12RootSignature> mRootSignature = {};
 

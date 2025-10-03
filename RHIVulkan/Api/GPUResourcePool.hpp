@@ -48,8 +48,8 @@ namespace PyroshockStudios {
         struct ImplBufferSlot {
             BufferInfo info = {};
             VkBuffer vkBuffer = {};
-            VmaAllocation vmaAllocation = {};
-            VmaAllocationInfo allocationInfo = {};
+            Union<VmaVirtualAllocation, VmaAllocation> vmaAllocation = {};
+            Union<VmaVirtualAllocationInfo, VmaAllocationInfo> allocationInfo = {};
             VkDeviceAddress deviceAddress = {};
             void* hostAddress = {};
             bool zombie = {};
@@ -66,8 +66,8 @@ namespace PyroshockStudios {
         struct ImplImageSlot {
             ImageInfo info = {};
             VkImage vkImage = VK_NULL_HANDLE;
-            VmaAllocation vmaAllocation = {};
-            VmaAllocationInfo allocationInfo = {};
+            Union<VmaVirtualAllocation, VmaAllocation> vmaAllocation = {};
+            Union<VmaVirtualAllocationInfo, VmaAllocationInfo> allocationInfo = {};
             i32 swapchainImageIndex = NOT_OWNED_BY_SWAPCHAIN;
             VkImageAspectFlags aspectFlags = {}; // Inferred from format.
             bool zombie = {};
@@ -77,6 +77,17 @@ namespace PyroshockStudios {
             SamplerInfo info = {};
             VkSampler vkSampler = VK_NULL_HANDLE;
             bool zombie = {};
+        };
+
+        struct ImplVmaVirtualBlockSlot {
+            MemoryBlockInfo info = {};
+            VmaVirtualBlock vmaBlock = VK_NULL_HANDLE;
+            VmaAllocation vmaAllocation = VK_NULL_HANDLE;
+            VmaAllocationInfo vmaAllocationInfo = {};
+            VkMemoryRequirements requirements = {};
+            bool zombie = {};
+            // eastl::atomic<u32> debugReferences = 0;
+            u32 debugReferences = 0;
         };
 
         template <typename ResourceT>
@@ -191,6 +202,8 @@ namespace PyroshockStudios {
             std::shared_mutex mLifetimeLock = {};
             GpuResourcePool<ImplBufferSlot> mBufferSlots = {};
             GpuResourcePool<ImplImageSlot> mImageSlots = {};
+
+            GpuResourcePool<ImplVmaVirtualBlockSlot> mVirtualBlockSlots = {};
 
             GpuResourcePool<ImplResourceViewSlot> mResourceViewSlots = {};
 

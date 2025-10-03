@@ -40,6 +40,13 @@ namespace PyroshockStudios {
             u32 unused;
             u32 counter;
         };
+        eastl::pair<MemoryBlock, D3DMemoryBlockResourceData&> GPUResourcePool::AllocMemoryBlock() {
+            ResourceHandle handle;
+            handle.unused = 0xDEADBEEF;
+            handle.counter = mMemoryBlockCounter++;
+            MemoryBlock buff = eastl::bit_cast<MemoryBlock>(handle);
+            return { buff, mMemoryBlockResources[buff] };
+        }
         eastl::pair<Buffer, D3DBufferResourceData&> GPUResourcePool::AllocBuffer() {
             ResourceHandle handle;
             handle.unused = 0xDEADBEEF;
@@ -54,6 +61,11 @@ namespace PyroshockStudios {
             Image buff = eastl::bit_cast<Image>(handle);
             return { buff, mImageResources[buff] };
         }
+        void GPUResourcePool::ReleaseMemoryBlock(MemoryBlock memory) {
+            ASSERT(mMemoryBlockResources.contains(memory), "Double free occurred!");
+
+            mMemoryBlockResources.erase(memory);
+        }
         void GPUResourcePool::ReleaseBuffer(Buffer buffer) {
             ASSERT(mBufferResources.contains(buffer), "Double free occurred!");
 
@@ -63,6 +75,10 @@ namespace PyroshockStudios {
             ASSERT(mImageResources.contains(image), "Double free occurred!");
 
             mImageResources.erase(image);
+        }
+        D3DMemoryBlockResourceData& GPUResourcePool::Get(MemoryBlock handle) {
+            ASSERT(mMemoryBlockResources.contains(handle), "Invalid handle!");
+            return mMemoryBlockResources.at(handle);
         }
         D3DBufferResourceData& GPUResourcePool::Get(Buffer handle) {
             ASSERT(mBufferResources.contains(handle), "Invalid handle!");
