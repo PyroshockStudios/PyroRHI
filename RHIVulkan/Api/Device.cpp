@@ -148,7 +148,9 @@ namespace PyroshockStudios {
                         physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressMultiDevice = VK_FALSE;
 
                         mVulkanCaps.bVK_EXT_buffer_device_address = true;
-                        extensions.push_back(extension.extensionName);
+                        // No need to enable it since it's in vulkan 1.3 core.
+                        // Commenting this out fixes an error that both the KHR and EXT versions of this are enabled
+                        //extensions.push_back(extension.extensionName);
                     }
                 }
             }
