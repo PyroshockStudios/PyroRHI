@@ -577,7 +577,7 @@ namespace PyroshockStudios {
             static inline constexpr BufferUsageFlags VERTEX_BUFFER = { 0x00000001 };
             static inline constexpr BufferUsageFlags INDEX_BUFFER = { 0x00000002 };
             static inline constexpr BufferUsageFlags DRAW_INDIRECT = { 0x00000010 };
-            //  static inline constexpr BufferUsageFlags BUFFER_DEVICE_ADDRESS = { 0x00000020 };
+            static inline constexpr BufferUsageFlags BUFFER_DEVICE_ADDRESS = { 0x00000020 };
             static inline constexpr BufferUsageFlags HOST_READ = { 0x02000000 };
             static inline constexpr BufferUsageFlags HOST_WRITE = { 0x04000000 };
             static inline constexpr BufferUsageFlags BYTE_ADDRESS_BUFFER = { 0x08000000 };

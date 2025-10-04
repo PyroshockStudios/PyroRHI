@@ -69,6 +69,19 @@ namespace PyroshockStudios {
             }
             swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
             swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+            switch (info.alphaMode) {
+            case SwapChainAlphaMode::None:
+                swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+                break;
+            case SwapChainAlphaMode::Premultiplied:
+                swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
+                break;
+            case SwapChainAlphaMode::Straight:
+                swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_STRAIGHT;
+                break;
+            default:
+                ASSERT(false, "Invalid alpha mode");
+            }
             switch (info.presentMode) {
             case PresentMode::VSync:
             case PresentMode::VSyncAdaptive:
@@ -85,17 +98,44 @@ namespace PyroshockStudios {
                 ASSERT(false, "Invalid present mode");
             }
             swapChainDesc.SampleDesc.Count = 1;
+            HWND hwnd = reinterpret_cast<HWND>(info.nativeWindow);
+
             ComPtr<IDXGISwapChain1> swapChain;
-            CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForHwnd(
-                static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
-                reinterpret_cast<HWND>(info.nativeWindow),
-                &swapChainDesc,
-                nullptr,
-                nullptr,
-                &swapChain));
+            if (info.alphaMode == SwapChainAlphaMode::None) {
+                CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForHwnd(
+                    static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
+                    hwnd,
+                    &swapChainDesc,
+                    nullptr,
+                    nullptr,
+                    &swapChain));
+            } else {
+                CheckD3DResult(DCompositionCreateDevice(
+                    nullptr,
+                    __uuidof(IDCompositionDevice),
+                    reinterpret_cast<void**>(mDcompDevice.GetAddressOf())));
+
+                CheckD3DResult(mDcompDevice->CreateTargetForHwnd(hwnd, TRUE, &mDcompTarget));
+
+                CheckD3DResult(mDcompDevice->CreateVisual(&mDcompVisual));
+
+                // Attach swapchain to the visual
+                CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForComposition(
+                    static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(),
+                    &swapChainDesc,
+                    nullptr,
+                    &swapChain));
+
+                CheckD3DResult(mDcompVisual->SetContent(swapChain.Get()));
+                // Add visual to target
+                CheckD3DResult(mDcompTarget->SetRoot(mDcompVisual.Get()));
+                // Commit composition
+                CheckD3DResult(mDcompDevice->Commit());
+            }
 
             CheckD3DResult(swapChain.As(&mSwapChain));
             D3DSetDebugName(mSwapChain, info.name.c_str());
+
             mSwapWait = mSwapChain->GetFrameLatencyWaitableObject();
             CheckD3DResult(mSwapChain->SetMaximumFrameLatency(1));
             GetImages();
@@ -116,8 +156,7 @@ namespace PyroshockStudios {
 
         void D3DSwapChain::Resize() {
             DestroyImages();
-            HWND window;
-            mSwapChain->GetHwnd(&window);
+            HWND window = reinterpret_cast<HWND>(mInfo.nativeWindow);
             RECT area;
             GetClientRect(window, &area);
             mInfo.extent.x = area.right;

@@ -58,14 +58,18 @@ namespace PyroshockStudios {
                 mDevice->InternalDevice()->GetCopyableFootprints(&dst.desc, dstSubresource, 1, info.bufferOffset,
                     &footprint, &numRows, &rowSizesInBytes, &requiredSize);
                 ASSERT(PYRO_VERIFY_ALIGNMENT(info.rowPitch, rowSizesInBytes), "Row Pitch MUST be aligned to device requirements!");
-                rowSizesInBytes = info.rowPitch;
+                footprint.Footprint.RowPitch = info.rowPitch;
+                footprint.Footprint.Width = info.imageExtent.x;
+                footprint.Footprint.Height = info.imageExtent.y;
+                footprint.Footprint.Depth = info.imageExtent.z;
                 CD3DX12_TEXTURE_COPY_LOCATION Dst(dst.resource.Get(), dstSubresource);
                 CD3DX12_TEXTURE_COPY_LOCATION Src(src.resource.Get(), footprint);
-                mCommandList->CopyTextureRegion(&Dst, 0, 0, 0, &Src, nullptr);
+                mCommandList->CopyTextureRegion(&Dst, info.imageOffset.x, info.imageOffset.y, info.imageOffset.z, &Src, nullptr);
             }
         }
 
         void D3DCommandBuffer::CopyImageToBuffer(const CopyImageToBufferInfo& info) {
+            // TODO, this is probably broken
             const auto& src = mDevice->ResourcePool().Get(info.image);
             const auto& dst = mDevice->ResourcePool().Get(info.buffer);
 
@@ -81,7 +85,7 @@ namespace PyroshockStudios {
                 rowSizesInBytes = info.rowPitch;
                 CD3DX12_TEXTURE_COPY_LOCATION Dst(dst.resource.Get(), footprint);
                 CD3DX12_TEXTURE_COPY_LOCATION Src(src.resource.Get(), srcSubresource);
-                mCommandList->CopyTextureRegion(&Dst, 0, 0, 0, &Src, nullptr);
+                mCommandList->CopyTextureRegion(&Dst, info.bufferOffset, 0, 0, &Src, nullptr);
             }
         }
 

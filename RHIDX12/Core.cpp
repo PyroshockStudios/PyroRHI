@@ -32,7 +32,7 @@ namespace PyroshockStudios {
         void CheckD3DResult(HRESULT result) {
             if (result == S_OK)
                 return;
-            Logger::Fatal(gDX12Sink, "Direct3D 12 error! Expected S_OK but found '{}' ({})", _com_error(result).ErrorMessage(), reinterpret_cast<void*>(result));
+            Logger::Fatal(gDX12Sink, "Direct3D 12 error! Expected S_OK but found '{}' ({})", _com_error(result).ErrorMessage(), result);
         }
     } // namespace RHIDX12
 } // namespace PyroshockStudios

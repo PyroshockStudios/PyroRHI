@@ -150,199 +150,23 @@ namespace PyroshockStudios {
         };
         struct ShaderReflection : ISerializable {
         private:
-            eastl::string HelperToString(ShaderScalarType type) {
-                switch (type) {
-                case ShaderScalarType::None:
-                    return "None";
-                case ShaderScalarType::Void:
-                    return "Void";
-                case ShaderScalarType::Bool:
-                    return "Bool";
-                case ShaderScalarType::Int32:
-                    return "Int32";
-                case ShaderScalarType::UInt32:
-                    return "UInt32";
-                case ShaderScalarType::Int64:
-                    return "Int64";
-                case ShaderScalarType::UInt64:
-                    return "UInt64";
-                case ShaderScalarType::Float16:
-                    return "Float16";
-                case ShaderScalarType::Float32:
-                    return "Float32";
-                case ShaderScalarType::Float64:
-                    return "Float64";
-                case ShaderScalarType::Int8:
-                    return "Int8";
-                case ShaderScalarType::UInt8:
-                    return "UInt8";
-                case ShaderScalarType::Int16:
-                    return "Int16";
-                case ShaderScalarType::UInt16:
-                    return "UInt16";
-                case ShaderScalarType::Array:
-                    return "Array";
-                case ShaderScalarType::Struct:
-                    return "Struct";
-                default:
-                    return "Unknown";
-                }
-            }
-
-            eastl::string HelperToString(ShaderInputType type) {
-                switch (type) {
-                case ShaderInputType::Unknown:
-                    return "Unknown";
-
-                case ShaderInputType::UniformBuffer:
-                    return "UniformBuffer";
-
-                case ShaderInputType::ByteAddressBuffer:
-                    return "ByteAddressBuffer";
-                case ShaderInputType::RWByteAddressBuffer:
-                    return "RWByteAddressBuffer";
-
-                case ShaderInputType::StructuredBuffer:
-                    return "StructuredBuffer";
-                case ShaderInputType::RWStructuredBuffer:
-                    return "RWStructuredBuffer";
-
-                case ShaderInputType::Texture1D:
-                    return "Texture1D";
-                case ShaderInputType::Texture2D:
-                    return "Texture2D";
-                case ShaderInputType::TextureCube:
-                    return "TextureCube";
-                case ShaderInputType::Texture3D:
-                    return "Texture3D";
-                case ShaderInputType::Texture1DArray:
-                    return "Texture1DArray";
-                case ShaderInputType::Texture2DArray:
-                    return "Texture2DArray";
-                case ShaderInputType::TextureCubeArray:
-                    return "TextureCubeArray";
-                case ShaderInputType::Texture2DMS:
-                    return "Texture2DMS";
-                case ShaderInputType::Texture2DMSArray:
-                    return "Texture2DMSArray";
-
-                case ShaderInputType::RWTexture1D:
-                    return "RWTexture1D";
-                case ShaderInputType::RWTexture2D:
-                    return "RWTexture2D";
-                case ShaderInputType::RWTexture3D:
-                    return "RWTexture3D";
-                case ShaderInputType::RWTexture1DArray:
-                    return "RWTexture1DArray";
-                case ShaderInputType::RWTexture2DArray:
-                    return "RWTexture2DArray";
-
-                case ShaderInputType::Sampler:
-                    return "Sampler";
-                    // case ShaderInputType::SamplerComparison:
-                    //     return "SamplerComparison";
-
-                case ShaderInputType::PushConstant:
-                    return "PushConstant";
-                case ShaderInputType::AccelerationStructure:
-                    return "AccelerationStructure";
-
-                default:
-                    return "Invalid";
-                }
-            }
-
             static eastl::string Indent(u32 level) {
                 return eastl::string(level * 4, ' '); // 4 spaces per indent level
             }
-
-            eastl::string HelperToString(const ShaderStructureInfo& info, u32 indentLevel = 0);
-
-            eastl::string HelperToString(const eastl::optional<eastl::vector<ShaderStructureInfo>>& members, u32 indentLevel) {
-                if (!members.has_value() || members->empty()) {
-                    return "";
-                }
-                eastl::string result;
-                for (const auto& member : *members) {
-                    result += HelperToString(member, indentLevel) + "\n";
-                }
-                return result;
-            }
-
-            eastl::string HelperToString(const ShaderStructureInfo& info, u32 indentLevel) {
-                eastl::string indent = Indent(indentLevel);
-                eastl::string result;
-
-                // Name and type
-                result += indent + "Name: " + info.name + "\n";
-                result += indent + "Type: " + HelperToString(info.type) + "\n";
-                result += indent + "Offset: " + to_string(info.offset) + " bytes\n";
-                result += indent + "Size: " + to_string(info.size) + " bytes\n";
-
-                // Layout details
-                if (info.IsArray()) {
-                    result += indent + "Array: " + to_string(info.elementCount) + " elements\n";
-                    result += indent + "Array Stride: " + to_string(info.stride) + " bytes\n";
-                    result += indent + "Array Type:\n";
-                    result += HelperToString(*info.ArrayUndelyingType(), indentLevel + 1);
-                }
-                if (info.IsVector()) {
-                    result += indent + "Vector Size: " + to_string(info.elementCount) + "\n";
-                }
-                if (info.IsMatrix()) {
-                    result += indent + "Matrix: " + to_string(info.rowCount) + " rows x " + to_string(info.columnCount) + " columns\n";
-                    result += indent + "Matrix Stride: " + to_string(info.stride) + " bytes\n";
-                    result += indent + "Row Major: " + (info.bRowMajor ? "Yes" : "No") + "\n";
-                }
-                if (info.IsScalar()) {
-                    result += indent + "Scalar\n";
-                }
-                if (info.IsStruct()) {
-                    result += indent + "Struct Members:\n";
-                    result += HelperToString(info.members, indentLevel + 1);
-                }
-                return result;
-            }
-
-            eastl::string HelperToString(const ShaderInputInfo& input, u32 indentLevel = 0) {
-                eastl::string indent = Indent(indentLevel);
-                eastl::string result;
-
-                result += indent + "Name: " + input.name + "\n";
-                result += indent + "Type: " + HelperToString(input.type) + "\n";
-                result += indent + "Space: " + to_string(input.space) + "\n";
-                result += indent + "Binding: " + to_string(input.binding) + "\n";
-                if (input.size > 0) {
-                    result += indent + "Size: " + to_string(input.size) + " bytes\n";
-                }
-                if (input.members.has_value() && !input.members->empty()) {
-                    result += indent + "Members:\n";
-                    result += HelperToString(input.members, indentLevel + 1);
-                }
-                return result;
-            }
-
-            eastl::string HelperToString(const eastl::vector<ShaderInputInfo>& inputs) {
-                eastl::string result;
-                for (const auto& input : inputs) {
-                    result += HelperToString(input) + "\n";
-                }
-                return result;
-            }
-
-            eastl::string HelperToString(const eastl::optional<ShaderInputInfo>& pushConstant) {
-                if (!pushConstant.has_value()) {
-                    return "No Push Constant";
-                }
-                return HelperToString(*pushConstant, 1);
-            }
+            inline static eastl::string HelperToString(ShaderScalarType type);
+            inline static eastl::string HelperToString(ShaderInputType type);
+            inline static eastl::string HelperToString(const ShaderStructureInfo& info, u32 indentLevel = 0);
+            inline static eastl::string HelperToString(const ShaderInputInfo& input, u32 indentLevel = 0);
+            inline static eastl::string HelperToString(const eastl::optional<eastl::vector<ShaderStructureInfo>>& members, u32 indentLevel);
+            inline static eastl::string HelperToString(const eastl::vector<ShaderInputInfo>& inputs);
+            inline static eastl::string HelperToString(const eastl::optional<ShaderInputInfo>& pushConstant);
 
         public:
             eastl::vector<ShaderInputInfo> inputs = {};
             eastl::optional<ShaderInputInfo> push = {};
 
             // Debug helper
-            PYRO_NODISCARD  eastl::string ToString() const {
+            PYRO_NODISCARD eastl::string ToString() const {
                 eastl::string str =
                     "Shader Inputs:\n" + HelperToString(inputs) + "\n" +
                     "Push Constant:\n" + HelperToString(push);
@@ -358,6 +182,190 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const ShaderReflection&) const = default;
             PYRO_NODISCARD bool operator!=(const ShaderReflection&) const = default;
+
+        private:
         };
+
+        inline eastl::string ShaderReflection::HelperToString(ShaderScalarType type) {
+            switch (type) {
+            case ShaderScalarType::None:
+                return "None";
+            case ShaderScalarType::Void:
+                return "Void";
+            case ShaderScalarType::Bool:
+                return "Bool";
+            case ShaderScalarType::Int32:
+                return "Int32";
+            case ShaderScalarType::UInt32:
+                return "UInt32";
+            case ShaderScalarType::Int64:
+                return "Int64";
+            case ShaderScalarType::UInt64:
+                return "UInt64";
+            case ShaderScalarType::Float16:
+                return "Float16";
+            case ShaderScalarType::Float32:
+                return "Float32";
+            case ShaderScalarType::Float64:
+                return "Float64";
+            case ShaderScalarType::Int8:
+                return "Int8";
+            case ShaderScalarType::UInt8:
+                return "UInt8";
+            case ShaderScalarType::Int16:
+                return "Int16";
+            case ShaderScalarType::UInt16:
+                return "UInt16";
+            case ShaderScalarType::Array:
+                return "Array";
+            case ShaderScalarType::Struct:
+                return "Struct";
+            default:
+                return "Unknown";
+            }
+        }
+
+        inline eastl::string ShaderReflection::HelperToString(ShaderInputType type) {
+            switch (type) {
+            case ShaderInputType::Unknown:
+                return "Unknown";
+
+            case ShaderInputType::UniformBuffer:
+                return "UniformBuffer";
+
+            case ShaderInputType::ByteAddressBuffer:
+                return "ByteAddressBuffer";
+            case ShaderInputType::RWByteAddressBuffer:
+                return "RWByteAddressBuffer";
+
+            case ShaderInputType::StructuredBuffer:
+                return "StructuredBuffer";
+            case ShaderInputType::RWStructuredBuffer:
+                return "RWStructuredBuffer";
+
+            case ShaderInputType::Texture1D:
+                return "Texture1D";
+            case ShaderInputType::Texture2D:
+                return "Texture2D";
+            case ShaderInputType::TextureCube:
+                return "TextureCube";
+            case ShaderInputType::Texture3D:
+                return "Texture3D";
+            case ShaderInputType::Texture1DArray:
+                return "Texture1DArray";
+            case ShaderInputType::Texture2DArray:
+                return "Texture2DArray";
+            case ShaderInputType::TextureCubeArray:
+                return "TextureCubeArray";
+            case ShaderInputType::Texture2DMS:
+                return "Texture2DMS";
+            case ShaderInputType::Texture2DMSArray:
+                return "Texture2DMSArray";
+
+            case ShaderInputType::RWTexture1D:
+                return "RWTexture1D";
+            case ShaderInputType::RWTexture2D:
+                return "RWTexture2D";
+            case ShaderInputType::RWTexture3D:
+                return "RWTexture3D";
+            case ShaderInputType::RWTexture1DArray:
+                return "RWTexture1DArray";
+            case ShaderInputType::RWTexture2DArray:
+                return "RWTexture2DArray";
+
+            case ShaderInputType::Sampler:
+                return "Sampler";
+                // case ShaderInputType::SamplerComparison:
+                //     return "SamplerComparison";
+
+            case ShaderInputType::PushConstant:
+                return "PushConstant";
+            case ShaderInputType::AccelerationStructure:
+                return "AccelerationStructure";
+
+            default:
+                return "Invalid";
+            }
+        }
+
+
+        inline eastl::string ShaderReflection::HelperToString(const eastl::optional<eastl::vector<ShaderStructureInfo>>& members, u32 indentLevel) {
+            if (!members.has_value() || members->empty()) {
+                return "";
+            }
+            eastl::string result;
+            for (const auto& member : *members) {
+                result += HelperToString(member, indentLevel) + "\n";
+            }
+            return result;
+        }
+
+        inline eastl::string ShaderReflection::HelperToString(const ShaderStructureInfo& info, u32 indentLevel) {
+            eastl::string indent = Indent(indentLevel);
+            eastl::string result;
+
+            // Name and type
+            result += indent + "Name: " + info.name + "\n";
+            result += indent + "Type: " + HelperToString(info.type) + "\n";
+            result += indent + "Offset: " + eastl::to_string(info.offset) + " bytes\n";
+            result += indent + "Size: " + eastl::to_string(info.size) + " bytes\n";
+
+            // Layout details
+            if (info.IsArray()) {
+                result += indent + "Array: " + eastl::to_string(info.elementCount) + " elements\n";
+                result += indent + "Array Stride: " + eastl::to_string(info.stride) + " bytes\n";
+                result += indent + "Array Type:\n";
+                result += HelperToString(*info.ArrayUndelyingType(), indentLevel + 1);
+            }
+            if (info.IsVector()) {
+                result += indent + "Vector Size: " + eastl::to_string(info.elementCount) + "\n";
+            }
+            if (info.IsMatrix()) {
+                result += indent + "Matrix: " + eastl::to_string(info.rowCount) + " rows x " + eastl::to_string(info.columnCount) + " columns\n";
+                result += indent + "Matrix Stride: " + eastl::to_string(info.stride) + " bytes\n";
+                result += indent + "Row Major: " + (info.bRowMajor ? "Yes" : "No") + "\n";
+            }
+            if (info.IsScalar()) {
+                result += indent + "Scalar\n";
+            }
+            if (info.IsStruct()) {
+                result += indent + "Struct Members:\n";
+                result += HelperToString(info.members, indentLevel + 1);
+            }
+            return result;
+        }
+
+        inline eastl::string ShaderReflection::HelperToString(const ShaderInputInfo& input, u32 indentLevel) {
+            eastl::string indent = Indent(indentLevel);
+            eastl::string result;
+
+            result += indent + "Name: " + input.name + "\n";
+            result += indent + "Type: " + HelperToString(input.type) + "\n";
+            result += indent + "Space: " + eastl::to_string(input.space) + "\n";
+            result += indent + "Binding: " + eastl::to_string(input.binding) + "\n";
+            if (input.size > 0) {
+                result += indent + "Size: " + eastl::to_string(input.size) + " bytes\n";
+            }
+            if (input.members.has_value() && !input.members->empty()) {
+                result += indent + "Members:\n";
+                result += HelperToString(input.members, indentLevel + 1);
+            }
+            return result;
+        }
+
+        inline eastl::string ShaderReflection::HelperToString(const eastl::vector<ShaderInputInfo>& inputs) {
+            eastl::string result;
+            for (const auto& input : inputs) {
+                result += HelperToString(input) + "\n";
+            }
+            return result;
+        }
+
+        inline eastl::string ShaderReflection::HelperToString(const eastl::optional<ShaderInputInfo>& pushConstant) {
+            if (!pushConstant.has_value()) {
+                return "No Push Constant";
+            }
+            return HelperToString(*pushConstant, 1);
+        }
     } // namespace RHI
 } // namespace PyroshockStudios

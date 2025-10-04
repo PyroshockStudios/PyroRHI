@@ -329,7 +329,20 @@ namespace PyroshockStudios {
         }
         DeviceSize D3DDevice::ImageSizeRequirements(Image image) const {
             ASSERT(IsValid(image));
-            return 0;
+
+            D3D12_RESOURCE_ALLOCATION_INFO resourceAllocInfo = mDevice->GetResourceAllocationInfo(0, 1, &mResourcePool->Get(image).desc);
+            return resourceAllocInfo.SizeInBytes;
+        }
+        u32 D3DDevice::ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const {
+            auto& img = mResourcePool->Get(image);
+            UINT dstSubresource = D3D12CalcSubresource(slice.mipLevel, slice.arrayLayer, 0, img.info.mipLevelCount, img.info.arrayLayerCount);
+            D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+            UINT numRows = {};
+            UINT64 rowSizesInBytes = {};
+            UINT64 requiredSize = {};
+            mDevice->GetCopyableFootprints(&img.desc, dstSubresource, 1, 0,
+                &footprint, &numRows, &rowSizesInBytes, &requiredSize);
+            return footprint.Footprint.RowPitch;
         }
         MemoryBlock D3DDevice::CreateMemoryBlock(const MemoryBlockInfo& info) {
             auto [memory, data] = mResourcePool->AllocMemoryBlock();
@@ -1264,7 +1277,7 @@ namespace PyroshockStudios {
             // Delete objects scheduled for later destruction
             for (usize i = 0; i < mDeferredDeletes.size(); ++i) {
                 auto& [fenceVal, zombie] = mDeferredDeletes[i];
-                if (fenceVal < completedFence)
+                if (fenceVal > completedFence)
                     continue;
                 zombie.deleter(this, zombie.resource);
                 mDeferredDeletes.erase(mDeferredDeletes.begin() + i);
@@ -1274,7 +1287,7 @@ namespace PyroshockStudios {
             // Put back used linear upload buffers
             for (usize i = 0; i < mOccupiedLinearUploadBuffers.size(); ++i) {
                 auto& [fenceVal, zombie] = mOccupiedLinearUploadBuffers[i];
-                if (fenceVal < completedFence)
+                if (fenceVal > completedFence)
                     continue;
                 mAvailableLinearUploadBuffers.emplace_back(eastl::pair{ 0ULL, zombie });
                 mOccupiedLinearUploadBuffers.erase(mOccupiedLinearUploadBuffers.begin() + i);

@@ -34,7 +34,7 @@ namespace PyroshockStudios {
          *
          * Specifies the color format and dynamic range for the back buffers.
          */
-        enum struct SwapChainFormat {
+        enum struct SwapChainFormat : u32 {
             /** Standard 8-bit per channel, low dynamic range (sRGB not applied). */
             Unorm8BitLDR = 0,
 
@@ -46,6 +46,23 @@ namespace PyroshockStudios {
 
             /** 16-bit floating point per channel, high dynamic range. */
             Float16BitHDR = 3
+        };
+
+        /**
+         * @brief Specifies how the alpha channel of the swap chain's back buffers is interpreted.
+         *
+         * Determines how the window compositor (DWM on windows) blends the swap chain with the desktop
+         * or other windows when the swap chain has transparency.
+         */
+        enum struct SwapChainAlphaMode : u32 {
+            /** Ignore the alpha channel; the swap chain is treated as fully opaque. */
+            None = 0,
+
+            /** Premultiplied alpha; the color channels are already multiplied by the alpha value. */
+            Premultiplied = 1,
+
+            /** Straight alpha; color channels are not pre-multiplied and will be multiplied during composition. */
+            Straight = 2
         };
 
         /**
@@ -73,6 +90,11 @@ namespace PyroshockStudios {
              * Default is `Unorm8BitLDR`.
              */
             SwapChainFormat format = SwapChainFormat::Unorm8BitLDR;
+
+            /**
+             * @brief What alpha mode the swap chain has, used for composition on backgrounds.
+             */
+            SwapChainAlphaMode alphaMode = SwapChainAlphaMode::None;
 
             /**
              * @brief Presentation mode, controlling vsync and tearing behavior.

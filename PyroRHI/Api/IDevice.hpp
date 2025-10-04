@@ -225,9 +225,23 @@ namespace PyroshockStudios {
             PYRO_NODISCARD virtual u8* BufferHostAddress(Buffer buffer) const = 0;
 
             /**
-             * @brief Returns the size requirements for an image resource.
+             * @brief Returns the size requirements (in bytes) for the entire image resource.
+             *
+             * This is the total memory footprint needed to store the image including all mip levels,
+             * array layers, and alignment constraints required by the GPU.
              */
             PYRO_NODISCARD virtual DeviceSize ImageSizeRequirements(Image image) const = 0;
+
+            /**
+             * @brief Returns the required row pitch (stride in bytes) for a specific subresource of the image.
+             *
+             * The row pitch is the number of bytes the GPU expects between consecutive rows in a buffer
+             * when copying to or from this image subresource. It must be used when performing
+             * buffer-to-image or image-to-buffer copies to avoid out-of-bounds errors.
+             * 
+             * Row width is the minimal width that needs to be queried **INCLUDING** the format size. For a buffer-image copy, this is the extent of your copy region.
+             */
+            PYRO_NODISCARD virtual u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const = 0;
 
             /**
              * @brief Returns the host-mapped pointer for a buffer, cast to the requested type.

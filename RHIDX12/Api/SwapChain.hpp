@@ -23,6 +23,7 @@
 #pragma once
 #include <RHIDX12/Core.hpp>
 #include <PyroRHI/Api/ISwapChain.hpp>
+#include <dcomp.h>
 namespace PyroshockStudios {
     namespace RHIDX12 {
         class D3DDevice;
@@ -47,6 +48,9 @@ namespace PyroshockStudios {
         private:
             void DestroyImages();
             void GetImages();
+            ComPtr<IDCompositionDevice> mDcompDevice = {};
+            ComPtr<IDCompositionTarget> mDcompTarget = {};
+            ComPtr<IDCompositionVisual> mDcompVisual = {};
 
             eastl::vector<Image> mWrappedBuffers{};
             SwapChainInfo mInfo = {};

@@ -200,7 +200,27 @@ namespace PyroshockStudios::RHIVulkan {
         createInfo.queueFamilyIndexCount = 0;
         createInfo.pQueueFamilyIndices = nullptr;
         createInfo.preTransform = mSupportInfo.capabilities.currentTransform;
-        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        switch (mInfo.alphaMode) {
+        case SwapChainAlphaMode::None:
+            createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+            break;
+        case SwapChainAlphaMode::Premultiplied:
+            if (mSupportInfo.capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR) {
+                createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR;
+            } else {
+                createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+            }
+            break;
+        case SwapChainAlphaMode::Straight:
+            if (mSupportInfo.capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR) {
+                createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+            } else {
+                createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+            }
+            break;
+        default:
+            ASSERT(false, "Invalid alpha mode");
+        }
         createInfo.presentMode = ToVkPresentMode(mPresentMode);
         createInfo.clipped = VK_TRUE;
         createInfo.oldSwapchain = oldSwapChain;

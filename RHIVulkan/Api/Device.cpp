@@ -464,16 +464,38 @@ namespace PyroshockStudios {
             ASSERT(info.size >= 4);
             auto [id, ret] = mResourceTable.mBufferSlots.NewSlot();
             ret.info = info;
-            static constexpr VkBufferUsageFlags VK_BUFFER_USAGE_FLAGS =
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+
+            // NOTE:
+            // Zilver - Since vulkan changes certain requirements for memory alignment,
+            // I think it still makes sense to add the flags, despite the drivers usually ignoring it for the most part.
+            VkBufferUsageFlags VK_BUFFER_USAGE_FLAGS = {};
+            if (info.usage & BufferUsageFlagBits::BUFFER_DEVICE_ADDRESS && mVulkanCaps.bVK_EXT_buffer_device_address) {
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+            }
+            if (info.usage & BufferUsageFlagBits::TRANSFER_SRC) {
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            }
+            if (info.usage & BufferUsageFlagBits::TRANSFER_DST) {
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+            }
+            if (info.usage & BufferUsageFlagBits::UNIFORM_BUFFER) {
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            }
+            if (info.usage & BufferUsageFlagBits::UNORDERED_ACCESS || info.usage & BufferUsageFlagBits::SHADER_RESOURCE) {
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            }
+            if (info.usage & BufferUsageFlagBits::VERTEX_BUFFER) {
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            }
+            if (info.usage & BufferUsageFlagBits::INDEX_BUFFER) {
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+            }
+            if (info.usage & BufferUsageFlagBits::DRAW_INDIRECT) {
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+            }
             bool hostAccessible = false;
+            VkMemoryPropertyFlags requiredMemoryFlags = {};
+            VkMemoryPropertyFlags preferredMemoryFlags = {};
             VmaAllocationInfo vmaAllocationInfo = {};
             VmaAllocationCreateFlags vmaAllocationFlags{};
             VmaMemoryUsage usage = {};
@@ -484,11 +506,18 @@ namespace PyroshockStudios {
             case MemoryAllocationDomain::HostStaging:
                 usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
                 vmaAllocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+                requiredMemoryFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
                 break;
             case MemoryAllocationDomain::HostRandomWrite:
+                usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+                vmaAllocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+                requiredMemoryFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+                break;
             case MemoryAllocationDomain::HostReadback:
                 usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
                 vmaAllocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+                requiredMemoryFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+                preferredMemoryFlags |= VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
                 break;
             }
 
@@ -512,8 +541,8 @@ namespace PyroshockStudios {
                 const VmaAllocationCreateInfo vmaAllocationCreateInfo = {
                     .flags = vmaAllocationFlags,
                     .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-                    .requiredFlags = {},
-                    .preferredFlags = {},
+                    .requiredFlags = requiredMemoryFlags,
+                    .preferredFlags = preferredMemoryFlags,
                     .memoryTypeBits = eastl::numeric_limits<u32>::max(),
                     .pool = VK_NULL_HANDLE,
                     .pUserData = nullptr,
@@ -886,10 +915,13 @@ namespace PyroshockStudios {
         DeviceSize VulkanDevice::ImageSizeRequirements(Image image) const {
             auto& img = Slot(image);
             if (img.info.memoryBlock) {
-                return img.allocationInfo.Get<VmaAllocationInfo>().size;
-            } else {
                 return img.allocationInfo.Get<VmaVirtualAllocationInfo>().size;
+            } else {
+                return img.allocationInfo.Get<VmaAllocationInfo>().size;
             }
+        }
+        u32 VulkanDevice::ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const {
+            return PYRO_ALIGN(rowWidth, mPhysicalDeviceProperties.limits.optimalBufferCopyRowPitchAlignment);
         }
 
         bool VulkanDevice::IsMemoryBlockValid(MemoryBlock memory) const {
