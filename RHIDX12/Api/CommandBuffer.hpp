@@ -82,6 +82,8 @@ namespace PyroshockStudios {
             void Complete() override;
 
             void Reset() {
+                // allocator MUST also be reset! otherwise a huge memory leak occurs!
+                CheckD3DResult(mAllocator->Reset());
                 CheckD3DResult(mCommandList->Reset(mAllocator.Get(), nullptr));
             }
 
