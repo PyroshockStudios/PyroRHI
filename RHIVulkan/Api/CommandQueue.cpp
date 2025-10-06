@@ -32,9 +32,18 @@ namespace PyroshockStudios::RHIVulkan {
 
     VulkanCommandQueue::VulkanCommandQueue(VulkanDevice* device, VkQueue queue, u32 family, const CommandQueueInfo& info)
         : mInfo(info), mDevice(device), mQueue(queue), mQueueFamily(family) {
+        mCommandBufferPool = new CommandBufferPool();
     }
     VulkanCommandQueue::~VulkanCommandQueue() {
+        mCommandBufferPool->Cleanup(mDevice, this);
+        delete mCommandBufferPool;
     }
+
+    ICommandBuffer* VulkanCommandQueue::GetCommandBuffer(const CommandBufferInfo& info) {
+        auto [pool, buffer] = mCommandBufferPool->Get(mDevice, this);
+        return new VulkanCommandBuffer(mDevice, pool, buffer, info);
+    }
+
     void VulkanCommandQueue::SubmitCommandBuffer(ICommandBuffer*& commandBuffer) {
         mCommandBuffers.push_back(static_cast<VulkanCommandBuffer*>(commandBuffer));
         commandBuffer = nullptr;

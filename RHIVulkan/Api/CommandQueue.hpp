@@ -29,11 +29,13 @@ namespace PyroshockStudios {
     namespace RHIVulkan {
         class VulkanDevice;
         class VulkanCommandBuffer;
+        class CommandBufferPool;
         class VulkanCommandQueue : public ICommandQueue, DeleteCopy, DeleteMove {
         public:
             VulkanCommandQueue(VulkanDevice* device, VkQueue queue, u32 family, const CommandQueueInfo& info);
             ~VulkanCommandQueue();
 
+            ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) override;
             void SubmitCommandBuffer(ICommandBuffer*& commandBuffer) override;
             void SubmitSwapChain(ISwapChain* swapChain) override;
             void WaitIdle() override;
@@ -46,6 +48,9 @@ namespace PyroshockStudios {
             }
             u32 GetQueueFamily() {
                 return mQueueFamily;
+            }
+            CommandBufferPool* GetCommandBufferPool() {
+                return mCommandBufferPool;
             }
             eastl::vector<VulkanCommandBuffer*>& RefSubmittedCommandBuffers() {
                 return mCommandBuffers;
@@ -70,6 +75,9 @@ namespace PyroshockStudios {
             eastl::vector<VkSwapchainKHR> mSwapChains{};
             eastl::vector<VkSemaphore> mSwapChainAcquireSemaphores{};
             eastl::vector<u32> mImageIndices{};
+
+            
+            CommandBufferPool* mCommandBufferPool = {};
 
             CommandQueueInfo mInfo{};
         };

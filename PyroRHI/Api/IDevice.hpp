@@ -318,11 +318,6 @@ namespace PyroshockStudios {
              */
             PYRO_NODISCARD virtual ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) = 0;
 
-            /**
-             * @brief Retrives a newly available command buffer for recording commands.
-             */
-            PYRO_NODISCARD virtual ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) = 0;
-
             // ---------------------------------------------------------------------
             // Resource Destruction
             // ---------------------------------------------------------------------

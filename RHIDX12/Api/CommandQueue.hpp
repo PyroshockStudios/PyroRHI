@@ -26,11 +26,13 @@
 namespace PyroshockStudios {
     namespace RHIDX12 {
         class D3DCommandBuffer;
+        class D3DDevice;
         class D3DCommandQueue : public ICommandQueue, DeleteCopy, DeleteMove {
         public:
-            D3DCommandQueue(CommandQueueInfo&& info, ComPtr<ID3D12CommandQueue>&& queue);
+            D3DCommandQueue(D3DDevice* device, CommandQueueInfo&& info, ComPtr<ID3D12CommandQueue>&& queue);
             ~D3DCommandQueue();
 
+            ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) override;
             void SubmitCommandBuffer(ICommandBuffer*& commandBuffer) override;
             void SubmitSwapChain(ISwapChain* swapChain) override;
             void WaitIdle() override;
@@ -40,13 +42,17 @@ namespace PyroshockStudios {
             ID3D12CommandQueue* InternalQueue() {
                 return mCommandQueue.Get();
             }
-
+            void RestoreCommandBuffer(D3DCommandBuffer* cmb) {
+                mPooledCommandBuffers.emplace_back(cmb);
+            }
             eastl::vector<D3DCommandBuffer*> mSubmittedCommands = {};
             eastl::vector<ID3D12CommandList*> mPendingCommandListExecutes = {};
             eastl::vector<eastl::pair<IDXGISwapChain3*, UINT>> mPendingSwapPresents = {};
         private:
+            D3DDevice* mDevice = nullptr;
             CommandQueueInfo mInfo = {};
             ComPtr<ID3D12CommandQueue> mCommandQueue = {};
+            eastl::vector<D3DCommandBuffer*> mPooledCommandBuffers = {};
         };
     }
 }

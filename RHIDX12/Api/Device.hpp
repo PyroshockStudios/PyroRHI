@@ -123,7 +123,6 @@ namespace PyroshockStudios {
             IFence* CreateFence(const FenceInfo& info) override;
             ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
 
-            ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) override;
             void DestroyMemoryBlock(MemoryBlock& memory) override;
             void DestroyBuffer(Buffer& buffer) override;
             void DestroyImage(Image& image) override;
@@ -205,7 +204,6 @@ namespace PyroshockStudios {
             UINT64 mNextDeferredDeleterValue = 1;
             eastl::vector<eastl::pair<UINT64 /*fence value*/, ZombieDeleter>> mDeferredDeletes;
 
-            eastl::vector<D3DCommandBuffer*> mPooledCommandBuffers = {};
             DevicePropertiesInfo mProperties{};
 
             ComPtr<ID3D12CommandSignature> mIndirectDrawSignature = {};

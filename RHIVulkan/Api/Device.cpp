@@ -150,7 +150,7 @@ namespace PyroshockStudios {
                         mVulkanCaps.bVK_EXT_buffer_device_address = true;
                         // No need to enable it since it's in vulkan 1.3 core.
                         // Commenting this out fixes an error that both the KHR and EXT versions of this are enabled
-                        //extensions.push_back(extension.extensionName);
+                        // extensions.push_back(extension.extensionName);
                     }
                 }
             }
@@ -186,40 +186,69 @@ namespace PyroshockStudios {
             queueProps.resize(queueFamilyPropsCount);
             vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueFamilyPropsCount, queueProps.data());
 
-            CommandQueueInfo queueCreateInfo{};
-            queueCreateInfo.name = "General Purpose Queue";
-            queueCreateInfo.bPresentable = true;
-            u32 queueFamilyIndex = 0xFFFFFFFF;
+
+            eastl::vector<eastl::pair<CommandQueueInfo, u32>> queues = {};
+
             for (u32 i = 0; i < queueFamilyPropsCount; i++) {
-                if ((queueProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0 &&
+                if (mPresentQueueFamilyIndex == 0xFFFFFFFF &&
+                    (queueProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0 &&
                     (queueProps[i].queueFlags & VK_QUEUE_COMPUTE_BIT) != 0 &&
                     (queueProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT) != 0) {
-                    queueFamilyIndex = i;
-                    queueCreateInfo.flags = CommandQueueFlagBits::COMPUTE | CommandQueueFlagBits::GRAPHICS | CommandQueueFlagBits::TRANSFER;
-                    mUniqueCommandQueueFamilies.push_back(i);
-                    break;
+                    mPresentQueueFamilyIndex = i;
+                    queues.emplace_back(
+                        CommandQueueInfo{ .flags = CommandQueueFlagBits::GRAPHICS | CommandQueueFlagBits::COMPUTE | CommandQueueFlagBits::TRANSFER,
+                            .name = "Graphics Command Queue #" + eastl::to_string(i) },
+                        i);
+                } else {
+                    if (queueProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT && queueProps[i].queueFlags & VK_QUEUE_COMPUTE_BIT && queueProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
+                        Logger::Trace(gVulkanSink, "Found additional graphics queue family {}", i);
+                        queues.emplace_back(
+                            CommandQueueInfo{ .flags = CommandQueueFlagBits::GRAPHICS | CommandQueueFlagBits::COMPUTE | CommandQueueFlagBits::TRANSFER,
+                                .name = "Graphics Command Queue #" + eastl::to_string(i) },
+                            i);
+                    } else if (queueProps[i].queueFlags & VK_QUEUE_COMPUTE_BIT && queueProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
+                        Logger::Trace(gVulkanSink, "Found additional compute queue family {}", i);
+                        queues.emplace_back(
+                            CommandQueueInfo{ .flags = CommandQueueFlagBits::COMPUTE | CommandQueueFlagBits::TRANSFER,
+                                .name = "Compute Command Queue #" + eastl::to_string(i) },
+                            i);
+                    } else if (queueProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
+                        Logger::Trace(gVulkanSink, "Found additional transfer queue family {}", i);
+                        queues.emplace_back(
+                            CommandQueueInfo{ .flags = CommandQueueFlagBits::TRANSFER,
+                                .name = "Transfer Command Queue #" + eastl::to_string(i) },
+                            i);
+                    } else {
+                        Logger::Warn(gVulkanSink, "Queue family {} has non-standard usages!! Ignoring...", i);
+                        continue;
+                    }
                 }
+                mUniqueCommandQueueFamilies.push_back(i);
             }
-            if (queueFamilyIndex == 0xFFFFFFFF) {
-                Logger::Fatal(gVulkanSink, "Failed to find a suitable command queue!!");
+            if (mPresentQueueFamilyIndex == 0xFFFFFFFF) {
+                Logger::Fatal(gVulkanSink, "Failed to find a suitable default command queue!!");
             }
 
-            eastl::array<f32, 1> queue_priorities = { queueCreateInfo.priority };
-            const VkDeviceQueueCreateInfo vkDeviceQueueCreateInfo{
-                .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-                .pNext = {},
-                .flags = {},
-                .queueFamilyIndex = queueFamilyIndex,
-                .queueCount = static_cast<u32>(queue_priorities.size()),
-                .pQueuePriorities = queue_priorities.data(),
-            };
+            eastl::vector<VkDeviceQueueCreateInfo> queueCreateInfos = {};
+
+            for (u32 family : mUniqueCommandQueueFamilies) {
+                static const float queuePriority = 0.5f;
+                queueCreateInfos.push_back({
+                    .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                    .pNext = {},
+                    .flags = {},
+                    .queueFamilyIndex = family,
+                    .queueCount = 1U,
+                    .pQueuePriorities = &queuePriority,
+                });
+            }
 
             const VkDeviceCreateInfo deviceCreateInfo = {
                 .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
                 .pNext = reinterpret_cast<const void*>(&physicalDeviceFeatures2),
                 .flags = {},
-                .queueCreateInfoCount = 1,
-                .pQueueCreateInfos = &vkDeviceQueueCreateInfo,
+                .queueCreateInfoCount = static_cast<u32>(queueCreateInfos.size()),
+                .pQueueCreateInfos = queueCreateInfos.data(),
                 .enabledLayerCount = 0,
                 .ppEnabledLayerNames = nullptr,
                 .enabledExtensionCount = static_cast<u32>(extensions.size()),
@@ -236,30 +265,37 @@ namespace PyroshockStudios {
             vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(mContext->GetVkInstance(), "vkSetDebugUtilsObjectNameEXT"));
             vkCmdBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(vkGetInstanceProcAddr(mContext->GetVkInstance(), "vkCmdBeginDebugUtilsLabelEXT"));
             vkCmdEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(vkGetInstanceProcAddr(mContext->GetVkInstance(), "vkCmdEndDebugUtilsLabelEXT"));
-
             if (vkSetDebugUtilsObjectNameEXT != nullptr) {
-                Logger::Info(gVulkanSink, "vkSetDebugUtilsObjectNameEXT is available");
+                Logger::Debug(gVulkanSink, "vkSetDebugUtilsObjectNameEXT is available");
             }
             if (vkCmdBeginDebugUtilsLabelEXT != nullptr) {
-                Logger::Info(gVulkanSink, "vkCmdBeginDebugUtilsLabelEXT is available");
+                Logger::Debug(gVulkanSink, "vkCmdBeginDebugUtilsLabelEXT is available");
             }
             if (vkCmdEndDebugUtilsLabelEXT != nullptr) {
-                Logger::Info(gVulkanSink, "vkCmdEndDebugUtilsLabelEXT is available");
+                Logger::Debug(gVulkanSink, "vkCmdEndDebugUtilsLabelEXT is available");
             }
-            VkQueue queue = VK_NULL_HANDLE;
-            vkGetDeviceQueue(mDevice, queueFamilyIndex, 0, &queue);
-            mPresentQueue = new VulkanCommandQueue(this, queue, queueFamilyIndex, queueCreateInfo);
-            if (vkSetDebugUtilsObjectNameEXT != nullptr) {
-                const VkDebugUtilsObjectNameInfoEXT nameInfo = {
-                    .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-                    .pNext = nullptr,
-                    .objectType = VK_OBJECT_TYPE_QUEUE,
-                    .objectHandle = eastl::bit_cast<uint64_t>(queue),
-                    .pObjectName = queueCreateInfo.name.c_str(),
-                };
-                vkSetDebugUtilsObjectNameEXT(mDevice, &nameInfo);
+
+            for (const auto& [createInfo, family] : queues) {
+                VkQueue queue = VK_NULL_HANDLE;
+                vkGetDeviceQueue(mDevice, family, 0, &queue);
+                ASSERT(queue != VK_NULL_HANDLE, "Faild to get queue!");
+                auto* cqueue = new VulkanCommandQueue(this, queue, family, createInfo);
+                if (vkSetDebugUtilsObjectNameEXT != nullptr) {
+                    const VkDebugUtilsObjectNameInfoEXT nameInfo = {
+                        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+                        .pNext = nullptr,
+                        .objectType = VK_OBJECT_TYPE_QUEUE,
+                        .objectHandle = eastl::bit_cast<uint64_t>(queue),
+                        .pObjectName = createInfo.name.c_str(),
+                    };
+                    vkSetDebugUtilsObjectNameEXT(mDevice, &nameInfo);
+                }
+                mCommandQueues.push_back(cqueue);
+                if (family == mPresentQueueFamilyIndex) {
+                    mPresentQueue = cqueue;
+                }
             }
-            mCommandQueues.push_back(mPresentQueue);
+
 
             VmaVulkanFunctions vmaVulkanFunctions = {
                 .vkGetInstanceProcAddr = vkGetInstanceProcAddr,
@@ -309,8 +345,6 @@ namespace PyroshockStudios {
 
             mResourceTable.Initialize(MAX_VK_BINDLESS_BUFFERS, MAX_VK_BINDLESS_IMAGES, MAX_VK_BINDLESS_SAMPLERS,
                 mDevice, mContext->GetVkAllocator(), VK_NULL_HANDLE, vkSetDebugUtilsObjectNameEXT);
-
-            mCommandBufferPool = new CommandBufferPool();
 
             mMainQueueGpuFence = CreateFence({ .name = "mMainQueueGpuFence" });
 
@@ -368,10 +402,6 @@ namespace PyroshockStudios {
             CollectGarbage();
             DestroyFence(mMainQueueGpuFence);
             mResourceTable.Cleanup(mDevice, mContext->GetVkAllocator());
-
-            mCommandBufferPool->Cleanup(this);
-            delete mCommandBufferPool;
-
             vmaDestroyAllocator(mVmaAllocator);
 
             for (ICommandQueue* queue : mCommandQueues) {
@@ -1105,11 +1135,6 @@ namespace PyroshockStudios {
             return swapchain;
         }
 
-        ICommandBuffer* VulkanDevice::GetCommandBuffer(const CommandBufferInfo& info) {
-            auto [pool, buffer] = mCommandBufferPool->Get(this);
-            return new VulkanCommandBuffer(this, pool, buffer, info);
-        }
-
         Semaphore VulkanDevice::CreateSemaphore(const SemaphoreInfo& info) {
             VkSemaphoreCreateInfo createInfo{
                 .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -1304,7 +1329,7 @@ namespace PyroshockStudios {
                     mMainQueueZombies.emplace_front(mMainQueueCpuTimeline, resource);
                 }
                 vkResetCommandPool(mDevice, zombie.vkCmdPool, {});
-                mCommandBufferPool->PutBack({ zombie.vkCmdPool, zombie.vkCmdBuffer });
+                zombie.queue->GetCommandBufferPool()->PutBack({ zombie.vkCmdPool, zombie.vkCmdBuffer });
             });
 
             CheckAndCleanupGpuResources(mMainQueueZombies, [this](ZombieDeleter& zombie) { zombie.deleter(this, zombie.resource); });
