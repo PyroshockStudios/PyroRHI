@@ -38,14 +38,14 @@ jobs:
             vulkan-query-version: latest
             vulkan-components: Vulkan-Headers, Vulkan-Loader
             vulkan-use-cache: true
-      - name: Install compilers
-        run: |
-          sudo apt-get update
-          if [[ "${{ matrix.compiler }}" == "clang" ]]; then
-            sudo apt-get install -y clang
-          else
-            sudo apt-get install -y build-essential
-          fi
+      #- name: Install compilers
+      #  run: |
+      #    sudo apt-get update
+      #    if [[ "${{ matrix.compiler }}" == "clang" ]]; then
+      #      sudo apt-get install -y clang
+      #    else
+      #      sudo apt-get install -y build-essential
+      #    fi
 
       - name: Configure CMake (Linux)
         run: >
@@ -67,5 +67,5 @@ jobs:
 
       - name: Run API validation tests
         working-directory: build
-        run: ctest --build-config ${{ matrix.build_type }} --gtest_output=xml:results.xml --gtest_color=yes --rerun-failed --output-on-failure
+        run: ctest --build-config ${{ matrix.build_type }} --rerun-failed --output-on-failure
 
