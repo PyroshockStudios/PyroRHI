@@ -48,6 +48,8 @@ jobs:
       #    fi
       - name: Install Vulkan Validation Layers
         run: sudo apt-get update && sudo apt-get install -y vulkan-validationlayers
+      - name: Install Vulkan Mesa Drivers
+        run: sudo apt install mesa-vulkan-drivers
       - name: Configure CMake (Linux)
         run: >
           cmake -B build
