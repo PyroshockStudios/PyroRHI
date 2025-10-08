@@ -1,9 +1,10 @@
 #pragma once
 
 #include <PyroCommon/Logger.hpp>
+#include <PyroRHI/Api/IDevice.hpp>
 #include <PyroRHI/Context.hpp>
 #include <PyroRHI/Exports.hpp>
-#include <PyroRHI/Api/IDevice.hpp>
+#include <filesystem>
 #include <gtest/gtest.h>
 
 #if defined(_WIN32)
@@ -13,11 +14,16 @@
 #define CLOSE_LIB(lib) FreeLibrary((HMODULE)(lib))
 using LibraryHandle = HMODULE;
 #else
+#include <limits.h>
+#include <unistd.h>
 #include <dlfcn.h>
 #define LOAD_LIB(path) dlopen(path, RTLD_NOW | RTLD_LOCAL)
 #define GET_SYM(lib, name) dlsym(lib, name)
 #define CLOSE_LIB(lib) dlclose(lib)
 using LibraryHandle = void*;
+#endif
+#ifdef PYRO_PLATFORM_FAMILY_APPLE
+#include <mach-o/dyld.h>
 #endif
 
 namespace PyroshockStudios::RHI::Tests {
@@ -77,7 +83,34 @@ namespace PyroshockStudios::RHI::Tests {
 #elif defined(PYRO_PLATFORM_FAMILY_UNIX)
             const char* libName = "RHI/RHIVulkan.so";
 #endif
-            mLibrary = LOAD_LIB(libName);
+            eastl::string exeDir = {};
+
+#ifdef PYRO_PLATFORM_WINDOWS
+            char path[256];
+            DWORD size = GetModuleFileNameA(nullptr, path, sizeof(path));
+            if (size == 0 || size == sizeof(path))
+                GTEST_FAIL() << "Failed to get executable path";
+            std::filesystem::path exePath(path);
+            exeDir = eastl::string(exePath.parent_path().string().c_str());
+#elif defined(PYRO_PLATFORM_MACOS)
+            char path[1024];
+            u32 size = sizeof(path);
+            if (_NSGetExecutablePath(path, &size) != 0)
+                GTEST_FAIL() << "Failed to get executable path";
+            std::filesystem::path exePath(path);
+            exeDir = eastl::string(exePath.parent_path().string().c_str());
+#elif defined(PYRO_PLATFORM_LINUX)
+            char path[1024];
+            isize size = readlink("/proc/self/exe", path, sizeof(path) - 1);
+            if (size == 0)
+                GTEST_FAIL() << "Failed to get executable path";
+            path[size] = '\0';
+            std::filesystem::path exePath = std::filesystem::path(std::string(path));
+            exeDir = eastl::string(exePath.parent_path().string().c_str());
+#endif
+            eastl::string fullPath = exeDir + "/" + libName;
+
+            mLibrary = LOAD_LIB(fullPath.c_str());
             ASSERT_NE(mLibrary, nullptr) << "Failed to load RHI backend: " << libName;
 
             fpGetInfo = reinterpret_cast<decltype(fpGetInfo)>(GET_SYM(mLibrary, "GetCustomRHIInfo"));
@@ -104,6 +137,7 @@ namespace PyroshockStudios::RHI::Tests {
             // Enable validation + headless mode if supported
             mCreateInfo.options[0] = { .optionIndex = 0 }; // "debug"
             mCreateInfo.options[1] = { .optionIndex = 1 }; // "headless"
+            mCreateInfo.options[2] = { .optionIndex = -1 }; // last option
 
             fpCreateContext(&mCreateInfo, &mApi);
             ASSERT_NE(mApi.loadedContext, nullptr) << "Failed to create Vulkan Context";
