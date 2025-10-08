@@ -79,9 +79,9 @@ namespace PyroshockStudios::RHI::Tests {
 #ifdef PYRO_PLATFORM_WINDOWS
             const char* libName = "RHI/RHIVulkan.dll";
 #elif defined(PYRO_PLATFORM_FAMILY_APPLE)
-            const char* libName = "RHI/RHIVulkan.dylib";
+            const char* libName = "RHI/libRHIVulkan.dylib";
 #elif defined(PYRO_PLATFORM_FAMILY_UNIX)
-            const char* libName = "RHI/RHIVulkan.so";
+            const char* libName = "RHI/libRHIVulkan.so";
 #endif
             eastl::string exeDir = {};
 
@@ -102,7 +102,7 @@ namespace PyroshockStudios::RHI::Tests {
 #elif defined(PYRO_PLATFORM_LINUX)
             char path[1024];
             isize size = readlink("/proc/self/exe", path, sizeof(path) - 1);
-            if (size == 0)
+            if (size <= 0)
                 GTEST_FAIL() << "Failed to get executable path";
             path[size] = '\0';
             std::filesystem::path exePath = std::filesystem::path(std::string(path));
