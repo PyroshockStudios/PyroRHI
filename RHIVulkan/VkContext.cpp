@@ -144,7 +144,7 @@ namespace PyroshockStudios::RHIVulkan {
     VulkanContext::VulkanContext(const VulkanContextArgs& args, ILogStream* logSink, ILogStream* vvlSink) : mPreferredDeviceIndex(args.preferredPhysicalDevice),
                                                                                                             mVVLSink(vvlSink) {
         VulkanContext::InjectLogger(logSink);
-        volkInitialize();
+        CheckVkResult(volkInitialize());
         eastl::vector<char const*> enabledExtensions = {};
         bool bTrueHeadlessInstance = args.bHeadless;
 
@@ -210,6 +210,7 @@ namespace PyroshockStudios::RHIVulkan {
                                   [](const char* x) { return strcmp(x, VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME) == 0; }) == enabledExtensions.end()) {
             enabledExtensions.clear();
             bTrueHeadlessInstance = false;
+            Logger::Warn(gVulkanSink, VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME " not available, and HEADLESS was requested, ignoring extension...");
             goto getInstanceExtensions;
         }
 

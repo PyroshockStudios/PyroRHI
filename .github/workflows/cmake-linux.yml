@@ -67,5 +67,5 @@ jobs:
 
       - name: Run API validation tests
         working-directory: build
-        run: ctest --build-config ${{ matrix.build_type }}
+        run: ctest --build-config ${{ matrix.build_type }} --gtest_output=xml:results.xml --gtest_color=yes --rerun-failed --output-on-failure
 

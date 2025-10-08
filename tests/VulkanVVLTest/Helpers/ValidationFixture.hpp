@@ -14,7 +14,7 @@
 using LibraryHandle = HMODULE;
 #else
 #include <dlfcn.h>
-#define LOAD_LIB(path) dlopen(path, RTLD_NOW)
+#define LOAD_LIB(path) dlopen(path, RTLD_NOW | RTLD_LOCAL)
 #define GET_SYM(lib, name) dlsym(lib, name)
 #define CLOSE_LIB(lib) dlclose(lib)
 using LibraryHandle = void*;
