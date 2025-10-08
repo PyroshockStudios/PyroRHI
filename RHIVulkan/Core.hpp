@@ -69,7 +69,7 @@
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
-        extern const ILogStream* gVulkanSink;
+        extern ILogStream* gVulkanSink;
 
         constexpr u32 MAX_VK_BINDLESS_BUFFERS = 32768;
         constexpr u32 MAX_VK_BINDLESS_IMAGES = 32768;
@@ -127,7 +127,7 @@ namespace PyroshockStudios {
                 retFlags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
             if (type & ImageUsageFlagBits::BLIT_DST)
                 retFlags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-            
+
             return retFlags;
         }
 

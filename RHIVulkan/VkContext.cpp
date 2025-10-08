@@ -141,7 +141,7 @@ namespace PyroshockStudios::RHIVulkan {
         context->mNumAllocatedBytes -= size;
     }
 
-    VulkanContext::VulkanContext(const VulkanContextArgs& args, const ILogStream* logSink) : mPreferredDeviceIndex(args.preferredPhysicalDevice) {
+    VulkanContext::VulkanContext(const VulkanContextArgs& args, ILogStream* logSink) : mPreferredDeviceIndex(args.preferredPhysicalDevice) {
         VulkanContext::InjectLogger(logSink);
         volkInitialize();
 
@@ -380,7 +380,7 @@ namespace PyroshockStudios::RHIVulkan {
         return &stub;
     }
 
-    void VulkanContext::InjectLogger(const ILogStream* stream) {
+    void VulkanContext::InjectLogger(ILogStream* stream) {
         gVulkanSink = stream;
     }
 

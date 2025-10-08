@@ -51,7 +51,7 @@ extern PFN_SetMarkerOnCommandList gPixSetMarkerOnCommandListFn;
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
-        extern const ILogStream* gDX12Sink;
+        extern ILogStream* gDX12Sink;
 
 #define D3DSetDebugName(interf, str)                                                                \
     do {                                                                                            \

@@ -27,7 +27,7 @@
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
-        const ILogStream* gDX12Sink = nullptr;
+        ILogStream* gDX12Sink = nullptr;
 
         void CheckD3DResult(HRESULT result) {
             if (result == S_OK)

@@ -22,9 +22,9 @@
 
 #include "D3DContext.hpp"
 #include <EASTL/vector.h>
-#include <RHIDX12/Api/Device.hpp>
-#include <PyroRHI/Shader/IShaderFeatureSet.hpp>
 #include <PyroCommon/Logger.hpp>
+#include <PyroRHI/Shader/IShaderFeatureSet.hpp>
+#include <RHIDX12/Api/Device.hpp>
 #include <iostream>
 #include <wrl.h>
 
@@ -34,7 +34,7 @@ PFN_SetMarkerOnCommandList gPixSetMarkerOnCommandListFn = nullptr;
 
 namespace PyroshockStudios::RHIDX12 {
     using namespace ::Microsoft::WRL;
-    D3DContext::D3DContext(const D3DContextArgs& args, const ILogStream* logSink) {
+    D3DContext::D3DContext(const D3DContextArgs& args, ILogStream* logSink) {
         D3DContext::InjectLogger(logSink);
         mPixRuntimeDll = LoadLibraryA("WinPixEventRuntime.dll");
         if (mPixRuntimeDll) {
@@ -202,7 +202,7 @@ namespace PyroshockStudios::RHIDX12 {
         static ShaderFeatureSetD3D12 stub{};
         return &stub;
     }
-    void D3DContext::InjectLogger(const ILogStream* stream) {
+    void D3DContext::InjectLogger(ILogStream* stream) {
         gDX12Sink = stream;
     }
-}
+} // namespace PyroshockStudios::RHIDX12

@@ -1015,6 +1015,10 @@ namespace PyroshockStudios {
         void D3DDevice::SubmitQueue(const CommandQueueSubmitInfo& info) {
             CollectGarbage();
             auto* q = static_cast<D3DCommandQueue*>(info.queue);
+            for (auto [waitSemaphore, stage] : info.waitSemaphores) {
+                D3DSemaphore* semaphore = eastl::bit_cast<D3DSemaphore*>(waitSemaphore);
+                semaphore->Wait(q->InternalQueue());
+            }
             q->InternalQueue()->ExecuteCommandLists(static_cast<UINT>(q->mPendingCommandListExecutes.size()), q->mPendingCommandListExecutes.data());
             q->mPendingCommandListExecutes.clear();
 
@@ -1022,6 +1026,11 @@ namespace PyroshockStudios {
             UINT64 fenceForThisFrame = mNextDeferredDeleterValue++;
             // FIXME: multiple queues?
             CheckD3DResult(q->InternalQueue()->Signal(mDeferredDeleterFence.Get(), fenceForThisFrame));
+
+            for (auto [signalSemaphore, stage] : info.signalSemaphores) {
+                D3DSemaphore* semaphore = eastl::bit_cast<D3DSemaphore*>(signalSemaphore);
+                semaphore->Signal(q->InternalQueue());
+            }
 
             // signal the given fences
             for (auto [fence, value] : info.signalFences) {

@@ -1222,59 +1222,68 @@ namespace PyroshockStudios {
             if (vkQueue->RefSubmittedSwapChains().size() > 0) {
                 vkQueue->mbPendingSwapPresent = true;
             }
-            VkSubmitInfo submitInfo{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
+            VkSubmitInfo2 submitInfo{ VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
 
-            eastl::vector<VkCommandBuffer> vkCommandBuffers = {};
+            eastl::vector<VkCommandBufferSubmitInfo> vkCommandBuffers = {};
             for (VulkanCommandBuffer* commandBuffer : vkQueue->RefSubmittedCommandBuffers()) {
-                vkCommandBuffers.push_back(commandBuffer->GetVkCommandBuffer());
+                vkCommandBuffers.push_back({ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                    .commandBuffer = commandBuffer->GetVkCommandBuffer() });
+            }
+            submitInfo.pCommandBufferInfos = vkCommandBuffers.data();
+            submitInfo.commandBufferInfoCount = vkCommandBuffers.size();
+
+            eastl::vector<VkSemaphoreSubmitInfo> waitSemaphores = {};
+            eastl::vector<VkSemaphoreSubmitInfo> signalSemaphores = {};
+            {
+                VkSemaphoreSubmitInfo semaphoreSubmit{ VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
+                semaphoreSubmit.semaphore = static_cast<VulkanFence*>(mMainQueueGpuFence)->GetVkSemaphore();
+                semaphoreSubmit.value = currentMainQueueCpuTimelineValue;
+                semaphoreSubmit.stageMask = /*FIXME: is this efficient? -> */ VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+                signalSemaphores.push_back(semaphoreSubmit);
+            }
+            for (auto [fence, index] : info.signalFences) {
+                VkSemaphoreSubmitInfo semaphoreSubmit{ VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
+                semaphoreSubmit.semaphore = static_cast<VulkanFence*>(fence)->GetVkSemaphore();
+                semaphoreSubmit.value = index;
+                semaphoreSubmit.stageMask = /*FIXME: is this efficient? -> */ VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+                signalSemaphores.push_back(semaphoreSubmit);
+            }
+            for (auto [semaphore, stage] : info.signalPresentReadySemaphores) {
+                VkSemaphoreSubmitInfo semaphoreSubmit{ VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
+                semaphoreSubmit.semaphore = eastl::bit_cast<VulkanSemaphore*>(semaphore)->GetVkSemaphore();
+                semaphoreSubmit.stageMask = ToVkPipelineStageFlags(stage);
+                signalSemaphores.push_back(semaphoreSubmit);
+            }
+            for (auto [semaphore, stage] : info.signalSemaphores) {
+                VkSemaphoreSubmitInfo semaphoreSubmit{ VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
+                semaphoreSubmit.semaphore = eastl::bit_cast<VulkanSemaphore*>(semaphore)->GetVkSemaphore();
+                semaphoreSubmit.stageMask = ToVkPipelineStageFlags(stage);
+                signalSemaphores.push_back(semaphoreSubmit);
             }
 
-            submitInfo.pCommandBuffers = vkCommandBuffers.data();
-            submitInfo.commandBufferCount = vkCommandBuffers.size();
+            eastl::vector<VkPipelineStageFlags2> waitStageMasks = {};
+            waitStageMasks.reserve(info.waitSemaphores.size() + vkQueue->RefSubmittedSwapAcquireSemaphores().size());
 
-            eastl::vector<VkSemaphore> waitSemaphores = {};
-            eastl::vector<u64> waitSemaphoreValues = {};
-            eastl::vector<VkSemaphore> signalSemaphores = {};
-            eastl::vector<u64> signalSemaphoreValues = {};
-
-            signalSemaphores.push_back(static_cast<VulkanFence*>(mMainQueueGpuFence)->GetVkSemaphore());
-            signalSemaphoreValues.push_back(currentMainQueueCpuTimelineValue);
-
-            for (auto [semaphore, index] : info.signalFences) {
-                signalSemaphores.push_back(static_cast<VulkanFence*>(semaphore)->GetVkSemaphore());
-                signalSemaphoreValues.push_back(index);
+            for (auto [semaphore, stage] : info.waitSemaphores) {
+                VkSemaphoreSubmitInfo semaphoreSubmit{ VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
+                semaphoreSubmit.semaphore = eastl::bit_cast<VulkanSemaphore*>(semaphore)->GetVkSemaphore();
+                semaphoreSubmit.stageMask = ToVkPipelineStageFlags(stage);
+                waitSemaphores.push_back(semaphoreSubmit);
             }
-            for (auto semaphore : info.signalSemaphores) {
-                signalSemaphores.push_back(eastl::bit_cast<VulkanSemaphore*>(semaphore)->GetVkSemaphore());
-                signalSemaphoreValues.push_back(0);
-            }
-            // TODO for Lukas, add timeline semaphores here
+            // TODO for Lukas, add timeline semaphores here?
             for (auto semaphore : vkQueue->RefSubmittedSwapAcquireSemaphores()) {
-                waitSemaphores.push_back(semaphore);
-                waitSemaphoreValues.push_back(0);
+                VkSemaphoreSubmitInfo semaphoreSubmit{ VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
+                semaphoreSubmit.semaphore = eastl::bit_cast<VulkanSemaphore*>(semaphore)->GetVkSemaphore();
+                semaphoreSubmit.stageMask = /*FIXME: is this efficient? -> */ VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+                waitSemaphores.push_back(semaphoreSubmit);
             }
 
-            const auto waitStageMasks = eastl::vector<VkPipelineStageFlags>(
-                signalSemaphores.size(), /*FIXME: is this efficient? -> */ VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+            submitInfo.waitSemaphoreInfoCount = static_cast<u32>(waitSemaphores.size());
+            submitInfo.pWaitSemaphoreInfos = waitSemaphores.data();
+            submitInfo.signalSemaphoreInfoCount = static_cast<u32>(signalSemaphores.size());
+            submitInfo.pSignalSemaphoreInfos = signalSemaphores.data();
 
-
-            VkTimelineSemaphoreSubmitInfo timelineInfo{
-                .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
-                .pNext = nullptr,
-                .waitSemaphoreValueCount = static_cast<u32>(waitSemaphoreValues.size()),
-                .pWaitSemaphoreValues = waitSemaphoreValues.data(),
-                .signalSemaphoreValueCount = static_cast<u32>(signalSemaphoreValues.size()),
-                .pSignalSemaphoreValues = signalSemaphoreValues.data(),
-            };
-
-            submitInfo.pNext = &timelineInfo;
-            submitInfo.waitSemaphoreCount = static_cast<u32>(waitSemaphores.size());
-            submitInfo.pWaitSemaphores = waitSemaphores.data();
-            submitInfo.signalSemaphoreCount = static_cast<u32>(signalSemaphores.size());
-            submitInfo.pSignalSemaphores = signalSemaphores.data();
-            submitInfo.pWaitDstStageMask = waitStageMasks.data();
-
-            vkQueueSubmit(vkQueue->GetVkQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+            vkQueueSubmit2(vkQueue->GetVkQueue(), 1, &submitInfo, VK_NULL_HANDLE);
 
             for (VulkanCommandBuffer* commandBuffer : vkQueue->RefSubmittedCommandBuffers()) {
                 delete commandBuffer;
