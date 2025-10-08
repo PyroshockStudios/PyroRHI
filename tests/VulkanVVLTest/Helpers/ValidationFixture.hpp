@@ -110,7 +110,7 @@ namespace PyroshockStudios::RHI::Tests {
 
         void TearDown() override {
             mDevice->WaitIdle();
-
+            mDevice = nullptr;
             if (fpDestroyContext && mApi.loadedContext)
                 fpDestroyContext(&mApi);
 

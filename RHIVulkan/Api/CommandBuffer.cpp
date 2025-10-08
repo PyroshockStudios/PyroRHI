@@ -106,16 +106,6 @@ namespace PyroshockStudios::RHIVulkan {
         vkBeginCommandBuffer(this->mCommandBuffer, &vkCommandBufferBeginInfo);
     }
     VulkanCommandBuffer::~VulkanCommandBuffer() {
-        // std::unique_lock const lock{mDevice.main_queue_zombies_mtx};
-        const u64 mainQueueCpuTimeline = mDevice->mMainQueueCpuTimeline;
-
-        mDevice->mMainQueueCommandListZombies.emplace_front(
-            mainQueueCpuTimeline,
-            CommandListZombie{
-                .vkCmdBuffer = mCommandBuffer,
-                .vkCmdPool = mCommandPool,
-                .zombies = eastl::move(mZombieInfo),
-            });
     }
 
     void VulkanCommandBuffer::CopyBufferToBuffer(const CopyBufferToBufferInfo& info) {

@@ -103,6 +103,9 @@ namespace PyroshockStudios {
                 return mCommandPool;
             }
 
+            eastl::unique_ptr<CommandBufferZombieInfo> TakeZombies() {
+                return eastl::move(mZombieInfo);
+            }
         private:
             inline void FlushBarriers();
             // TODO

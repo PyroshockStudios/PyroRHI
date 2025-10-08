@@ -174,11 +174,13 @@ namespace PyroshockStudios {
         public:
             eastl::atomic<u64> mMainQueueCpuTimeline = {};
 
-            eastl::deque<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
             eastl::deque<eastl::pair<u64, ZombieDeleter>> mMainQueueZombies = {};
 
             VulkanDeviceCapabilities mVulkanCaps = {};
+
         private:
+            eastl::deque<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
+
             GPUResourceId CreateImageView(const GPUResourceInfo& info, bool uav);
             GPUResourceId CreateBufferView(const GPUResourceInfo& info);
             void CollectGarbage();

@@ -1294,6 +1294,18 @@ namespace PyroshockStudios {
             vkQueueSubmit2(vkQueue->GetVkQueue(), 1, &submitInfo, VK_NULL_HANDLE);
 
             for (VulkanCommandBuffer* commandBuffer : vkQueue->RefSubmittedCommandBuffers()) {
+                // std::unique_lock const lock{mDevice.main_queue_zombies_mtx};
+                const u64 mainQueueCpuTimeline = mMainQueueCpuTimeline;
+
+                mMainQueueCommandListZombies.emplace_front(
+                    mainQueueCpuTimeline,
+                    CommandListZombie{
+                        .vkCmdBuffer = commandBuffer->GetVkCommandBuffer(),
+                        .vkCmdPool = commandBuffer->GetVkCommandPool(),
+                        .zombies = eastl::move(commandBuffer->TakeZombies()),
+                        .queue = vkQueue,
+                    });
+
                 delete commandBuffer;
             }
 
