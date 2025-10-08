@@ -327,7 +327,6 @@ namespace PyroshockStudios {
             };
 
             VmaAllocatorCreateInfo vmaAllocatorCreateInfo{
-                .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
                 .physicalDevice = mPhysicalDevice,
                 .device = mDevice,
                 .preferredLargeHeapBlockSize = 0,
@@ -339,6 +338,9 @@ namespace PyroshockStudios {
                 .vulkanApiVersion = VK_API_VERSION_1_3,
                 .pTypeExternalMemoryHandleTypes = {},
             };
+            if (mVulkanCaps.bVK_EXT_buffer_device_address) {
+                vmaAllocatorCreateInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+            }
 
             result = vmaCreateAllocator(&vmaAllocatorCreateInfo, &mVmaAllocator);
             CheckVkResult(result);
