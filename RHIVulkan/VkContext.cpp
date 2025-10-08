@@ -158,6 +158,7 @@ namespace PyroshockStudios::RHIVulkan {
         eastl::vector<char const*> implicitExtensions = {};
         if (bTrueHeadlessInstance) {
             implicitExtensions.push_back(VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME);
+            implicitExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
         } else {
             implicitExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 #ifdef PYRO_PLATFORM_WINDOWS
