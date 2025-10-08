@@ -344,6 +344,7 @@ namespace PyroshockStudios {
             CheckVkResult(result);
 
             mResourceTable.Initialize(MAX_VK_BINDLESS_BUFFERS, MAX_VK_BINDLESS_IMAGES, MAX_VK_BINDLESS_SAMPLERS,
+                16000,
                 mDevice, mContext->GetVkAllocator(), VK_NULL_HANDLE, vkSetDebugUtilsObjectNameEXT);
 
             mMainQueueGpuFence = CreateFence({ .name = "mMainQueueGpuFence" });
@@ -426,23 +427,25 @@ namespace PyroshockStudios {
             blockCreateInfo.pAllocationCallbacks = mContext->GetVkAllocator();
             CheckVkResult(vmaCreateVirtualBlock(&blockCreateInfo, &ret.vmaBlock));
             VmaAllocationInfo vmaAllocationInfo = {};
-            VkMemoryPropertyFlags allocationProperties{};
+            VkMemoryPropertyFlags requiredFlags{};
+            VkMemoryPropertyFlags preferredFlags{};
             VmaAllocationCreateFlags vmaAllocationFlags{};
             switch (info.domain) {
             case MemoryAllocationDomain::DeviceLocal:
-                allocationProperties |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+                preferredFlags |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
                 break;
             case MemoryAllocationDomain::HostStaging:
                 vmaAllocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-                allocationProperties |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+                requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
                 break;
             case MemoryAllocationDomain::HostRandomWrite:
                 vmaAllocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
-                allocationProperties |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+                requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
                 break;
             case MemoryAllocationDomain::HostReadback:
                 vmaAllocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
-                allocationProperties |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+                requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+                preferredFlags |= VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
                 break;
             }
 
@@ -454,9 +457,9 @@ namespace PyroshockStudios {
 
             const VmaAllocationCreateInfo vmaAllocationCreateInfo = {
                 .flags = vmaAllocationFlags,
-                .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-                .requiredFlags = {},
-                .preferredFlags = {},
+                .usage = VMA_MEMORY_USAGE_UNKNOWN,
+                .requiredFlags = requiredFlags,
+                .preferredFlags = preferredFlags,
                 .memoryTypeBits = eastl::numeric_limits<u32>::max(),
                 .pool = VK_NULL_HANDLE,
                 .pUserData = nullptr,
@@ -477,8 +480,8 @@ namespace PyroshockStudios {
 
             ret.requirements.alignment = PYRO_ALIGN(static_cast<VkDeviceSize>(info.minAlignment), requiredAlignment);
             ret.requirements.size = info.size;
-            ret.requirements.memoryTypeBits = FindMemoryTypeIndex(eastl::numeric_limits<u32>::max(), allocationProperties);
-            vmaAllocateMemory(mVmaAllocator, &ret.requirements, &vmaAllocationCreateInfo, &ret.vmaAllocation, &ret.vmaAllocationInfo);
+            ret.requirements.memoryTypeBits = FindFullMemoryTypeMask(eastl::numeric_limits<u32>::max(), requiredFlags);
+            CheckVkResult(vmaAllocateMemory(mVmaAllocator, &ret.requirements, &vmaAllocationCreateInfo, &ret.vmaAllocation, &ret.vmaAllocationInfo));
             if (vkSetDebugUtilsObjectNameEXT) {
                 const VkDebugUtilsObjectNameInfoEXT deviceMemNameInfo = {
                     .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
@@ -614,7 +617,9 @@ namespace PyroshockStudios {
                 .pNext = nullptr,
                 .buffer = ret.vkBuffer,
             };
-            ret.deviceAddress = vkGetBufferDeviceAddress(mDevice, &vkBufferDeviceAddressInfo);
+            if ((info.usage & BufferUsageFlagBits::BUFFER_DEVICE_ADDRESS) && mVulkanCaps.bVK_EXT_buffer_device_address) {
+                ret.deviceAddress = vkGetBufferDeviceAddress(mDevice, &vkBufferDeviceAddressInfo);
+            }
             ret.hostAddress = hostAccessible ? vmaAllocationInfo.pMappedData : nullptr;
             if (vkSetDebugUtilsObjectNameEXT) {
                 const VkDebugUtilsObjectNameInfoEXT bufferNameInfo = {
@@ -1107,17 +1112,20 @@ namespace PyroshockStudios {
             return support;
         }
 
-        uint32_t VulkanDevice::FindMemoryTypeIndex(uint32_t memoryTypeBits, VkMemoryPropertyFlags requiredProperties) {
+        uint32_t VulkanDevice::FindFullMemoryTypeMask(uint32_t memoryTypeBits, VkMemoryPropertyFlags requiredProperties) {
             VkPhysicalDeviceMemoryProperties memProps;
             vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProps);
+            uint32_t mask = 0;
             for (uint32_t i = 0; i < memProps.memoryTypeCount; i++) {
                 if ((memoryTypeBits & (1 << i)) &&
                     (memProps.memoryTypes[i].propertyFlags & requiredProperties) == requiredProperties) {
-                    return i;
+                    mask |= 1 << i;
                 }
             }
-            ASSERT(false, "failed to find a suitable memory type!");
-            return 0;
+            if (mask == 0) {
+                Logger::Fatal(gVulkanSink, "failed to find a suitable memory type!");
+            }
+            return mask;
         }
 
         RasterPipeline VulkanDevice::CreateRasterPipeline(const RasterPipelineInfo& info, const RasterPipelineShaderStages& rasterShaderStages) {

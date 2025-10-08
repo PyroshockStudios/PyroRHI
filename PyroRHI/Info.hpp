@@ -58,6 +58,7 @@ namespace PyroshockStudios {
 
         // It is REQUIRED to have the following options:
         // -debug [valueType = Flag], enables any minimally available debug layers (e.g. vulkan Validation layers)
+        // -headless [valueType = Flag], disables any swapchain support, and is designed mostly for automated tests and validation.
         // -device [valueType = Integer], overrides default device selection if possible
         struct RHIInfo {
             GUID guid = GUID::Invalid();
@@ -74,7 +75,8 @@ namespace PyroshockStudios {
             u32 appVersion = {};
             u32 engineVersion = {};
             RHIOptionData options[PYRO_RHI_MAX_OPTIONS] = {};
-            ILogStream* pLoggerSink = nullptr;
+            ILogStream* pLoggerSink = nullptr; /**< General logging output stream.*/
+            ILogStream* pDebugSink = nullptr; /**< Debug output stream. Stuff such as VVL or DX12 Debug output */
         };
 
         struct RHIContextApiInfo {

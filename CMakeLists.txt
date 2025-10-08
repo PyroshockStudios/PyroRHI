@@ -17,6 +17,11 @@ include(Config.cmake)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+
+if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS OR PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
+enable_testing()
+endif()
+
 add_subdirectory(vendor)
 
 add_subdirectory(PyroRHI)
@@ -29,6 +34,10 @@ add_subdirectory(RHIDX12)
 endif()
 if (PYRO_RHI_BUILD_METAL)
 #add_subdirectory(RHIMetal)
+endif()
+
+if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS OR PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
+add_subdirectory(tests)
 endif()
 
 

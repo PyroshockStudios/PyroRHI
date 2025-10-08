@@ -141,36 +141,44 @@ namespace PyroshockStudios::RHIVulkan {
         context->mNumAllocatedBytes -= size;
     }
 
-    VulkanContext::VulkanContext(const VulkanContextArgs& args, ILogStream* logSink) : mPreferredDeviceIndex(args.preferredPhysicalDevice) {
+    VulkanContext::VulkanContext(const VulkanContextArgs& args, ILogStream* logSink, ILogStream* vvlSink) : mPreferredDeviceIndex(args.preferredPhysicalDevice),
+                                                                                                            mVVLSink(vvlSink) {
         VulkanContext::InjectLogger(logSink);
         volkInitialize();
+        eastl::vector<char const*> enabledExtensions = {};
+        bool bTrueHeadlessInstance = args.bHeadless;
 
+        // HACK: if headless isnt truely available, try again but without the extension
+    getInstanceExtensions: {
         eastl::vector<char const*> explicitExtensions = {};
         if (args.bEnableValidation) {
             explicitExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
 
         eastl::vector<char const*> implicitExtensions = {};
-        implicitExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+        if (bTrueHeadlessInstance) {
+            implicitExtensions.push_back(VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME);
+        } else {
+            implicitExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 #ifdef PYRO_PLATFORM_WINDOWS
-        implicitExtensions.push_back("VK_KHR_win32_surface");
+            implicitExtensions.push_back("VK_KHR_win32_surface");
 #elif defined(PYRO_PLATFORM_LINUX)
-        implicitExtensions.push_back("VK_KHR_xlib_surface");
-        implicitExtensions.push_back("VK_KHR_wayland_surface");
+            implicitExtensions.push_back("VK_KHR_xlib_surface");
+            implicitExtensions.push_back("VK_KHR_wayland_surface");
 #elif defined(PYRO_PLATFORM_MACOS)
-        implicitExtensions.push_back("VK_EXT_metal_surface");
-        implicitExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+            implicitExtensions.push_back("VK_EXT_metal_surface");
+            implicitExtensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
+        }
         eastl::vector<VkExtensionProperties> instance_extensions = {};
         uint32_t instance_extension_count = {};
-        auto result = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr);
+        VkResult result = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr);
         CheckVkResult(result);
 
         instance_extensions.resize(instance_extension_count);
         result = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, instance_extensions.data());
         CheckVkResult(result);
 
-        eastl::vector<char const*> enabledExtensions = {};
         for (auto const* req_ext : explicitExtensions) {
             bool found = false;
             for (auto& instance_extension : instance_extensions) {
@@ -180,7 +188,7 @@ namespace PyroshockStudios::RHIVulkan {
                 }
             }
             if (!found) {
-                throw std::runtime_error("bruh");
+                throw std::runtime_error(fmt::format("Missing required Vulkan instance extension: {}", req_ext));
             }
             enabledExtensions.push_back(req_ext);
         }
@@ -197,12 +205,39 @@ namespace PyroshockStudios::RHIVulkan {
                 enabledExtensions.push_back(ext);
             }
         }
-        eastl::string enabledextensionStr = "";
-        for (auto& extenstion : enabledExtensions) {
-            enabledextensionStr += "\n    ";
-            enabledextensionStr += extenstion;
+    }
+        if (bTrueHeadlessInstance && eastl::find_if(enabledExtensions.begin(), enabledExtensions.end(),
+                                  [](const char* x) { return strcmp(x, VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME) == 0; }) == enabledExtensions.end()) {
+            enabledExtensions.clear();
+            bTrueHeadlessInstance = false;
+            goto getInstanceExtensions;
         }
-        Logger::Info(gVulkanSink, "Enabled Extensions:{}", enabledextensionStr);
+
+        if (gVulkanSink) {
+            eastl::string enabledextensionStr = "";
+            for (auto& extenstion : enabledExtensions) {
+                enabledextensionStr += "\n    ";
+                enabledextensionStr += extenstion;
+            }
+            Logger::Info(gVulkanSink, "Enabled Extensions:{}", enabledextensionStr);
+        }
+
+        eastl::vector<const char*> enabledLayers = {};
+
+        if (args.bEnableValidation) {
+            enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
+        }
+
+        if (gVulkanSink) {
+            eastl::string enabledlayerStr = "";
+            for (auto& layer : enabledLayers) {
+                enabledlayerStr += "\n    ";
+                enabledlayerStr += layer;
+            }
+            Logger::Info(gVulkanSink, "Enabled Layers:{}", enabledlayerStr);
+        }
+
+
         const VkApplicationInfo appInfo = {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext = nullptr,
@@ -222,29 +257,69 @@ namespace PyroshockStudios::RHIVulkan {
             .flags = {},
 #endif
             .pApplicationInfo = &appInfo,
-            .enabledLayerCount = 0u,
-            .ppEnabledLayerNames = nullptr,
-            .enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size()),
+            .enabledLayerCount = static_cast<u32>(enabledLayers.size()),
+            .ppEnabledLayerNames = enabledLayers.data(),
+            .enabledExtensionCount = static_cast<u32>(enabledExtensions.size()),
             .ppEnabledExtensionNames = enabledExtensions.data(),
         };
 
         CreateAllocationCallbacks();
 
-        result = vkCreateInstance(&instanceCreateInfo, &mAllocator, &mInstance);
+        VkResult result = vkCreateInstance(&instanceCreateInfo, &mAllocator, &mInstance);
         CheckVkResult(result);
         volkLoadInstance(mInstance);
+
+        if (args.bEnableValidation) {
+            m_fnVkCreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(mInstance, "vkCreateDebugUtilsMessengerEXT");
+            m_fnVkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(mInstance, "vkDestroyDebugUtilsMessengerEXT");
+
+            VkDebugUtilsMessengerCreateInfoEXT debugInfo = {};
+            debugInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+            debugInfo.messageSeverity =
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+            debugInfo.messageType =
+                VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+            debugInfo.pUserData = static_cast<void*>(mVVLSink);
+            debugInfo.pfnUserCallback = [](VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+                                            VkDebugUtilsMessageTypeFlagsEXT,
+                                            const VkDebugUtilsMessengerCallbackDataEXT* data,
+                                            void* userdata) -> VkBool32 {
+                auto* vvlSink = static_cast<ILogStream*>(userdata);
+                switch (severity) {
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+                    Logger::Verbose(vvlSink, data->pMessage);
+                    break;
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+                    Logger::Info(vvlSink, data->pMessage);
+                    break;
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+                    Logger::Warn(vvlSink, data->pMessage);
+                    break;
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+                    Logger::Error(vvlSink, data->pMessage);
+                    break;
+                }
+                return VK_FALSE;
+            };
+
+            CheckVkResult(m_fnVkCreateDebugUtilsMessengerEXT(mInstance, &debugInfo, &mAllocator, &mMessenger));
+        }
     }
 
     VulkanContext::~VulkanContext() {
         for (VulkanDevice* device : mCreatedDevices) {
             delete device;
         }
+        if (m_fnVkDestroyDebugUtilsMessengerEXT && mMessenger != VK_NULL_HANDLE) {
+            m_fnVkDestroyDebugUtilsMessengerEXT(mInstance, mMessenger, &mAllocator);
+        }
         vkDestroyInstance(mInstance, &mAllocator);
         if (mNumAllocations > 0) {
             Logger::Error(gVulkanSink, "Leaked " + eastl::to_string(mNumAllocatedBytes) + " bytes! (" + eastl::to_string(mNumAllocations) + " leaked allocations)");
         }
     }
-
 
     IDevice* VulkanContext::CreateDevice() {
         u32 deviceCount = 0;

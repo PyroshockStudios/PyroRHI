@@ -32,13 +32,14 @@
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
-        VkResult GPUShaderResourceTable::Initialize(u32 maxBuffersViews, u32 maxImageViews, u32 maxSamplers,
+        VkResult GPUShaderResourceTable::Initialize(u32 maxBuffersViews, u32 maxImageViews, u32 maxSamplers, u32 maxMemoryBlocks,
             VkDevice device, const VkAllocationCallbacks* allocator, VkBuffer deviceAddressBuffer,
             PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT) {
             mBufferSlots.mMaxResources = maxBuffersViews;
             mImageSlots.mMaxResources = maxImageViews;
             mResourceViewSlots.mMaxResources = eastl::max(maxBuffersViews, maxImageViews);
             mSamplerSlots.mMaxResources = maxSamplers;
+            mVirtualBlockSlots.mMaxResources = maxMemoryBlocks;
 
             const VkDescriptorPoolSize storageBufferDescriptorPoolSize = {
                 .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
