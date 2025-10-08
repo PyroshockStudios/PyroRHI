@@ -30,14 +30,15 @@
 namespace PyroshockStudios {
     namespace RHIVulkan {
         class VulkanDevice;
+        class VulkanCommandQueue;
         struct CommandBufferZombieInfo {
             eastl::vector<ZombieDeleter> zombies = {};
         };
 
-        struct CommandBufferPool {
-            eastl::pair<VkCommandPool, VkCommandBuffer> Get(VulkanDevice* device);
+        struct CommandBufferPool : DeleteCopy, DeleteMove {
+            eastl::pair<VkCommandPool, VkCommandBuffer> Get(VulkanDevice * device, VulkanCommandQueue* queue);
             void PutBack(eastl::pair<VkCommandPool, VkCommandBuffer> poolAndBuffer);
-            void Cleanup(VulkanDevice* device);
+            void Cleanup(VulkanDevice* device, VulkanCommandQueue* queue);
 
             eastl::vector<eastl::pair<VkCommandPool, VkCommandBuffer>> poolAndBuffers = {};
         };

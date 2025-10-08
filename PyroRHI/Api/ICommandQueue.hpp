@@ -27,6 +27,7 @@
 
 namespace PyroshockStudios {
     inline namespace RHI {
+        struct CommandBufferInfo;
         /**
          * @brief Create info struct describing how the command queue should be created.
          */
@@ -55,6 +56,12 @@ namespace PyroshockStudios {
         struct ICommandQueue {
             ICommandQueue() = default;
 
+            /**
+             * @brief Gets a brand new command buffer tied to this command queue. 
+             * @note Command buffers must ALWAYS be submitted back to the queue they came from.
+             */
+            virtual ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) = 0;
+            
             /**
              * @brief Submits a command buffer and recycles it. The command buffer is set to NULL.
              */

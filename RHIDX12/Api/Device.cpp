@@ -74,21 +74,59 @@ namespace PyroshockStudios {
             }
 
 
-            D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-            queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-            queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-            queueDesc.Priority = 0;
-            ComPtr<ID3D12CommandQueue> commandQueue;
-            CheckD3DResult(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
-
-            mCommandQueue = new D3DCommandQueue(
-                {
-                    .flags = CommandQueueFlagBits::GRAPHICS | CommandQueueFlagBits::COMPUTE | CommandQueueFlagBits::TRANSFER,
-                    .bPresentable = true,
-                    .name = "Direct Queue",
+            eastl::array<D3D12_COMMAND_QUEUE_DESC, 3> queueDescs = {
+                D3D12_COMMAND_QUEUE_DESC{
+                    .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
+                    .Priority = 0,
+                    .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
                 },
-                eastl::move(commandQueue));
-            mCommandQueueList = { static_cast<ICommandQueue*>(mCommandQueue) };
+                D3D12_COMMAND_QUEUE_DESC{
+                    .Type = D3D12_COMMAND_LIST_TYPE_COMPUTE,
+                    .Priority = 0,
+                    .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+                },
+                D3D12_COMMAND_QUEUE_DESC{
+                    .Type = D3D12_COMMAND_LIST_TYPE_COPY,
+                    .Priority = 0,
+                    .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+                },
+            };
+            for (auto& queueDesc : queueDescs) {
+                ComPtr<ID3D12CommandQueue> commandQueue;
+                CheckD3DResult(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
+
+                CommandQueueInfo queueDescData;
+                switch (queueDesc.Type) {
+                case D3D12_COMMAND_LIST_TYPE_DIRECT:
+                    queueDescData.flags = CommandQueueFlagBits::GRAPHICS |
+                                          CommandQueueFlagBits::COMPUTE |
+                                          CommandQueueFlagBits::TRANSFER;
+                    queueDescData.bPresentable = true;
+                    queueDescData.name = "Direct Queue";
+                    break;
+
+                case D3D12_COMMAND_LIST_TYPE_COMPUTE:
+                    queueDescData.flags = CommandQueueFlagBits::COMPUTE |
+                                          CommandQueueFlagBits::TRANSFER;
+                    queueDescData.bPresentable = false;
+                    queueDescData.name = "Compute Queue";
+                    break;
+
+                case D3D12_COMMAND_LIST_TYPE_COPY:
+                    queueDescData.flags = CommandQueueFlagBits::TRANSFER;
+                    queueDescData.bPresentable = false;
+                    queueDescData.name = "Copy Queue";
+                    break;
+                }
+                auto* queue = new D3DCommandQueue(
+                    this, eastl::move(queueDescData),
+                    eastl::move(commandQueue));
+                if (queueDesc.Type == D3D12_COMMAND_LIST_TYPE_DIRECT) {
+                    mCommandQueue = queue;
+                }
+                mCommandQueueList.emplace_back(static_cast<ICommandQueue*>(queue));
+            }
+            Logger::Trace(gDX12Sink, "Created {} Command Queues", queueDescs.size());
 
             mResourcePool = eastl::make_unique<GPUResourcePool>(this, 2048, 2048, NUM_CRV_SRV_UAV, NUM_CRV_SRV_UAV, NUM_SAMPLERS);
 
@@ -256,13 +294,12 @@ namespace PyroshockStudios {
             CollectGarbage();
             ASSERT(mDeferredDeletes.empty(), "Command buffers must finish execution before device destruction! Deferred destruction was leaked!");
             ASSERT(mOccupiedLinearUploadBuffers.empty(), "Command buffers must finish execution before device destruction! Linear upload buffers were leaked!");
-            for (auto* cmb : mPooledCommandBuffers) {
-                delete cmb;
-            }
             for (auto [_, buf] : mAvailableLinearUploadBuffers) {
                 delete buf;
             }
-            delete mCommandQueue;
+            for (auto* queue : mCommandQueueList) {
+                delete static_cast<D3DCommandQueue*>(queue);
+            }
         }
         bool D3DDevice::IsMemoryBlockValid(MemoryBlock handle) const {
             return handle != PYRO_NULL_MEMORY_BLOCK;
@@ -877,46 +914,6 @@ namespace PyroshockStudios {
         ITimestampQueryPool* D3DDevice::CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) {
             return new D3DTimestampQueryPool(this, info);
         }
-        ICommandBuffer* D3DDevice::GetCommandBuffer(const CommandBufferInfo& info) {
-            D3DCommandBuffer* commands = nullptr;
-            if (mPooledCommandBuffers.empty()) {
-                ComPtr<ID3D12CommandAllocator> mCommandAllocator = {};
-                ComPtr<ID3D12GraphicsCommandList> commandList = {};
-
-                CheckD3DResult(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mCommandAllocator)));
-                D3DSetDebugName(mCommandAllocator, (info.name + " Allocator").c_str());
-                CheckD3DResult(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
-                commands = new D3DCommandBuffer(this, eastl::move(commandList), eastl::move(mCommandAllocator));
-            } else {
-
-                commands = mPooledCommandBuffers.back();
-                mPooledCommandBuffers.pop_back();
-            }
-            D3DSetDebugName(commands->GetCommands(), info.name.c_str());
-
-            if (commands->bUsedBefore) {
-                commands->Reset();
-            } else {
-                commands->bUsedBefore = true;
-            }
-            commands->GetCommands()->SetGraphicsRootSignature(mRootSignature.Get());
-            commands->GetCommands()->SetComputeRootSignature(mRootSignature.Get());
-
-            commands->GetCommands()->SetGraphicsRoot32BitConstant(17, 0, 0);
-
-            eastl::array<ID3D12DescriptorHeap* const, 2u> descriptorHeaps{
-                mDefaultUAVDescriptorTable.mHeap.Get(),
-                mResourcePool->mSamplerHeap.InternalHeap()
-            };
-
-            commands->GetCommands()->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
-            commands->GetCommands()->SetGraphicsRootDescriptorTable(14, mDefaultUAVDescriptorTable.gpuDescriptor);
-            commands->GetCommands()->SetGraphicsRootDescriptorTable(15, mResourcePool->mSamplerHeap.DeviceHandle());
-            commands->GetCommands()->SetComputeRootDescriptorTable(14, mDefaultUAVDescriptorTable.gpuDescriptor);
-            commands->GetCommands()->SetComputeRootDescriptorTable(15, mResourcePool->mSamplerHeap.DeviceHandle());
-
-            return commands;
-        }
         void D3DDevice::DestroyMemoryBlock(MemoryBlock& memory) {
             auto& data = mResourcePool->Get(memory);
             ASSERT(data.debugRefs == 0, "All resources using this memory block must be freed beforehand!");
@@ -1018,6 +1015,10 @@ namespace PyroshockStudios {
         void D3DDevice::SubmitQueue(const CommandQueueSubmitInfo& info) {
             CollectGarbage();
             auto* q = static_cast<D3DCommandQueue*>(info.queue);
+            for (auto [waitSemaphore, stage] : info.waitSemaphores) {
+                D3DSemaphore* semaphore = eastl::bit_cast<D3DSemaphore*>(waitSemaphore);
+                semaphore->Wait(q->InternalQueue());
+            }
             q->InternalQueue()->ExecuteCommandLists(static_cast<UINT>(q->mPendingCommandListExecutes.size()), q->mPendingCommandListExecutes.data());
             q->mPendingCommandListExecutes.clear();
 
@@ -1025,6 +1026,11 @@ namespace PyroshockStudios {
             UINT64 fenceForThisFrame = mNextDeferredDeleterValue++;
             // FIXME: multiple queues?
             CheckD3DResult(q->InternalQueue()->Signal(mDeferredDeleterFence.Get(), fenceForThisFrame));
+
+            for (auto [signalSemaphore, stage] : info.signalSemaphores) {
+                D3DSemaphore* semaphore = eastl::bit_cast<D3DSemaphore*>(signalSemaphore);
+                semaphore->Signal(q->InternalQueue());
+            }
 
             // signal the given fences
             for (auto [fence, value] : info.signalFences) {
@@ -1035,7 +1041,7 @@ namespace PyroshockStudios {
             // pool back the submitted command buffers for later reuse
             // and also add the zombies to the destroy queue
             for (D3DCommandBuffer* cmb : q->mSubmittedCommands) {
-                mPooledCommandBuffers.emplace_back(cmb);
+                q->RestoreCommandBuffer(cmb);
                 for (i32 i = 0; i < cmb->mDeferredDeleteOps.size(); ++i) {
                     mDeferredDeletes.emplace_back(fenceForThisFrame, eastl::move(cmb->mDeferredDeleteOps[i]));
                 }

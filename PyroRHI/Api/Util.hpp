@@ -387,6 +387,11 @@ namespace PyroshockStudios {
             case Format::A2RGB10Uint:
             case Format::A2RGB10Sint:
                 return 4;
+            // 16-bit packed formats
+            case Format::BGRA4Unorm:
+            case Format::BGR565Unorm:
+            case Format::BGR5A1Unorm:
+                return 2;
 
             // 16-bit per channel formats
             case Format::R16Unorm:
@@ -475,6 +480,8 @@ namespace PyroshockStudios {
             case Format::BC6HUfloatBlock:
             case Format::BC6HSfloatBlock:
                 return 16; // 4x4 block = 16 bytes
+            default:
+                break;
             }
             return 0; // Unknown format
         }

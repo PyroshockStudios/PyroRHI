@@ -1,5 +1,7 @@
 name: Linux Build (GCC & Clang)
-
+permissions:
+  contents: read
+  
 on:
   push:
     branches: [ "**" ]

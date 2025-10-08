@@ -1,5 +1,7 @@
 name: macOS Build (AppleClang x86 & ARM)
-
+permissions:
+  contents: read
+  
 on:
   push:
     branches: [ "**" ]

@@ -434,3 +434,6 @@ build/
 resources/Bin/
 imgui.ini
 /.idea/dictionaries/project.xml
+
+# ignore vscode files
+/.vscode/

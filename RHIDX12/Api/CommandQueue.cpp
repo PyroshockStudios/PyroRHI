@@ -25,11 +25,54 @@
 #include "SwapChain.hpp"
 namespace PyroshockStudios {
     namespace RHIDX12 {
-        D3DCommandQueue::D3DCommandQueue(CommandQueueInfo&& info, ComPtr<ID3D12CommandQueue>&& queue)
-            : mInfo(eastl::move(info)), mCommandQueue(eastl::move(queue)) {
+        D3DCommandQueue::D3DCommandQueue(D3DDevice* device, CommandQueueInfo&& info, ComPtr<ID3D12CommandQueue>&& queue)
+            : mDevice(device), mInfo(eastl::move(info)), mCommandQueue(eastl::move(queue)) {
             D3DSetDebugName(mCommandQueue, mInfo.name.c_str());
         }
         D3DCommandQueue::~D3DCommandQueue() {
+            for (auto* cmb : mPooledCommandBuffers) {
+                delete cmb;
+            }
+        }
+        ICommandBuffer* D3DCommandQueue::GetCommandBuffer(const CommandBufferInfo& info) {
+            D3DCommandBuffer* commands = nullptr;
+            if (mPooledCommandBuffers.empty()) {
+                ComPtr<ID3D12CommandAllocator> commandAllocator = {};
+                ComPtr<ID3D12GraphicsCommandList> commandList = {};
+
+                D3D12_COMMAND_LIST_TYPE type = mCommandQueue->GetDesc().Type;
+                CheckD3DResult(mDevice->InternalDevice()->CreateCommandAllocator(type, IID_PPV_ARGS(&commandAllocator)));
+                D3DSetDebugName(commandAllocator, (info.name + " Allocator").c_str());
+                CheckD3DResult(mDevice->InternalDevice()->CreateCommandList(0, type, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
+                commands = new D3DCommandBuffer(mDevice, eastl::move(commandList), eastl::move(commandAllocator));
+            } else {
+                commands = mPooledCommandBuffers.back();
+                mPooledCommandBuffers.pop_back();
+            }
+            D3DSetDebugName(commands->GetCommands(), info.name.c_str());
+
+            if (commands->bUsedBefore) {
+                commands->Reset();
+            } else {
+                commands->bUsedBefore = true;
+            }
+            commands->GetCommands()->SetGraphicsRootSignature(mDevice->mRootSignature.Get());
+            commands->GetCommands()->SetComputeRootSignature(mDevice->mRootSignature.Get());
+
+            commands->GetCommands()->SetGraphicsRoot32BitConstant(17, 0, 0);
+
+            eastl::array<ID3D12DescriptorHeap* const, 2u> descriptorHeaps{
+               mDevice-> mDefaultUAVDescriptorTable.mHeap.Get(),
+                mDevice->ResourcePool().mSamplerHeap.InternalHeap()
+            };
+
+            commands->GetCommands()->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
+            commands->GetCommands()->SetGraphicsRootDescriptorTable(14, mDevice->mDefaultUAVDescriptorTable.gpuDescriptor);
+            commands->GetCommands()->SetGraphicsRootDescriptorTable(15, mDevice->ResourcePool().mSamplerHeap.DeviceHandle());
+            commands->GetCommands()->SetComputeRootDescriptorTable(14, mDevice->mDefaultUAVDescriptorTable.gpuDescriptor);
+            commands->GetCommands()->SetComputeRootDescriptorTable(15, mDevice->ResourcePool().mSamplerHeap.DeviceHandle());
+
+            return commands;
         }
         void D3DCommandQueue::SubmitCommandBuffer(ICommandBuffer*& commandBuffer) {
             auto* d3dcmd = static_cast<D3DCommandBuffer*>(commandBuffer);

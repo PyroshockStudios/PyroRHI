@@ -26,7 +26,7 @@
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
-        const ILogStream* gVulkanSink = nullptr;
+        ILogStream* gVulkanSink = nullptr;
 
         const char* ToString(VkResult result) {
             switch (result) {

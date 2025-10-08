@@ -21,8 +21,8 @@
 // SOFTWARE.
 
 #pragma once
-#include <PyroCommon/Types.hpp>
 #include <PyroCommon/GUID.hpp>
+#include <PyroCommon/Types.hpp>
 #include <PyroCommon/Version.hpp>
 
 #define PYRO_RHI_NAME_MAX_LENGTH (32)
@@ -74,12 +74,12 @@ namespace PyroshockStudios {
             u32 appVersion = {};
             u32 engineVersion = {};
             RHIOptionData options[PYRO_RHI_MAX_OPTIONS] = {};
-            const ILogStream* pLoggerSink = nullptr;
+            ILogStream* pLoggerSink = nullptr;
         };
 
         struct RHIContextApiInfo {
             RHIContext* loadedContext = nullptr;
             void* userData = nullptr;
         };
-    }
-}
+    } // namespace RHI
+} // namespace PyroshockStudios

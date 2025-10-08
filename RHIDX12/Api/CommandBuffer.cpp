@@ -309,9 +309,17 @@ namespace PyroshockStudios {
             barrier.Transition.StateBefore = info.srcLayout == BufferLayout::Undefined ? bufferInfo.lastValidState : ToD3D12BufferResourceState(info.srcLayout);
             barrier.Transition.StateAfter = ToD3D12BufferResourceState(info.dstLayout);
             barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-            if (barrier.Transition.StateAfter == barrier.Transition.StateBefore)
-                return;
+            if (barrier.Transition.StateAfter == barrier.Transition.StateBefore) {
+                if (info.srcQueue == nullptr && info.dstQueue == nullptr || barrier.Transition.StateAfter != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+                    return;
+                } else {
+                    D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(barrier.Transition.pResource);
+                    mCommandList->ResourceBarrier(1, &uavBarrier);
+                }
+            }
             mCommandList->ResourceBarrier(1, &barrier);
+            // FIXME: we need to keep 1 state per queue/command list, since this can be recorded on seperate threads, or submitted 
+            // in a different order!!!
             bufferInfo.lastValidState = barrier.Transition.StateAfter;
         }
 
@@ -372,13 +380,21 @@ namespace PyroshockStudios {
             } else {
                 barrier.Transition.StateAfter = ToD3D12ImageResourceState(info.dstLayout) & validMask;
             }
-            if (barrier.Transition.StateAfter == barrier.Transition.StateBefore)
-                return;
+            if (barrier.Transition.StateAfter == barrier.Transition.StateBefore) {
+                if (info.srcQueue == nullptr && info.dstQueue == nullptr || barrier.Transition.StateAfter != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+                    return;
+                } else {
+                    D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(barrier.Transition.pResource);
+                    mCommandList->ResourceBarrier(1, &uavBarrier);
+                }
+            }
             for (UINT i = 0; i < info.imageSlice.levelCount; ++i) {
                 for (UINT j = 0; j < info.imageSlice.layerCount; ++j) {
                     barrier.Transition.Subresource = D3D12CalcSubresource(info.imageSlice.baseMipLevel + i, info.imageSlice.baseArrayLayer + j, 0,
                         imageInfo.info.mipLevelCount, imageInfo.info.arrayLayerCount);
                     mCommandList->ResourceBarrier(1, &barrier);
+                    // FIXME: we need to keep 1 state per queue/command list, since this can be recorded on seperate threads, or submitted
+                    // in a different order!!!
                     imageInfo.lastValidStates[barrier.Transition.Subresource] = barrier.Transition.StateAfter;
                 }
             }

@@ -49,6 +49,7 @@ namespace PyroshockStudios {
             VkCommandBuffer vkCmdBuffer = {};
             VkCommandPool vkCmdPool = {};
             eastl::unique_ptr<CommandBufferZombieInfo> zombies = {};
+            VulkanCommandQueue* queue = nullptr;
         };
 
         struct VulkanDeviceCapabilities {
@@ -99,8 +100,6 @@ namespace PyroshockStudios {
             Semaphore CreateSemaphore(const SemaphoreInfo& info) override;
             IFence* CreateFence(const FenceInfo& info) override;
             ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
-
-            ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) override;
 
             virtual void DestroyMemoryBlock(MemoryBlock& memory) override;
             virtual void DestroyBuffer(Buffer& buffer) override;
@@ -185,8 +184,6 @@ namespace PyroshockStudios {
             void CollectGarbage();
 
 
-            CommandBufferPool* mCommandBufferPool = {};
-
             IFence* mMainQueueGpuFence = {};
 
             DeviceInfo mInfo = {};
@@ -206,6 +203,7 @@ namespace PyroshockStudios {
             eastl::vector<ICommandQueue*> mCommandQueues = {};
             ICommandQueue* mPresentQueue = {};
             eastl::vector<u32> mUniqueCommandQueueFamilies = {};
+            u32 mPresentQueueFamilyIndex = 0xFFFFFFFF;
 
             eastl::unordered_set<VulkanSwapChain*> mActiveSwapChains = {};
             eastl::unordered_set<VulkanCommandBuffer*> mAllocatedCommandBuffers = {};

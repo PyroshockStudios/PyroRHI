@@ -32,7 +32,7 @@
 #include <libassert/assert.hpp>
 
 namespace PyroshockStudios::RHIVulkan {
-    eastl::pair<VkCommandPool, VkCommandBuffer> CommandBufferPool::Get(VulkanDevice* device) {
+    eastl::pair<VkCommandPool, VkCommandBuffer> CommandBufferPool::Get(VulkanDevice* device, VulkanCommandQueue* queue) {
         eastl::pair<VkCommandPool, VkCommandBuffer> pair = {};
         if (poolAndBuffers.empty()) {
             VkCommandPool pool = {};
@@ -41,7 +41,7 @@ namespace PyroshockStudios::RHIVulkan {
                 .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
                 .pNext = nullptr,
                 .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-                .queueFamilyIndex = 0, // TODO
+                .queueFamilyIndex = queue->GetQueueFamily(), 
             };
 
             vkCreateCommandPool(device->GetVkDevice(), &vk_command_pool_create_info, device->Context()->GetVkAllocator(), &pool);
@@ -67,7 +67,7 @@ namespace PyroshockStudios::RHIVulkan {
         poolAndBuffers.push_back(poolAndBuffer);
     }
 
-    void CommandBufferPool::Cleanup(VulkanDevice* device) {
+    void CommandBufferPool::Cleanup(VulkanDevice* device, VulkanCommandQueue* queue) {
         for (auto [pool, buffer] : poolAndBuffers) {
             vkDestroyCommandPool(device->GetVkDevice(), pool, device->Context()->GetVkAllocator());
         }
