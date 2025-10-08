@@ -36,7 +36,7 @@ jobs:
         uses: humbletim/setup-vulkan-sdk@v1.2.1
         with:
             vulkan-query-version: latest
-            vulkan-components: Vulkan-Headers, Vulkan-Loader, Vulkan-ValidationLayers
+            vulkan-components: Vulkan-Headers, Vulkan-Loader
             vulkan-use-cache: true
       #- name: Install compilers
       #  run: |
@@ -46,7 +46,8 @@ jobs:
       #    else
       #      sudo apt-get install -y build-essential
       #    fi
-
+      - name: Install Vulkan Validation Layers
+        run: sudo apt-get update && sudo apt-get install -y vulkan-validationlayers
       - name: Configure CMake (Linux)
         run: >
           cmake -B build
