@@ -28,11 +28,13 @@ namespace PyroshockStudios::RHI::Tests {
                     ADD_FAILURE() << "[VULKAN] Implementation Error: " << message;
                 } else if (severity == LogSeverity::Fatal) {
                     GTEST_FAIL() << "[VULKAN] FATAL IMPLEMENTATION ERROR: " << message;
+                } else {
+                    std::cout << "[VULKAN] " << message << "\n";
                 }
             }
             LogSeverity MinSeverity() const override {
                 // only care about catching errors
-                return LogSeverity::Error;
+                return LogSeverity::Debug;
             }
             const char* Name() const override {
                 return "Vulkan";
@@ -41,11 +43,13 @@ namespace PyroshockStudios::RHI::Tests {
         void Log(LogSeverity severity, const char* message) override {
             if (severity >= LogSeverity::Error) {
                 ADD_FAILURE() << "[VVL] Validation Error: " << message;
+            } else {
+                std::cout << "[VVL] " << message << "\n";
             }
         }
         LogSeverity MinSeverity() const override {
             // only care about catching validation errors
-            return LogSeverity::Error;
+            return LogSeverity::Info;
         }
         const char* Name() const override {
             return "VVL";

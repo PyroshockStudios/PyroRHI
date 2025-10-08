@@ -1,5 +1,3 @@
-#pragma once
-
 #include "Helpers/ValidationFixture.hpp"
 
 namespace PyroshockStudios::RHI::Tests {
