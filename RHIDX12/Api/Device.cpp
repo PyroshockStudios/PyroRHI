@@ -46,6 +46,7 @@ namespace PyroshockStudios {
         D3DDevice::D3DDevice(ComPtr<ID3D12Device>&& device, ComPtr<IDXGIFactory4>&& factory, ComPtr<IDXGIAdapter1>&& adapter)
             : mDevice(eastl::move(device)), mFactory(eastl::move(factory)), mAdapter(eastl::move(adapter)) {
             {
+                Logger::Debug(gDX12Sink, "Checking D3D12_FEATURE_DATA_D3D12_OPTIONS");
                 D3D12_FEATURE_DATA_D3D12_OPTIONS options{};
                 mDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options));
                 if (options.ResourceBindingTier < 2) {
@@ -54,12 +55,14 @@ namespace PyroshockStudios {
                 gDx12Context->FlushDebugMessages();
             }
             {
+                Logger::Debug(gDX12Sink, "Checking Shader Model Support");
                 D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{};
                 mDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel));
                 gDx12Context->FlushDebugMessages();
             }
             mProperties.bufferImageRowAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
             {
+                Logger::Debug(gDX12Sink, "Checking MSAA Support");
                 // FIXME better querying?
                 D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msaaLevels{};
                 msaaLevels.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -78,6 +81,7 @@ namespace PyroshockStudios {
             }
 
 
+            Logger::Debug(gDX12Sink, "Querying Command Queues...");
             eastl::array<D3D12_COMMAND_QUEUE_DESC, 3> queueDescs = {
                 D3D12_COMMAND_QUEUE_DESC{
                     .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -133,10 +137,12 @@ namespace PyroshockStudios {
             }
             Logger::Trace(gDX12Sink, "Created {} Command Queues", queueDescs.size());
 
+            Logger::Debug(gDX12Sink, "Initialising Resource Pool...");
             mResourcePool = eastl::make_unique<GPUResourcePool>(this, 2048, 2048, NUM_CRV_SRV_UAV, NUM_CRV_SRV_UAV, NUM_SAMPLERS);
             gDx12Context->FlushDebugMessages();
 
             // We need this device visible heap for SRVs and UAVs because of the binding model we are using.
+            Logger::Debug(gDX12Sink, "Creating Base UAV copy descriptor heap...");
             {
                 D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
                 heapDesc.NumDescriptors = NUM_CRV_SRV_UAV + Limits::MAX_UNORDERED_ACCESS_VIEW_SLOTS;
@@ -150,6 +156,7 @@ namespace PyroshockStudios {
                 gDx12Context->FlushDebugMessages();
             }
             // create global root signature
+            Logger::Debug(gDX12Sink, "Creating Global Root Signature...");
             {
                 CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
                 CD3DX12_ROOT_PARAMETER rootparams[18]{};
@@ -209,11 +216,13 @@ namespace PyroshockStudios {
                 D3DSetDebugName(mRootSignature, "Default Root Signature");
                 gDx12Context->FlushDebugMessages();
             }
+            Logger::Debug(gDX12Sink, "Creating Deleter Fence...");
             CheckD3DResult(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mDeferredDeleterFence)));
             D3DSetDebugName(mDeferredDeleterFence, "Deferred destroy fence");
             gDx12Context->FlushDebugMessages();
 
             // create blit image root signature
+            Logger::Debug(gDX12Sink, "Creating Image Blit Root Signature...");
             {
                 CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
                 CD3DX12_ROOT_PARAMETER rootparams[3]{};
@@ -242,6 +251,7 @@ namespace PyroshockStudios {
                 gDx12Context->FlushDebugMessages();
             }
             // Finally, create the sampler heap objects
+            Logger::Debug(gDX12Sink, "Creating Default Sampler Heap Objects...");
             {
                 D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
                 heapDesc.NumDescriptors = 1;
@@ -275,6 +285,7 @@ namespace PyroshockStudios {
                 mDevice->CreateSampler(&samplerDesc, mLinearSamplerDescriptorTable.cpuDescriptor);
                 gDx12Context->FlushDebugMessages();
             }
+            Logger::Debug(gDX12Sink, "Creating Default Command Signatures...");
             {
                 D3D12_INDIRECT_ARGUMENT_DESC argDesc;
                 D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
@@ -293,6 +304,7 @@ namespace PyroshockStudios {
                 CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDispatchSignature)));
                 gDx12Context->FlushDebugMessages();
             }
+            Logger::Debug(gDX12Sink, "Creating D3D12MA Allocator...");
             {
                 D3D12MA::ALLOCATOR_DESC allocatorDesc{};
                 allocatorDesc.pDevice = mDevice.Get();
@@ -303,6 +315,7 @@ namespace PyroshockStudios {
             }
         }
         D3DDevice::~D3DDevice() {
+            Logger::Debug(gDX12Sink, "Destroying Device...");
             WaitIdle();
             gDx12Context->FlushDebugMessages();
             CollectGarbage();

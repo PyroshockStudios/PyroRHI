@@ -24,6 +24,7 @@
 #include <EASTL/hash_map.h>
 #include <EASTL/atomic.h>
 #include <EASTL/vector.h>
+#include <PyroCommon/Logger.hpp>
 #include <PyroRHI/Api/GPUResource.hpp>
 #include <RHIDX12/Core.hpp>
 #include <D3D12MemAlloc.h>
@@ -54,6 +55,7 @@ namespace PyroshockStudios {
         struct D3DHeapManager {
         public:
             D3DHeapManager(ID3D12Device* device, UINT maxDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE heapType, bool gpuVisible, const char* debugName) {
+                Logger::Debug(gDX12Sink, "Initialising Resource Pool named '{}'", debugName);
                 D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
                 heapDesc.NumDescriptors = maxDescriptors;
                 heapDesc.Type = heapType;
@@ -65,7 +67,7 @@ namespace PyroshockStudios {
             }
             ~D3DHeapManager() {
                 if (mTombstones.size() != mHeapCounter) {
-                    printf("Leaked resources\n");
+                    Logger::Warn(gDX12Sink, "Leaked {} resources in Resource Pool named '{}'", mHeapCounter - mTombstones.size(), debugName);
                 }
             }
             eastl::pair<GPUResourceId, TInfo&> AcquireSlot() {
