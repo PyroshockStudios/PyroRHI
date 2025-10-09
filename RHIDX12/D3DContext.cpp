@@ -133,8 +133,6 @@ namespace PyroshockStudios::RHIDX12 {
                     break;
                 }
             }
-
-            Logger::Fatal(gDX12Sink, "Failed to pick a suitable DX12 device!");
         }
 
         if (adapter.Get() == nullptr) {
@@ -142,12 +140,12 @@ namespace PyroshockStudios::RHIDX12 {
                 DXGI_ADAPTER_DESC1 desc;
                 adapter->GetDesc1(&desc);
 
-                if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
-                    // Don't select the Basic Render Driver adapter.
-                    // If you want a software adapter, pass in "/warp" on the command line.
-                    continue;
+                if (bWarp) {
+                    if (!(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)) {
+                        // force WARP selection
+                        continue;
+                    }
                 }
-
                 // Check to see whether the adapter supports Direct3D 12, but don't create the
                 // actual device yet.
                 if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr))) {
@@ -157,6 +155,9 @@ namespace PyroshockStudios::RHIDX12 {
         }
 
         *ppAdapter = adapter.Detach();
+        if (*ppAdapter = nullptr) {
+            Logger::Fatal(gDX12Sink, "Failed to pick a suitable DX12 device!");
+        }
     }
     IDevice* D3DContext::CreateDevice() {
         return mDevice;

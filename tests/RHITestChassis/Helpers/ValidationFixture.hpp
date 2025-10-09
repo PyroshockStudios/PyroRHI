@@ -3,8 +3,8 @@
 #ifndef RHI_TEST_CHASSIS_API_LIB
 #error Missing RHI_TEST_CHASSIS_API_LIB
 #endif
-#ifndef RHI_TEST_CHASSIS_NAME
-#error Missing RHI_TEST_CHASSIS_NAME
+#ifndef RHI_CONTEXT_FIXTURE_NAME
+#error Missing RHI_CONTEXT_FIXTURE_NAME
 #endif
 #ifndef RHI_TEST_CHASSIS_API_LOG_NAME
 #error Missing RHI_TEST_CHASSIS_API_LOG_NAME
@@ -45,8 +45,6 @@ using LibraryHandle = void*;
 using namespace PyroshockStudios;
 using namespace PyroshockStudios::RHI;
 using namespace PyroshockStudios::Types;
-
-#define RHI_CONTEXT_FIXTURE_NAME RHI_TEST_CHASSIS_NAME##ValidationChassis
 
 class RHI_CONTEXT_FIXTURE_NAME : public ::testing::Test, public ILogStream {
     struct SecondaryLogStream : public ILogStream {

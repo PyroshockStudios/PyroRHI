@@ -1,4 +1,4 @@
-name: Windows Build (MSVC)
+name: DirectX 12 Validation (Windows MSVC)
 permissions:
   contents: read
   

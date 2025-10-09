@@ -1,4 +1,4 @@
-name: Vulkan Validation (Linux GCC)
+name: Vulkan Validation (Ubuntu GCC)
 permissions:
   contents: read
   
