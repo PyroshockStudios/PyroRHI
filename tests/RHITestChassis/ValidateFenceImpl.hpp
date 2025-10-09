@@ -1,6 +1,9 @@
 #include "Helpers/ValidationFixture.hpp"
-namespace PyroshockStudios::RHI::Tests {
-    TEST_F(VulkanContextFixture, CreateAndDestroyFence) {
+using namespace PyroshockStudios;
+using namespace PyroshockStudios::RHI;
+using namespace PyroshockStudios::Types;
+
+    TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyFence) {
         FenceInfo fenInfo = {};
         fenInfo.name = "TestFence";
         fenInfo.initialValue = 0;
@@ -8,4 +11,3 @@ namespace PyroshockStudios::RHI::Tests {
         IFence* fence = mDevice->CreateFence(fenInfo);
         mDevice->DestroyFence(fence);
     }
-} // namespace PyroshockStudios::RHI::Tests

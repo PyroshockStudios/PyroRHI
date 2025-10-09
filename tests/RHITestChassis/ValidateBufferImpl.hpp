@@ -1,7 +1,9 @@
 #include "Helpers/ValidationFixture.hpp"
+using namespace PyroshockStudios;
+using namespace PyroshockStudios::RHI;
+using namespace PyroshockStudios::Types;
 
-namespace PyroshockStudios::RHI::Tests {
-    TEST_F(VulkanContextFixture, CreateAndDestroyBuffer) {
+    TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyBuffer) {
         BufferInfo info = {};
         info.size = 1024;
         info.usage = BufferUsageFlagBits::VERTEX_BUFFER; // or however you define usage flags
@@ -16,7 +18,7 @@ namespace PyroshockStudios::RHI::Tests {
         mDevice->DestroyBuffer(buffer);
         EXPECT_FALSE(mDevice->IsBufferValid(buffer));
     }
-    TEST_F(VulkanContextFixture, CreateAndDestroyVirtualBuffers) {
+    TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyVirtualBuffers) {
         MemoryBlockInfo blockInfo = {};
         blockInfo.size = 4096;
         blockInfo.bufferUsage = BufferUsageFlagBits::UNIFORM_BUFFER | BufferUsageFlagBits::SHADER_RESOURCE;
@@ -51,4 +53,3 @@ namespace PyroshockStudios::RHI::Tests {
         mDevice->DestroyMemoryBlock(block);
         EXPECT_FALSE(mDevice->IsMemoryBlockValid(block));
     }
-} // namespace PyroshockStudios::RHI::Tests

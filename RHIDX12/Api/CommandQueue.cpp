@@ -20,6 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <RHIDX12/D3DContext.hpp>
 #include "CommandQueue.hpp"
 #include "CommandBuffer.hpp"
 #include "SwapChain.hpp"
@@ -71,6 +72,7 @@ namespace PyroshockStudios {
             commands->GetCommands()->SetGraphicsRootDescriptorTable(15, mDevice->ResourcePool().mSamplerHeap.DeviceHandle());
             commands->GetCommands()->SetComputeRootDescriptorTable(14, mDevice->mDefaultUAVDescriptorTable.gpuDescriptor);
             commands->GetCommands()->SetComputeRootDescriptorTable(15, mDevice->ResourcePool().mSamplerHeap.DeviceHandle());
+            gDx12Context->FlushDebugMessages();
 
             return commands;
         }

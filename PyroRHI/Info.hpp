@@ -58,7 +58,6 @@ namespace PyroshockStudios {
 
         // It is REQUIRED to have the following options:
         // -debug [valueType = Flag], enables any minimally available debug layers (e.g. vulkan Validation layers)
-        // -headless [valueType = Flag], disables any swapchain support, and is designed mostly for automated tests and validation.
         // -device [valueType = Integer], overrides default device selection if possible
         struct RHIInfo {
             GUID guid = GUID::Invalid();

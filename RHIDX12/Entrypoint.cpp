@@ -41,11 +41,13 @@ static constexpr PyroshockStudios::GUID gDX12RhiGuid = "fc8327de-876c-4239-8cc3-
 
 enum RhiOptions : i32 {
     eDebug,
+    eWarp,
     eMAX_OPTIONS
 };
 
 static const RHIOptionInfo gRhiOptions[PYRO_RHI_MAX_OPTIONS] = {
-    { .name = "debug", .valueType = RHIOptionValueType::Flag }
+    { .name = "debug", .valueType = RHIOptionValueType::Flag },
+    { .name = "warp", .valueType = RHIOptionValueType::Flag }
 };
 
 PYRO_EXPORT void PYRO_CDECL GetCustomRHIInfo(RHIInfo* pInfo) {
@@ -78,13 +80,17 @@ PYRO_EXPORT void PYRO_CDECL CreateRHIContext(const RHICreateInfo* pCreateInfo, R
             Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Enabled debug layers");
             contextArgs.bDebug = true;
             break;
+        case eWarp:
+            Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Enabled WARP driver (CPU Rasteriser)");
+            contextArgs.bWarpDriver = true;
+            break;
         default:
             Logger::Warn(pCreateInfo->pLoggerSink, "Invalid RHI load option ignored!");
             break;
         }
     }
 
-    pApi->loadedContext = new D3DContext(contextArgs, pCreateInfo->pLoggerSink);
+    pApi->loadedContext = new D3DContext(contextArgs, pCreateInfo->pLoggerSink, pCreateInfo->pDebugSink);
 }
 PYRO_EXPORT void PYRO_CDECL DestroyRHIContext(RHIContextApiInfo* pApi) {
     D3DContext* ctx = static_cast<D3DContext*>(pApi->loadedContext);

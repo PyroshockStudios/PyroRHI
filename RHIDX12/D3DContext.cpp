@@ -33,8 +33,10 @@ PFN_EndEventOnCommandList gPixEndEventOnCommandListFn = nullptr;
 PFN_SetMarkerOnCommandList gPixSetMarkerOnCommandListFn = nullptr;
 
 namespace PyroshockStudios::RHIDX12 {
+    D3DContext* gDx12Context = nullptr;
     using namespace ::Microsoft::WRL;
-    D3DContext::D3DContext(const D3DContextArgs& args, ILogStream* logSink) {
+    D3DContext::D3DContext(const D3DContextArgs& args, ILogStream* logSink, ILogStream* debugSink) : mDebugSink(debugSink) {
+        gDx12Context = this;
         D3DContext::InjectLogger(logSink);
         mPixRuntimeDll = LoadLibraryA("WinPixEventRuntime.dll");
         if (mPixRuntimeDll) {
@@ -61,7 +63,7 @@ namespace PyroshockStudios::RHIDX12 {
         D3DSetDebugName(factory, "DXGI Factory 4");
 
         ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(factory.Get(), &hardwareAdapter);
+        GetHardwareAdapter(factory.Get(), &hardwareAdapter, args.bWarpDriver);
         D3DSetDebugName(hardwareAdapter, "HW Adaptor");
         ComPtr<ID3D12Device> device;
         CheckD3DResult(D3D12CreateDevice(
@@ -70,26 +72,28 @@ namespace PyroshockStudios::RHIDX12 {
             IID_PPV_ARGS(&device)));
         D3DSetDebugName(device, "D3D12 Device (Feature level 11_0)");
 
-        ComPtr<ID3D12InfoQueue> infoQueue;
-        if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
-            D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO, D3D12_MESSAGE_SEVERITY_WARNING };
-            // Suprress the following
-            D3D12_MESSAGE_ID denyIds[] = {
-                // D3D12 WARNING: ID3D12CommandList::ClearRenderTargetView: The clear values do not match those passed to resource creation.
-                D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
-                // D3D12 WARNING: ID3D12CommandList::ClearDepthStencilView: The clear values do not match those passed to resource creation.
-                D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
-            };
+        if (args.bDebug) {
+            if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&mInfoQueue)))) {
+                D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO, D3D12_MESSAGE_SEVERITY_WARNING };
+                // Suprress the following
+                D3D12_MESSAGE_ID denyIds[] = {
+                    // D3D12 WARNING: ID3D12CommandList::ClearRenderTargetView: The clear values do not match those passed to resource creation.
+                    D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+                    // D3D12 WARNING: ID3D12CommandList::ClearDepthStencilView: The clear values do not match those passed to resource creation.
+                    D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+                };
 
-            D3D12_INFO_QUEUE_FILTER filter = {};
-            filter.DenyList.NumIDs = _countof(denyIds);
-            filter.DenyList.pIDList = denyIds;
+                D3D12_INFO_QUEUE_FILTER filter = {};
+                filter.DenyList.NumIDs = _countof(denyIds);
+                filter.DenyList.pIDList = denyIds;
 
-            infoQueue->AddStorageFilterEntries(&filter);
+                mInfoQueue->AddStorageFilterEntries(&filter);
+            }
         }
         mDevice = new D3DDevice(eastl::move(device), eastl::move(factory), eastl::move(hardwareAdapter));
     }
     D3DContext::~D3DContext() {
+        gDx12Context = nullptr;
         if (mPixRuntimeDll) {
             FreeLibrary(mPixRuntimeDll);
         }
@@ -99,6 +103,7 @@ namespace PyroshockStudios::RHIDX12 {
     void D3DContext::GetHardwareAdapter(
         IDXGIFactory1* pFactory,
         IDXGIAdapter1** ppAdapter,
+        bool bWarp,
         i32 deviceIndex) {
         *ppAdapter = nullptr;
 
@@ -116,18 +121,20 @@ namespace PyroshockStudios::RHIDX12 {
                 DXGI_ADAPTER_DESC1 desc;
                 adapter->GetDesc1(&desc);
 
-                // if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
-                //     // Don't select the Basic Render Driver adapter.
-                //     // If you want a software adapter, pass in "/warp" on the command line.
-                //     continue;
-                // }
-
+                if (bWarp) {
+                    if (!(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)) {
+                        // force WARP selection
+                        continue;
+                    }
+                }
                 // Check to see whether the adapter supports Direct3D 12, but don't create the
                 // actual device yet.
                 if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr))) {
                     break;
                 }
             }
+
+            Logger::Fatal(gDX12Sink, "Failed to pick a suitable DX12 device!");
         }
 
         if (adapter.Get() == nullptr) {
@@ -204,5 +211,36 @@ namespace PyroshockStudios::RHIDX12 {
     }
     void D3DContext::InjectLogger(ILogStream* stream) {
         gDX12Sink = stream;
+    }
+#undef GetMessage
+    void D3DContext::InternalFlushDebugMessages() {
+        const UINT64 count = mInfoQueue->GetNumStoredMessagesAllowedByRetrievalFilter();
+        for (UINT64 i = 0; i < count; i++) {
+            SIZE_T messageLength = 0;
+            mInfoQueue->GetMessageA(i, nullptr, &messageLength);
+
+            std::vector<char> messageData(messageLength);
+            auto* message = reinterpret_cast<D3D12_MESSAGE*>(messageData.data());
+            mInfoQueue->GetMessageA(i, message, &messageLength);
+            switch (message->Severity) {
+            case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+                Logger::Fatal(mDebugSink, message->pDescription);
+                break;
+            case D3D12_MESSAGE_SEVERITY_ERROR:
+                Logger::Error(mDebugSink, message->pDescription);
+                break;
+            case D3D12_MESSAGE_SEVERITY_WARNING:
+                Logger::Warn(mDebugSink, message->pDescription);
+                break;
+            case D3D12_MESSAGE_SEVERITY_INFO:
+                Logger::Info(mDebugSink, message->pDescription);
+                break;
+            case D3D12_MESSAGE_SEVERITY_MESSAGE:
+                Logger::Debug(mDebugSink, message->pDescription);
+                break;
+            default:
+                break;
+            }
+        }
     }
 } // namespace PyroshockStudios::RHIDX12

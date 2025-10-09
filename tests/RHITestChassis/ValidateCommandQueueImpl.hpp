@@ -1,6 +1,8 @@
 #include "Helpers/ValidationFixture.hpp"
-namespace PyroshockStudios::RHI::Tests {
-    TEST_F(VulkanContextFixture, EmptyQueueSubmitDoesNotError) {
+using namespace PyroshockStudios;
+using namespace PyroshockStudios::RHI;
+using namespace PyroshockStudios::Types;
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, EmptyQueueSubmitDoesNotError) {
         auto queues = mDevice->GetCommandQueues();
         ASSERT_FALSE(queues.empty());
 
@@ -11,4 +13,3 @@ namespace PyroshockStudios::RHI::Tests {
         mDevice->SubmitQueue(submitInfo);
         mDevice->WaitIdle();
     }
-} // namespace PyroshockStudios::RHI::Tests

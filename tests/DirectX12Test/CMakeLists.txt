@@ -3,9 +3,9 @@ file(GLOB_RECURSE ENDF6_SRC
       "${SH_SRC}/*.hpp"
       "${SH_SRC}/*.cpp")
       
-add_executable("RHIValidationTestVulkan" ${ENDF6_SRC})
+add_executable("RHIValidationTestDX12" ${ENDF6_SRC})
 
-set_target_properties(RHIValidationTestVulkan PROPERTIES
+set_target_properties(RHIValidationTestDX12 PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin/Debug"
     LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin/Release"
@@ -25,18 +25,18 @@ foreach(_source IN ITEMS ${ENDF6_SRC})
     source_group("${_group_path}" FILES "${_source}")
 endforeach()
 
-set_target_properties("RHIValidationTestVulkan" PROPERTIES
+set_target_properties("RHIValidationTestDX12" PROPERTIES
   POSITION_INDEPENDENT_CODE False
   INTERPROCEDURAL_OPTIMIZATION False
 )
 
-set_target_properties(RHIValidationTestVulkan PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+set_target_properties(RHIValidationTestDX12 PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
-gtest_discover_tests(RHIValidationTestVulkan)
+gtest_discover_tests(RHIValidationTestDX12)
 
-add_dependencies(RHIValidationTestVulkan RHIVulkan)
+add_dependencies(RHIValidationTestDX12 RHIDX12)
 
-target_link_libraries(RHIValidationTestVulkan
+target_link_libraries(RHIValidationTestDX12
   RHITestChassis
   GTest::gmock
   GTest::gtest_main

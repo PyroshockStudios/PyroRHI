@@ -1,7 +1,10 @@
 #include "Helpers/ValidationFixture.hpp"
 
-namespace PyroshockStudios::RHI::Tests {
-    TEST_F(VulkanContextFixture, CreateAndDestroyImage) {
+using namespace PyroshockStudios;
+using namespace PyroshockStudios::RHI;
+using namespace PyroshockStudios::Types;
+
+    TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyImage) {
         ImageInfo info = {};
         info.size = { 256, 256, 1 };
         info.format = Format::RGBA8Unorm;
@@ -18,4 +21,3 @@ namespace PyroshockStudios::RHI::Tests {
         mDevice->DestroyImage(image);
         EXPECT_FALSE(mDevice->IsImageValid(image));
     }
-} // namespace PyroshockStudios::RHI::Tests

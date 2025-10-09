@@ -20,6 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <RHIDX12/D3DContext.hpp>
 #include "SwapChain.hpp"
 #include "CommandQueue.hpp"
 #include "Device.hpp"
@@ -109,6 +110,7 @@ namespace PyroshockStudios {
                     nullptr,
                     nullptr,
                     &swapChain));
+                gDx12Context->FlushDebugMessages();
             } else {
                 CheckD3DResult(DCompositionCreateDevice(
                     nullptr,
@@ -131,6 +133,7 @@ namespace PyroshockStudios {
                 CheckD3DResult(mDcompTarget->SetRoot(mDcompVisual.Get()));
                 // Commit composition
                 CheckD3DResult(mDcompDevice->Commit());
+                gDx12Context->FlushDebugMessages();
             }
 
             CheckD3DResult(swapChain.As(&mSwapChain));
@@ -138,6 +141,7 @@ namespace PyroshockStudios {
 
             mSwapWait = mSwapChain->GetFrameLatencyWaitableObject();
             CheckD3DResult(mSwapChain->SetMaximumFrameLatency(1));
+            gDx12Context->FlushDebugMessages();
             GetImages();
         }
         D3DSwapChain::~D3DSwapChain() {
@@ -150,7 +154,9 @@ namespace PyroshockStudios {
 
         Image D3DSwapChain::AcquireNextImage() {
             WaitForSingleObjectEx(mSwapWait, INFINITE, TRUE);
+            gDx12Context->FlushDebugMessages();
             mImageIndex = mSwapChain->GetCurrentBackBufferIndex();
+            gDx12Context->FlushDebugMessages();
             return mWrappedBuffers[mImageIndex];
         }
 
@@ -169,6 +175,7 @@ namespace PyroshockStudios {
             // UINT nodeMask = 1;
             // CheckD3DResult(mSwapChain->ResizeBuffers1(desc.BufferCount, mInfo.extent.x, mInfo.extent.y, desc.Format, desc.Flags, &nodeMask, queueArray));
             mSwapChain->ResizeBuffers(desc.BufferCount, mInfo.extent.x, mInfo.extent.y, desc.Format, desc.Flags);
+            gDx12Context->FlushDebugMessages();
             GetImages();
         }
 
@@ -193,6 +200,7 @@ namespace PyroshockStudios {
         void D3DSwapChain::DestroyImages() {
             for (Image img : mWrappedBuffers) {
                 mDevice->ResourcePool().ReleaseImage(img);
+                gDx12Context->FlushDebugMessages();
             }
             mWrappedBuffers.clear();
         }
@@ -202,6 +210,7 @@ namespace PyroshockStudios {
             for (UINT i = 0; i < mWrappedBuffers.size(); ++i) {
                 auto [image, data] = mDevice->ResourcePool().AllocImage();
                 CheckD3DResult(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&data.resource)));
+                gDx12Context->FlushDebugMessages();
                 data.info = {
                     .dimensions = 2,
                     .format = mFormat,

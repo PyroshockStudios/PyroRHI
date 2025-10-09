@@ -20,6 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <RHIDX12/D3DContext.hpp>
 #include "Device.hpp"
 #include "CommandBuffer.hpp"
 #include "CommandQueue.hpp"
@@ -50,10 +51,12 @@ namespace PyroshockStudios {
                 if (options.ResourceBindingTier < 2) {
                     Logger::Fatal(gDX12Sink, "Insufficient resource binding tier! Minimum is resource binding tier 2!");
                 }
+                gDx12Context->FlushDebugMessages();
             }
             {
                 D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{};
                 mDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel));
+                gDx12Context->FlushDebugMessages();
             }
             mProperties.bufferImageRowAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
             {
@@ -71,6 +74,7 @@ namespace PyroshockStudios {
                         break;
                     }
                 }
+                gDx12Context->FlushDebugMessages();
             }
 
 
@@ -125,10 +129,12 @@ namespace PyroshockStudios {
                     mCommandQueue = queue;
                 }
                 mCommandQueueList.emplace_back(static_cast<ICommandQueue*>(queue));
+                gDx12Context->FlushDebugMessages();
             }
             Logger::Trace(gDX12Sink, "Created {} Command Queues", queueDescs.size());
 
             mResourcePool = eastl::make_unique<GPUResourcePool>(this, 2048, 2048, NUM_CRV_SRV_UAV, NUM_CRV_SRV_UAV, NUM_SAMPLERS);
+            gDx12Context->FlushDebugMessages();
 
             // We need this device visible heap for SRVs and UAVs because of the binding model we are using.
             {
@@ -141,6 +147,7 @@ namespace PyroshockStudios {
                 mDefaultUAVDescriptorTable.cpuDescriptor = mDefaultUAVDescriptorTable.mHeap->GetCPUDescriptorHandleForHeapStart();
                 mDefaultUAVDescriptorTable.gpuDescriptor = mDefaultUAVDescriptorTable.mHeap->GetGPUDescriptorHandleForHeapStart();
                 D3DSetDebugName(mDefaultUAVDescriptorTable.mHeap, "Default SRV-UAV Descriptor Heap");
+                gDx12Context->FlushDebugMessages();
             }
             // create global root signature
             {
@@ -200,9 +207,11 @@ namespace PyroshockStudios {
                 CheckD3DResult(hr);
                 CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
                 D3DSetDebugName(mRootSignature, "Default Root Signature");
+                gDx12Context->FlushDebugMessages();
             }
             CheckD3DResult(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mDeferredDeleterFence)));
             D3DSetDebugName(mDeferredDeleterFence, "Deferred destroy fence");
+            gDx12Context->FlushDebugMessages();
 
             // create blit image root signature
             {
@@ -230,6 +239,7 @@ namespace PyroshockStudios {
                 CheckD3DResult(hr);
                 CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mBlitImageRootSignature)));
                 D3DSetDebugName(mBlitImageRootSignature, "Blit Image Root Signature");
+                gDx12Context->FlushDebugMessages();
             }
             // Finally, create the sampler heap objects
             {
@@ -263,6 +273,7 @@ namespace PyroshockStudios {
 
                 samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
                 mDevice->CreateSampler(&samplerDesc, mLinearSamplerDescriptorTable.cpuDescriptor);
+                gDx12Context->FlushDebugMessages();
             }
             {
                 D3D12_INDIRECT_ARGUMENT_DESC argDesc;
@@ -280,6 +291,7 @@ namespace PyroshockStudios {
                 argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
                 cmdSigDesc.ByteStride = sizeof(DispatchArgumentBuffer);
                 CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDispatchSignature)));
+                gDx12Context->FlushDebugMessages();
             }
             {
                 D3D12MA::ALLOCATOR_DESC allocatorDesc{};
@@ -287,18 +299,23 @@ namespace PyroshockStudios {
                 allocatorDesc.pAllocationCallbacks = nullptr;
                 allocatorDesc.pAdapter = mAdapter.Get();
                 CheckD3DResult(D3D12MA::CreateAllocator(&allocatorDesc, mAllocator.GetAddressOf()));
+                gDx12Context->FlushDebugMessages();
             }
         }
         D3DDevice::~D3DDevice() {
             WaitIdle();
+            gDx12Context->FlushDebugMessages();
             CollectGarbage();
+            gDx12Context->FlushDebugMessages();
             ASSERT(mDeferredDeletes.empty(), "Command buffers must finish execution before device destruction! Deferred destruction was leaked!");
             ASSERT(mOccupiedLinearUploadBuffers.empty(), "Command buffers must finish execution before device destruction! Linear upload buffers were leaked!");
             for (auto [_, buf] : mAvailableLinearUploadBuffers) {
                 delete buf;
+                gDx12Context->FlushDebugMessages();
             }
             for (auto* queue : mCommandQueueList) {
                 delete static_cast<D3DCommandQueue*>(queue);
+                gDx12Context->FlushDebugMessages();
             }
         }
         bool D3DDevice::IsMemoryBlockValid(MemoryBlock handle) const {
@@ -368,6 +385,7 @@ namespace PyroshockStudios {
             ASSERT(IsValid(image));
 
             D3D12_RESOURCE_ALLOCATION_INFO resourceAllocInfo = mDevice->GetResourceAllocationInfo(0, 1, &mResourcePool->Get(image).desc);
+            gDx12Context->FlushDebugMessages();
             return resourceAllocInfo.SizeInBytes;
         }
         u32 D3DDevice::ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const {
@@ -379,6 +397,7 @@ namespace PyroshockStudios {
             UINT64 requiredSize = {};
             mDevice->GetCopyableFootprints(&img.desc, dstSubresource, 1, 0,
                 &footprint, &numRows, &rowSizesInBytes, &requiredSize);
+            gDx12Context->FlushDebugMessages();
             return footprint.Footprint.RowPitch;
         }
         MemoryBlock D3DDevice::CreateMemoryBlock(const MemoryBlockInfo& info) {
@@ -420,6 +439,7 @@ namespace PyroshockStudios {
                 vblockDesc.Flags |= D3D12MA::VIRTUAL_BLOCK_FLAG_ALGORITHM_LINEAR;
             }
             D3D12MA::CreateVirtualBlock(&vblockDesc, data.block.GetAddressOf());
+            gDx12Context->FlushDebugMessages();
             return memory;
         }
         Buffer D3DDevice::CreateBuffer(const BufferInfo& info) {
@@ -535,6 +555,7 @@ namespace PyroshockStudios {
                 D3D12_RANGE range = { 0, info.size };
                 CheckD3DResult(data.resource->Map(0, &range, reinterpret_cast<void**>(&data.mappedMemory)));
             }
+            gDx12Context->FlushDebugMessages();
             return buffer;
         }
         Image D3DDevice::CreateImage(const ImageInfo& info) {
@@ -635,6 +656,7 @@ namespace PyroshockStudios {
 
             data.desc = textureDesc;
             D3DSetDebugName(data.resource, info.name.c_str());
+            gDx12Context->FlushDebugMessages();
 
             ImageAddIfNecessaryBlitSupport(data);
 
@@ -745,7 +767,9 @@ namespace PyroshockStudios {
             }
 
             mDevice->CreateShaderResourceView(resource, &srvDesc, mResourcePool->mSRVHeap.Resolve(handle));
+            gDx12Context->FlushDebugMessages();
             WriteAllSRVDescriptorHeapCopies(resource, &srvDesc, handle);
+            gDx12Context->FlushDebugMessages();
             return ShaderResourceId{ handle };
         }
         UnorderedAccessId D3DDevice::CreateUnorderedAccess(const GPUResourceInfo& info) {
@@ -824,6 +848,7 @@ namespace PyroshockStudios {
             }
 
             mDevice->CreateUnorderedAccessView(resource, nullptr, &uavDesc, mResourcePool->mUAVHeap.Resolve(handle));
+            gDx12Context->FlushDebugMessages();
             return UnorderedAccessId{ handle };
         }
 
@@ -882,6 +907,7 @@ namespace PyroshockStudios {
             data = info;
 
             mDevice->CreateSampler(&samplerDesc, mResourcePool->mSamplerHeap.Resolve(handle));
+            gDx12Context->FlushDebugMessages();
             return SamplerId(handle);
         }
         RenderTarget D3DDevice::CreateRenderTarget(const RenderTargetInfo& info) {
@@ -891,33 +917,48 @@ namespace PyroshockStudios {
 
             auto& heap = bDSV ? mResourcePool->mDSVHeap : mResourcePool->mRTVHeap;
             auto [handle, data] = heap.AcquireSlot();
-            return RenderTarget(new D3DRenderTarget(this, bDSV, heap.Resolve(handle), eastl::move(i)));
+            auto rt  = RenderTarget(new D3DRenderTarget(this, bDSV, heap.Resolve(handle), eastl::move(i)));
+            gDx12Context->FlushDebugMessages();
+            return rt;
         }
         RasterPipeline D3DDevice::CreateRasterPipeline(const RasterPipelineInfo& info, const RasterPipelineShaderStages& rasterShaderStages) {
-            return RasterPipeline(new D3DRasterPipeline(this, info, mRootSignature.Get(), rasterShaderStages));
+            auto rp = RasterPipeline(new D3DRasterPipeline(this, info, mRootSignature.Get(), rasterShaderStages));
+            gDx12Context->FlushDebugMessages();
+            return rp;
         }
         ComputePipeline D3DDevice::CreateComputePipeline(const ComputePipelineInfo& info, const ShaderInfo& computeShaderInfo) {
-            return ComputePipeline(new D3DComputePipeline(this, info, mRootSignature.Get(), computeShaderInfo));
+            auto cp = ComputePipeline(new D3DComputePipeline(this, info, mRootSignature.Get(), computeShaderInfo));
+            gDx12Context->FlushDebugMessages();
+            return cp;
         }
         ISwapChain* D3DDevice::CreateSwapChain(const SwapChainInfo& info) {
             SwapChainInfo i = info;
-            return new D3DSwapChain(this, eastl::move(i));
+            auto swap =  new D3DSwapChain(this, eastl::move(i));
+            gDx12Context->FlushDebugMessages();
+            return swap;
         }
         Semaphore D3DDevice::CreateSemaphore(const SemaphoreInfo& info) {
             SemaphoreInfo i = info;
-            return Semaphore(new D3DSemaphore(this, eastl::move(i)));
+            auto sem = Semaphore(new D3DSemaphore(this, eastl::move(i)));
+            gDx12Context->FlushDebugMessages();
+            return sem;
         }
         IFence* D3DDevice::CreateFence(const FenceInfo& info) {
             FenceInfo i = info;
-            return new D3DFence(this, eastl::move(i));
+            auto fen = new D3DFence(this, eastl::move(i));
+            gDx12Context->FlushDebugMessages();
+            return fen;
         }
         ITimestampQueryPool* D3DDevice::CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) {
-            return new D3DTimestampQueryPool(this, info);
+            auto qp = new D3DTimestampQueryPool(this, info);
+            gDx12Context->FlushDebugMessages();
+            return qp;
         }
         void D3DDevice::DestroyMemoryBlock(MemoryBlock& memory) {
             auto& data = mResourcePool->Get(memory);
             ASSERT(data.debugRefs == 0, "All resources using this memory block must be freed beforehand!");
             mResourcePool->ReleaseMemoryBlock(memory);
+            gDx12Context->FlushDebugMessages();
             memory = PYRO_NULL_MEMORY_BLOCK;
         }
         void D3DDevice::DestroyBuffer(Buffer& buffer) {
@@ -937,6 +978,7 @@ namespace PyroshockStudios {
                 --block.debugRefs;
             }
             mResourcePool->ReleaseBuffer(buffer);
+            gDx12Context->FlushDebugMessages();
             buffer = PYRO_NULL_BUFFER;
         }
         void D3DDevice::DestroyImage(Image& image) {
@@ -950,10 +992,12 @@ namespace PyroshockStudios {
                 --block.debugRefs;
             }
             mResourcePool->ReleaseImage(image);
+            gDx12Context->FlushDebugMessages();
             image = PYRO_NULL_IMAGE;
         }
         void D3DDevice::DestroyShaderResource(ShaderResourceId& srv) {
             mResourcePool->mSRVHeap.ReleaseSlot(srv);
+            gDx12Context->FlushDebugMessages();
             srv = PYRO_NULL_SRV;
         }
         void D3DDevice::DestroyUnorderedAccess(UnorderedAccessId& uav) {
@@ -961,11 +1005,14 @@ namespace PyroshockStudios {
             // This is because the handles currently don't have versioning! (EW!)
             // So once that is fixed, it should naturally get garbage collected by the CollectGarbage()
             DestroyAllUAVDescriptorHeapCopies(uav);
+            gDx12Context->FlushDebugMessages();
             mResourcePool->mUAVHeap.ReleaseSlot(uav);
+            gDx12Context->FlushDebugMessages();
             uav = PYRO_NULL_UAV;
         }
         void D3DDevice::DestroySampler(SamplerId& sampler) {
             mResourcePool->mSamplerHeap.ReleaseSlot(sampler);
+            gDx12Context->FlushDebugMessages();
             sampler = PYRO_NULL_SAMPLER;
         }
         void D3DDevice::DestroyRenderTarget(RenderTarget& renderTarget) {
@@ -973,30 +1020,37 @@ namespace PyroshockStudios {
             auto& heap = rt->IsDSV() ? mResourcePool->mDSVHeap : mResourcePool->mRTVHeap;
             heap.ReleaseSlot(rt->GetDescriptor());
             delete rt;
+            gDx12Context->FlushDebugMessages();
             renderTarget = nullptr;
         }
         void D3DDevice::DestroyRasterPipeline(RasterPipeline& pipeline) {
             delete eastl::bit_cast<D3DRasterPipeline*>(pipeline);
+            gDx12Context->FlushDebugMessages();
             pipeline = nullptr;
         }
         void D3DDevice::DestroyComputePipeline(ComputePipeline& pipeline) {
             delete eastl::bit_cast<D3DComputePipeline*>(pipeline);
+            gDx12Context->FlushDebugMessages();
             pipeline = nullptr;
         }
         void D3DDevice::DestroySwapChain(ISwapChain*& swapChain) {
             delete static_cast<D3DSwapChain*>(swapChain);
+            gDx12Context->FlushDebugMessages();
             swapChain = nullptr;
         }
         void D3DDevice::DestroySemaphore(Semaphore& semaphore) {
             delete eastl::bit_cast<D3DSemaphore*>(semaphore);
+            gDx12Context->FlushDebugMessages();
             semaphore = nullptr;
         }
         void D3DDevice::DestroyFence(IFence*& fence) {
             delete static_cast<D3DFence*>(fence);
+            gDx12Context->FlushDebugMessages();
             fence = nullptr;
         }
         void D3DDevice::DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) {
             delete static_cast<D3DTimestampQueryPool*>(queryPool);
+            gDx12Context->FlushDebugMessages();
             queryPool = nullptr;
         }
         eastl::optional<Format> D3DDevice::PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) {
@@ -1010,6 +1064,7 @@ namespace PyroshockStudios {
         }
         void D3DDevice::WaitIdle() {
             mCommandQueue->WaitIdle();
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DDevice::SubmitQueue(const CommandQueueSubmitInfo& info) {
@@ -1018,24 +1073,28 @@ namespace PyroshockStudios {
             for (auto [waitSemaphore, stage] : info.waitSemaphores) {
                 D3DSemaphore* semaphore = eastl::bit_cast<D3DSemaphore*>(waitSemaphore);
                 semaphore->Wait(q->InternalQueue());
+                gDx12Context->FlushDebugMessages();
             }
             q->InternalQueue()->ExecuteCommandLists(static_cast<UINT>(q->mPendingCommandListExecutes.size()), q->mPendingCommandListExecutes.data());
+            gDx12Context->FlushDebugMessages();
             q->mPendingCommandListExecutes.clear();
 
             // Fence for deferred resource destruction from incoming command buffers
             UINT64 fenceForThisFrame = mNextDeferredDeleterValue++;
-            // FIXME: multiple queues?
             CheckD3DResult(q->InternalQueue()->Signal(mDeferredDeleterFence.Get(), fenceForThisFrame));
+            gDx12Context->FlushDebugMessages();
 
             for (auto [signalSemaphore, stage] : info.signalSemaphores) {
                 D3DSemaphore* semaphore = eastl::bit_cast<D3DSemaphore*>(signalSemaphore);
                 semaphore->Signal(q->InternalQueue());
+                gDx12Context->FlushDebugMessages();
             }
 
             // signal the given fences
             for (auto [fence, value] : info.signalFences) {
                 auto* s = static_cast<D3DFence*>(fence);
                 CheckD3DResult(q->InternalQueue()->Signal(s->InternalFence(), value));
+                gDx12Context->FlushDebugMessages();
             }
 
             // pool back the submitted command buffers for later reuse
@@ -1052,12 +1111,14 @@ namespace PyroshockStudios {
                 cmb->mPendingReturnLinearUploadBuffers.clear();
             }
             q->mSubmittedCommands.clear();
+            gDx12Context->FlushDebugMessages();
         }
         void D3DDevice::PresentQueue(const CommandQueuePresentInfo& info) {
             auto* q = static_cast<D3DCommandQueue*>(info.queue);
             for (auto [swapChain, syncInterval] : q->mPendingSwapPresents) {
                 // TODO: how to get rid of the stupid dxgi delay?
                 swapChain->Present(syncInterval, DXGI_PRESENT_DO_NOT_WAIT);
+                gDx12Context->FlushDebugMessages();
             }
             q->mPendingSwapPresents.clear();
         }
@@ -1136,6 +1197,7 @@ namespace PyroshockStudios {
                     }
                 }
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         const DescriptorTableInfo& D3DDevice::GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc) {
@@ -1165,6 +1227,7 @@ namespace PyroshockStudios {
             D3D12_CPU_DESCRIPTOR_HANDLE srcHandle = mResourcePool->mSRVHeap.HostHandle();
             mDevice->CopyDescriptors(1, &tableInfo.cpuDescriptor, &cpySz,
                 1, &srcHandle, &cpySz, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            gDx12Context->FlushDebugMessages();
 
             INT index = 0;
             for (UnorderedAccessId id : desc.boundUavs) {
@@ -1172,6 +1235,7 @@ namespace PyroshockStudios {
                     CD3DX12_CPU_DESCRIPTOR_HANDLE currOffsetHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(tableInfo.cpuDescriptor);
                     D3D12_CPU_DESCRIPTOR_HANDLE handle = mResourcePool->mUAVHeap.Resolve(id);
                     mDevice->CopyDescriptorsSimple(1U, currOffsetHandle.Offset((NUM_CRV_SRV_UAV + index) * incsz), handle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+                    gDx12Context->FlushDebugMessages();
                 }
                 ++index;
             }
@@ -1231,25 +1295,28 @@ namespace PyroshockStudios {
             psoDesc.SampleDesc.Quality = 0;
 
 
+            Logger::Trace(gDX12Sink, "[D3D12] Creating image blit pipeline state object");
             ComPtr<ID3D12PipelineState>& entry = mBlitImagePipelineStates[hash];
             // --- Create PSO ---
             CheckD3DResult(mDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&entry)));
             eastl::string name = eastl::string("Blit image pipeline state DXGI format=") + eastl::to_string((UINT)format) + ", Array=" +
                                  (bArray ? "true" : "false");
             D3DSetDebugName(entry, name.c_str());
-
-            Logger::Trace(gDX12Sink, "[D3D12] Creating image blit pipeline state object");
+            gDx12Context->FlushDebugMessages();
 
             return entry.Get();
         }
 
         LinearUploadBuffer* D3DDevice::GetLinearBufferAllocation(UINT64 minSize) {
             if (mAvailableLinearUploadBuffers.empty()) {
-                return new LinearUploadBuffer(mDevice.Get(), minSize);
+                auto lub= new LinearUploadBuffer(mDevice.Get(), minSize);
+                gDx12Context->FlushDebugMessages();
+                return lub;
             } else {
                 LinearUploadBuffer* buff = mAvailableLinearUploadBuffers.back().second;
                 mAvailableLinearUploadBuffers.pop_back();
                 buff->Reset();
+                gDx12Context->FlushDebugMessages();
                 return buff;
             }
         }
@@ -1258,9 +1325,11 @@ namespace PyroshockStudios {
             UINT incSz = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
             CD3DX12_CPU_DESCRIPTOR_HANDLE h = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDefaultUAVDescriptorTable.cpuDescriptor);
             mDevice->CreateShaderResourceView(pResource, pDesc, h.Offset(handle.index * incSz));
+            gDx12Context->FlushDebugMessages();
             for (auto& [cache, data] : mUAVDescriptorTableCache) {
                 h = CD3DX12_CPU_DESCRIPTOR_HANDLE(data.second.cpuDescriptor);
                 mDevice->CreateShaderResourceView(pResource, pDesc, h.Offset(handle.index * incSz));
+                gDx12Context->FlushDebugMessages();
             }
         }
         void D3DDevice::DestroyAllUAVDescriptorHeapCopies(UnorderedAccessId handle) {
@@ -1286,6 +1355,7 @@ namespace PyroshockStudios {
                 if (fenceVal > completedFence)
                     continue;
                 zombie.deleter(this, zombie.resource);
+                gDx12Context->FlushDebugMessages();
                 mDeferredDeletes.erase(mDeferredDeletes.begin() + i);
                 --i;
             }
@@ -1304,6 +1374,7 @@ namespace PyroshockStudios {
                 auto& [unusedFrames, zombie] = mAvailableLinearUploadBuffers[i];
                 if (unusedFrames++ > MAX_FRAMES_LINEAR_UPLOAD_BUFFER_UNSUED_LIFETIME) {
                     delete zombie;
+                    gDx12Context->FlushDebugMessages();
                     mAvailableLinearUploadBuffers.erase(mAvailableLinearUploadBuffers.begin() + i);
                     --i;
                 }

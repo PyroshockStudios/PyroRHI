@@ -1,7 +1,10 @@
 #include "Helpers/ValidationFixture.hpp"
 
-namespace PyroshockStudios::RHI::Tests {
-    TEST_F(VulkanContextFixture, ValidateDeviceCreation) {
+using namespace PyroshockStudios;
+using namespace PyroshockStudios::RHI;
+using namespace PyroshockStudios::Types;
+
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, ValidateDeviceCreation) {
         // const DeviceInfo& info = mDevice->GetInfo();
         // EXPECT_FALSE(info.name.empty());
         // EXPECT_FALSE(info.vendor.empty());
@@ -11,4 +14,3 @@ namespace PyroshockStudios::RHI::Tests {
         EXPECT_GE(props.maxRenderTargetSamples, RasterizationSamples::e1);
         EXPECT_GE(props.bufferImageRowAlignment, 1u);
     }
-} // namespace PyroshockStudios::RHI::Tests

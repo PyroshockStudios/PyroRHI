@@ -1,7 +1,10 @@
 #include "Helpers/ValidationFixture.hpp"
 
-namespace PyroshockStudios::RHI::Tests {
-    TEST_F(VulkanContextFixture, TransferCopyBufferToBufferSucceeds) {
+using namespace PyroshockStudios;
+using namespace PyroshockStudios::RHI;
+using namespace PyroshockStudios::Types;
+
+    TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyBufferToBufferSucceeds) {
         BufferInfo bufferInfo{};
         bufferInfo.size = 1024;
         bufferInfo.usage = BufferUsageFlagBits::TRANSFER_SRC | BufferUsageFlagBits::TRANSFER_DST;
@@ -44,7 +47,7 @@ namespace PyroshockStudios::RHI::Tests {
         mDevice->DestroyBuffer(dst);
     }
 
-    TEST_F(VulkanContextFixture, TransferCopyBufferToImageSucceeds) {
+    TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyBufferToImageSucceeds) {
 
         BufferInfo bufferInfo{};
         bufferInfo.size = 1024;
@@ -91,7 +94,7 @@ namespace PyroshockStudios::RHI::Tests {
         mDevice->DestroyBuffer(buffer);
         mDevice->DestroyImage(image);
     }
-    TEST_F(VulkanContextFixture, TransferCopyImageToBufferSucceeds) {
+    TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyImageToBufferSucceeds) {
         // Create a memory block
         // Create source image
         ImageInfo srcImageInfo{};
@@ -138,7 +141,7 @@ namespace PyroshockStudios::RHI::Tests {
         mDevice->DestroyBuffer(dstBuffer);
     }
 
-    TEST_F(VulkanContextFixture, TransferCopyImageToImageSucceeds) {
+    TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyImageToImageSucceeds) {
         // Create source image
         ImageInfo srcImageInfo{};
         srcImageInfo.size = { 16, 16, 1 };
@@ -184,7 +187,7 @@ namespace PyroshockStudios::RHI::Tests {
         mDevice->DestroyImage(dstImage);
     }
 
-    TEST_F(VulkanContextFixture, TransferClearUAVBufferSucceeds) {
+    TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferClearUAVBufferSucceeds) {
         BufferInfo bufferInfo{};
         bufferInfo.size = 1024;
         bufferInfo.usage = BufferUsageFlagBits::UNORDERED_ACCESS | BufferUsageFlagBits::TRANSFER_DST;
@@ -214,4 +217,3 @@ namespace PyroshockStudios::RHI::Tests {
         mDevice->DestroyUnorderedAccess(uav);
         mDevice->DestroyBuffer(buffer);
     }
-} // namespace PyroshockStudios::RHI::Tests

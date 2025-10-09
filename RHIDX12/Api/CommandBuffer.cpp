@@ -20,6 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <RHIDX12/D3DContext.hpp>
 #include "CommandBuffer.hpp"
 #include "Device.hpp"
 #include "GPUResource.hpp"
@@ -43,6 +44,7 @@ namespace PyroshockStudios {
             const auto& src = mDevice->ResourcePool().Get(info.srcBuffer);
             const auto& dst = mDevice->ResourcePool().Get(info.dstBuffer);
             mCommandList->CopyBufferRegion(dst.resource.Get(), info.dstOffset, src.resource.Get(), info.srcOffset, info.size);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::CopyBufferToImage(const CopyBufferToImageInfo& info) {
@@ -66,6 +68,7 @@ namespace PyroshockStudios {
                 CD3DX12_TEXTURE_COPY_LOCATION Src(src.resource.Get(), footprint);
                 mCommandList->CopyTextureRegion(&Dst, info.imageOffset.x, info.imageOffset.y, info.imageOffset.z, &Src, nullptr);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::CopyImageToBuffer(const CopyImageToBufferInfo& info) {
@@ -87,6 +90,7 @@ namespace PyroshockStudios {
                 CD3DX12_TEXTURE_COPY_LOCATION Src(src.resource.Get(), srcSubresource);
                 mCommandList->CopyTextureRegion(&Dst, info.bufferOffset, 0, 0, &Src, nullptr);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::CopyImageToImage(const CopyImageToImageInfo& info) {
@@ -100,6 +104,7 @@ namespace PyroshockStudios {
                 D3D12_BOX srcBox = ToD3D12Box(Box3D::Cut(info.extent, info.srcOffset));
                 mCommandList->CopyTextureRegion(&dstCpy, (UINT)info.dstOffset.x, (UINT)info.dstOffset.y, (UINT)info.dstOffset.z, &srcCpy, &srcBox);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::BlitImageToImage(const BlitImageToImageInfo& info) {
@@ -206,6 +211,7 @@ namespace PyroshockStudios {
                 mCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
                 mCommandList->DrawInstanced(4, 1, 0, 0);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::ClearUnorderedAccessView(const ClearUnorderedAccessViewInfo& info) {
@@ -281,6 +287,7 @@ namespace PyroshockStudios {
             mGraphicsLastBoundUAVDescriptorTable = {};
             mComputeLastBoundUAVDescriptorTable = {};
             FlushPendingUnorderedAccessViewBinds();
+            gDx12Context->FlushDebugMessages();
         }
         void D3DCommandBuffer::UpdateBuffer(const UpdateBufferInfo& info) {
             if (!mCurrentLinearUploadBuffer) {
@@ -298,6 +305,7 @@ namespace PyroshockStudios {
             memcpy(ptr, info.data, sz);
             mCommandList->CopyBufferRegion(dstBuffer.resource.Get(), info.region.offset,
                 mCurrentLinearUploadBuffer->GetResource(), offset, sz);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::BufferBarrier(const BufferMemoryBarrierInfo& info) {
@@ -321,6 +329,7 @@ namespace PyroshockStudios {
             // FIXME: we need to keep 1 state per queue/command list, since this can be recorded on seperate threads, or submitted 
             // in a different order!!!
             bufferInfo.lastValidState = barrier.Transition.StateAfter;
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::ImageBarrier(const ImageMemoryBarrierInfo& info) {
@@ -398,6 +407,7 @@ namespace PyroshockStudios {
                     imageInfo.lastValidStates[barrier.Transition.Subresource] = barrier.Transition.StateAfter;
                 }
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SignalEvent(const EventSignalInfo& info) {
@@ -514,6 +524,7 @@ namespace PyroshockStudios {
             auto& pair = mPendingQueryPoolMinMaxResolves[pool];
             pair.first = eastl::min(pair.first, info.queryIndex);
             pair.second = eastl::max(pair.second, info.queryIndex);
+            gDx12Context->FlushDebugMessages();
         }
 
 
@@ -525,12 +536,14 @@ namespace PyroshockStudios {
                          (u64)(info.labelColor.b * 255) << 8 |
                          (u64)(info.labelColor.a * 255) << 0;
             gPixBeginEventOnCommandListFn(mCommandList.Get(), col, info.name.data());
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::EndLabel() {
             if (!gPixBeginEventOnCommandListFn)
                 return;
             gPixEndEventOnCommandListFn(mCommandList.Get());
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::BeginRenderPass(const RenderPassBeginInfo& info) {
@@ -607,6 +620,7 @@ namespace PyroshockStudios {
             };
             mCommandList->RSSetViewports(1, &viewport);
             mCommandList->RSSetScissorRects(1, &renderArea);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::EndRenderPass() {
@@ -639,6 +653,7 @@ namespace PyroshockStudios {
                 mCommandList->ResourceBarrier(2, exitBarriers);
             }
             mRenderPassResolves.clear();
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::PushConstantVPtr(const PushConstantInfo& info) {
@@ -649,6 +664,7 @@ namespace PyroshockStudios {
             } else {
                 mCommandList->SetGraphicsRoot32BitConstants(0, info.size / 4, info.data, info.offset / 4);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetUniformBufferView(const SetUniformBufferViewInfo& info) {
@@ -660,6 +676,7 @@ namespace PyroshockStudios {
             } else if (info.bindPoint == PipelineBindPoint::Compute) {
                 mCommandList->SetComputeRootConstantBufferView(info.slot + 6, gpuAddress);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetUnorderedAccessView(const SetUnorderedAccessViewInfo& info) {
@@ -667,6 +684,7 @@ namespace PyroshockStudios {
                 mPendingUAVBinds.boundUavs.resize(info.slot + 1);
             }
             mPendingUAVBinds.boundUavs[info.slot] = info.view;
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetRasterPipeline(RasterPipeline pipeline) {
@@ -698,6 +716,7 @@ namespace PyroshockStudios {
                 mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
                 bBlitImageState = false;
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetComputePipeline(ComputePipeline pipeline) {
@@ -708,6 +727,7 @@ namespace PyroshockStudios {
                     pipe->mEmulatedSpecialisationConstant->GetGPUVirtualAddress());
             }
             bIsComputePipeline = true;
+            gDx12Context->FlushDebugMessages();
         }
         void D3DCommandBuffer::SetViewport(const ViewportInfo& info) {
             D3D12_VIEWPORT viewport{
@@ -719,11 +739,13 @@ namespace PyroshockStudios {
                 .MaxDepth = info.maxDepth,
             };
             mCommandList->RSSetViewports(1, &viewport);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetScissor(const Rect2D& info) {
             D3D12_RECT renderArea = ToD3D12Rect(info);
             mCommandList->RSSetScissorRects(1, &renderArea);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetVertexBuffer(const SetVertexBufferInfo& info) {
@@ -738,6 +760,7 @@ namespace PyroshockStudios {
             mPendingVertexBufferBinds[info.slot].BufferLocation = bufferInfo.resource->GetGPUVirtualAddress() + info.offset;
             mPendingVertexBufferBinds[info.slot].SizeInBytes = static_cast<u32>(eastl::min(bufferInfo.info.size - info.offset, static_cast<u64>(UINT32_MAX)));
             mInvalidatedVertexBufferBindings.emplace(info.slot);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetIndexBuffer(const SetIndexBufferInfo& info) {
@@ -758,18 +781,21 @@ namespace PyroshockStudios {
             view.BufferLocation = bufferInfo.resource->GetGPUVirtualAddress() + info.offset;
             view.SizeInBytes = static_cast<u32>(eastl::min(bufferInfo.info.size - info.offset, static_cast<u64>(UINT32_MAX)));
             mCommandList->IASetIndexBuffer(&view);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::Draw(const DrawInfo& info) {
             FlushPendingUnorderedAccessViewBinds();
             FlushPendingVertexBufferBinds();
             mCommandList->DrawInstanced(info.vertexCount, info.instanceCount, info.firstVertex, info.firstInstance);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::DrawIndexed(const DrawIndexedInfo& info) {
             FlushPendingUnorderedAccessViewBinds();
             FlushPendingVertexBufferBinds();
             mCommandList->DrawIndexedInstanced(info.indexCount, info.instanceCount, info.firstIndex, info.vertexOffset, info.firstInstance);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::DrawIndirect(const DrawIndirectInfo& info) {
@@ -787,6 +813,7 @@ namespace PyroshockStudios {
             if (info.drawCount > 1) {
                 mCommandList->SetGraphicsRoot32BitConstant(17, 0, 0);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::DrawIndexedIndirect(const DrawIndexedIndirectInfo& info) {
@@ -804,11 +831,13 @@ namespace PyroshockStudios {
             if (info.drawCount > 1) {
                 mCommandList->SetGraphicsRoot32BitConstant(17, 0, 0);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::Dispatch(const DispatchInfo& info) {
             FlushPendingUnorderedAccessViewBinds();
             mCommandList->Dispatch(info.x, info.y, info.z);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::DispatchIndirect(const DispatchIndirectInfo& info) {
@@ -816,6 +845,7 @@ namespace PyroshockStudios {
             ID3D12CommandSignature* signature = mDevice->GetDispatchCommandSignature();
             mCommandList->ExecuteIndirect(signature,
                 1, mDevice->ResourcePool().Get(info.indirectBuffer).resource.Get(), info.indirectBufferOffset, nullptr, 0);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::Complete() {
@@ -839,6 +869,7 @@ namespace PyroshockStudios {
                 mPendingReturnLinearUploadBuffers.push_back(mCurrentLinearUploadBuffer);
                 mCurrentLinearUploadBuffer = nullptr;
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::FlushPendingVertexBufferBinds() {
@@ -852,6 +883,7 @@ namespace PyroshockStudios {
                 mCommandList->IASetVertexBuffers(binding, 1, &mPendingVertexBufferBinds[binding]);
             }
             mInvalidatedVertexBufferBindings.clear();
+            gDx12Context->FlushDebugMessages();
         }
         void D3DCommandBuffer::FlushPendingUnorderedAccessViewBinds() {
             // HACK:
@@ -880,6 +912,7 @@ namespace PyroshockStudios {
                 mCommandList->SetGraphicsRootDescriptorTable(14, descriptorTable.gpuDescriptor);
                 mCommandList->SetGraphicsRootDescriptorTable(16, descriptorTable.gpuDescriptor);
             }
+            gDx12Context->FlushDebugMessages();
         }
     } // namespace RHIDX12
 } // namespace PyroshockStudios
