@@ -54,7 +54,7 @@ namespace PyroshockStudios {
         template <typename TInfo>
         struct D3DHeapManager {
         public:
-            D3DHeapManager(ID3D12Device* device, UINT maxDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE heapType, bool gpuVisible, const char* debugName) {
+            D3DHeapManager(ID3D12Device* device, UINT maxDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE heapType, bool gpuVisible, const char* debugName) : mDebugName(debugName) {
                 Logger::Debug(gDX12Sink, "Initialising Resource Pool named '{}'", debugName);
                 D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
                 heapDesc.NumDescriptors = maxDescriptors;
@@ -67,7 +67,7 @@ namespace PyroshockStudios {
             }
             ~D3DHeapManager() {
                 if (mTombstones.size() != mHeapCounter) {
-                    Logger::Warn(gDX12Sink, "Leaked {} resources in Resource Pool named '{}'", mHeapCounter - mTombstones.size(), debugName);
+                    Logger::Warn(gDX12Sink, "Leaked {} resources in Resource Pool named '{}'", mHeapCounter - mTombstones.size(), mDebugName);
                 }
             }
             eastl::pair<GPUResourceId, TInfo&> AcquireSlot() {
@@ -115,6 +115,7 @@ namespace PyroshockStudios {
             UINT mHeapCounter = 1;
             ComPtr<ID3D12DescriptorHeap> mHeap = {};
             UINT mIncSz{};
+            eastl::string mDebugName = {};
         };
         struct D3DMemoryBlockResourceData {
             MemoryBlockInfo info = {};
