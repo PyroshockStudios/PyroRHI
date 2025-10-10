@@ -104,11 +104,11 @@ namespace PyroshockStudios::RHIDX12 {
         mDevice = new D3DDevice(eastl::move(device), eastl::move(factory), eastl::move(adapter));
     }
     D3DContext::~D3DContext() {
-        gDx12Context = nullptr;
         if (mPixRuntimeDll) {
             FreeLibrary(mPixRuntimeDll);
         }
         delete mDevice;
+        gDx12Context = nullptr;
     }
 
     void D3DContext::GetHardwareAdapter(

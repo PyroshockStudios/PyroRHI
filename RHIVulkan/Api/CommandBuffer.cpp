@@ -151,7 +151,7 @@ namespace PyroshockStudios::RHIVulkan {
 
         const VkBufferImageCopy region = {
             .bufferOffset = info.bufferOffset,
-            .bufferRowLength = info.rowPitch,
+            .bufferRowLength = info.rowPitch / RHIUtil::GetFormatSize(imageSlot.info.format),
             .bufferImageHeight = info.imageExtent.y,
             .imageSubresource = {
                 .aspectMask = imageSlot.aspectFlags,

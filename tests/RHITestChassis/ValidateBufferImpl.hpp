@@ -20,7 +20,7 @@ using namespace PyroshockStudios::Types;
     }
     TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyVirtualBuffers) {
         MemoryBlockInfo blockInfo = {};
-        blockInfo.size = 4096;
+        blockInfo.size = 1048576;
         blockInfo.bufferUsage = BufferUsageFlagBits::UNIFORM_BUFFER | BufferUsageFlagBits::SHADER_RESOURCE;
         blockInfo.name = "Test Memory Block";
 

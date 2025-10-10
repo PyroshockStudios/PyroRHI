@@ -297,7 +297,7 @@ namespace PyroshockStudios {
             DecrementWrap = 7
         };
 
-        enum struct RasterizationSamples : i32 {
+        enum struct RasterizationSamples : u32 {
             e1 = 1,
             e2 = 2,
             e4 = 4,

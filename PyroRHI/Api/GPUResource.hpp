@@ -145,6 +145,12 @@ namespace PyroshockStudios {
             static inline constexpr ImageCreateFlags ALLOW_ALIAS = { 0x00000004 };    /**< Allows aliasing image memory. */
         };
 
+        enum struct ImageDimensions : u32 {
+            e1D = 1,
+            e2D = 2,
+            e3D = 3
+        };
+
         /**
          * @brief Parameters for creating a GPU image.
          */
@@ -154,15 +160,15 @@ namespace PyroshockStudios {
              * If `memoryBlock` is `PYRO_NULL_MEMORY_BLOCK`, then the image will create its own allocation handle.
              */
             MemoryBlock memoryBlock = PYRO_NULL_MEMORY_BLOCK;
-            ImageCreateFlags flags = ImageCreateFlagBits::NONE; /**< Image creation flags. */
-            u32 dimensions = 2;                                 /**< Number of dimensions (1D, 2D, 3D). */
-            Format format = Format::RGBA8Unorm;                 /**< Pixel format of the image. */
-            Extent3D size = {};                                 /**< Dimensions of the image (width, height, depth). */
-            u32 mipLevelCount = 1;                              /**< Number of mipmap levels. */
-            u32 arrayLayerCount = 1;                            /**< Number of array layers. */
-            u32 sampleCount = 1;                                /**< Number of samples per pixel (for MSAA). */
-            ImageUsageFlags usage = {};                         /**< Intended usage of the image (e.g., render target, sampling). */
-            eastl::string name = {};                            /**< Optional debug name for the image. */
+            ImageCreateFlags flags = ImageCreateFlagBits::NONE;          /**< Image creation flags. */
+            ImageDimensions dimensions = ImageDimensions::e2D;           /**< Number of dimensions (1D, 2D, 3D). */
+            Format format = Format::RGBA8Unorm;                          /**< Pixel format of the image. */
+            Extent3D size = {};                                          /**< Dimensions of the image (width, height, depth). */
+            u32 mipLevelCount = 1;                                       /**< Number of mipmap levels. */
+            u32 arrayLayerCount = 1;                                     /**< Number of array layers. */
+            RasterizationSamples sampleCount = RasterizationSamples::e1; /**< Number of samples per pixel (for MSAA). */
+            ImageUsageFlags usage = {};                                  /**< Intended usage of the image (e.g., render target, sampling). */
+            eastl::string name = {};                                     /**< Optional debug name for the image. */
 
             PYRO_NODISCARD bool operator==(const ImageInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const ImageInfo&) const = default;

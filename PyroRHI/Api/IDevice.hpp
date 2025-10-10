@@ -59,6 +59,7 @@ namespace PyroshockStudios {
             RasterizationSamples maxRenderTargetSamples = RasterizationSamples::e1;
             RasterizationSamples maxShaderResourceImageSamples = RasterizationSamples::e1;
             u32 bufferImageRowAlignment = 0;
+            u32 bufferImageCopyOffsetAlignment = 0;
 
             PYRO_NODISCARD bool operator==(const DevicePropertiesInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DevicePropertiesInfo&) const = default;

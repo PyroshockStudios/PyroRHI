@@ -179,13 +179,11 @@ namespace PyroshockStudios {
                 }
             };
 
-
             u32 queueFamilyPropsCount = 0;
             eastl::vector<VkQueueFamilyProperties> queueProps = {};
             vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueFamilyPropsCount, nullptr);
             queueProps.resize(queueFamilyPropsCount);
             vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueFamilyPropsCount, queueProps.data());
-
 
             eastl::vector<eastl::pair<CommandQueueInfo, u32>> queues = {};
 
@@ -397,6 +395,7 @@ namespace PyroshockStudios {
             }
             // while not required, it's more efficient, so we just enforce this to incur less driver overhead
             mProperties.bufferImageRowAlignment = physicalDeviceProperties.limits.optimalBufferCopyRowPitchAlignment;
+            mProperties.bufferImageCopyOffsetAlignment = physicalDeviceProperties.limits.optimalBufferCopyOffsetAlignment;
             mPhysicalDeviceProperties = physicalDeviceProperties;
         }
 
@@ -519,7 +518,7 @@ namespace PyroshockStudios {
                 VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
             }
             if (info.usage & BufferUsageFlagBits::UNORDERED_ACCESS || info.usage & BufferUsageFlagBits::SHADER_RESOURCE) {
-                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT /*Clear UAV usage*/;
             }
             if (info.usage & BufferUsageFlagBits::VERTEX_BUFFER) {
                 VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
@@ -657,7 +656,7 @@ namespace PyroshockStudios {
             };
 
             VmaAllocationCreateFlags vmaAllocationFlags{};
-            if (info.arrayLayerCount > 1 && info.dimensions == 2) {
+            if (info.arrayLayerCount > 1 && info.dimensions == ImageDimensions::e2D) {
                 vkImageCreateInfo.flags |= VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT;
             }
             if (info.flags & ImageCreateFlagBits::CUBE) {
@@ -671,13 +670,13 @@ namespace PyroshockStudios {
                 vkImageCreateInfo.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
             }
             switch (info.dimensions) {
-            case 1:
+            case ImageDimensions::e1D:
                 vkImageCreateInfo.imageType = VK_IMAGE_TYPE_1D;
                 break;
-            case 2:
+            case ImageDimensions::e2D:
                 vkImageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
                 break;
-            case 3:
+            case ImageDimensions::e3D:
                 vkImageCreateInfo.imageType = VK_IMAGE_TYPE_3D;
                 break;
             default:

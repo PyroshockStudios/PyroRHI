@@ -20,7 +20,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <RHIDX12/D3DContext.hpp>
 #include "Device.hpp"
 #include "CommandBuffer.hpp"
 #include "CommandQueue.hpp"
@@ -31,6 +30,7 @@
 #include "SwapChain.hpp"
 #include "Sync.hpp"
 #include <PyroCommon/Logger.hpp>
+#include <RHIDX12/D3DContext.hpp>
 #include <RHIDX12/InternalShaders.hpp>
 
 #include <libassert/assert.hpp>
@@ -61,6 +61,7 @@ namespace PyroshockStudios {
                 gDx12Context->FlushDebugMessages();
             }
             mProperties.bufferImageRowAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
+            mProperties.bufferImageCopyOffsetAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
             {
                 Logger::Debug(gDX12Sink, "Checking MSAA Support");
                 // FIXME better querying?
@@ -272,7 +273,7 @@ namespace PyroshockStudios {
                 samplerDesc.MaxLOD = FLT_MAX;
                 samplerDesc.MipLODBias = 0.0f;
                 samplerDesc.MaxAnisotropy = 0;
-                samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+                samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NONE;
 
                 mDevice->CreateSampler(&samplerDesc, mNearestSamplerDescriptorTable.cpuDescriptor);
 
@@ -539,7 +540,8 @@ namespace PyroshockStudios {
                 D3D12MA::VIRTUAL_ALLOCATION_DESC allocDesc = {};
                 D3D12_RESOURCE_ALLOCATION_INFO resourceAllocInfo = mDevice->GetResourceAllocationInfo(0, 1, &bufferDesc);
                 allocDesc.Size = resourceAllocInfo.SizeInBytes;
-                allocDesc.Alignment = resourceAllocInfo.Alignment;
+                allocDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+                allocDesc.Size = info.size;
                 switch (block.info.strategy) {
                 case VirtualSuballocationStrategy::AggressiveRing:
                 case VirtualSuballocationStrategy::TimeEfficient:
@@ -553,7 +555,8 @@ namespace PyroshockStudios {
                 }
                 UINT64 offset;
                 HRESULT hr = block.block->Allocate(&allocDesc, &data.virtualAlloc, &offset);
-                mDevice->CreatePlacedResource(
+                CheckD3DResult(hr);
+                hr = mDevice->CreatePlacedResource(
                     block.heap.Get(), // heap from above
                     offset,           // offset of this virtual slice
                     &bufferDesc,
@@ -606,17 +609,17 @@ namespace PyroshockStudios {
                 textureDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
             }
 
-            textureDesc.SampleDesc.Count = info.sampleCount;
+            textureDesc.SampleDesc.Count = static_cast<UINT>(info.sampleCount);
             textureDesc.SampleDesc.Quality = 0;
 
             switch (info.dimensions) {
-            case 1:
+            case ImageDimensions::e1D:
                 textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE1D;
                 break;
-            case 2:
+            case ImageDimensions::e2D:
                 textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
                 break;
-            case 3:
+            case ImageDimensions::e3D:
                 textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
                 break;
             default:
@@ -657,7 +660,8 @@ namespace PyroshockStudios {
                 }
                 UINT64 offset;
                 HRESULT hr = block.block->Allocate(&allocDesc, &data.virtualAlloc, &offset);
-                mDevice->CreatePlacedResource(
+                CheckD3DResult(hr);
+                hr = mDevice->CreatePlacedResource(
                     block.heap.Get(), // heap from above
                     offset,           // offset of this virtual slice
                     &textureDesc,
@@ -698,7 +702,7 @@ namespace PyroshockStudios {
                 auto& imgInfo = eastl::get<ImageResourceInfo>(info);
                 auto& srcImg = mResourcePool->Get(imgInfo.image);
                 resource = srcImg.resource.Get();
-                bool bMS = srcImg.info.sampleCount > 1;
+                bool bMS = srcImg.info.sampleCount > RasterizationSamples::e1;
 
                 srvDesc.Format = ToDXGIFormat(imgInfo.format == Format::Inherit ? srcImg.info.format : imgInfo.format);
 
@@ -808,7 +812,7 @@ namespace PyroshockStudios {
                 auto& imgInfo = eastl::get<ImageResourceInfo>(info);
                 auto& srcImg = mResourcePool->Get(imgInfo.image);
                 resource = srcImg.resource.Get();
-                bool bMS = srcImg.info.sampleCount > 1;
+                bool bMS = srcImg.info.sampleCount > RasterizationSamples::e1;
 
                 uavDesc.Format = ToDXGIFormat(imgInfo.format == Format::Inherit ? srcImg.info.format : imgInfo.format);
 
@@ -931,7 +935,7 @@ namespace PyroshockStudios {
 
             auto& heap = bDSV ? mResourcePool->mDSVHeap : mResourcePool->mRTVHeap;
             auto [handle, data] = heap.AcquireSlot();
-            auto rt  = RenderTarget(new D3DRenderTarget(this, bDSV, heap.Resolve(handle), eastl::move(i)));
+            auto rt = RenderTarget(new D3DRenderTarget(this, bDSV, heap.Resolve(handle), eastl::move(i)));
             gDx12Context->FlushDebugMessages();
             return rt;
         }
@@ -947,7 +951,7 @@ namespace PyroshockStudios {
         }
         ISwapChain* D3DDevice::CreateSwapChain(const SwapChainInfo& info) {
             SwapChainInfo i = info;
-            auto swap =  new D3DSwapChain(this, eastl::move(i));
+            auto swap = new D3DSwapChain(this, eastl::move(i));
             gDx12Context->FlushDebugMessages();
             return swap;
         }
@@ -1323,7 +1327,7 @@ namespace PyroshockStudios {
 
         LinearUploadBuffer* D3DDevice::GetLinearBufferAllocation(UINT64 minSize) {
             if (mAvailableLinearUploadBuffers.empty()) {
-                auto lub= new LinearUploadBuffer(mDevice.Get(), minSize);
+                auto lub = new LinearUploadBuffer(mDevice.Get(), minSize);
                 gDx12Context->FlushDebugMessages();
                 return lub;
             } else {

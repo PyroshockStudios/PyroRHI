@@ -212,7 +212,7 @@ namespace PyroshockStudios {
                 CheckD3DResult(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&data.resource)));
                 gDx12Context->FlushDebugMessages();
                 data.info = {
-                    .dimensions = 2,
+                    .dimensions = ImageDimensions::e2D,
                     .format = mFormat,
                     .size = { mInfo.extent.x, mInfo.extent.y },
                     .usage = mInfo.imageUsage,
