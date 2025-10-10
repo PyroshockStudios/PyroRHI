@@ -26,8 +26,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
     ASSERT_NE(pGraphicsQueue, nullptr);
     ICommandQueue** pCopyQueue = eastl::find_if(queues.begin(), queues.end(),
         [pGraphicsQueue](ICommandQueue* q) { return q->Info().flags & CommandQueueFlagBits::TRANSFER && q != *pGraphicsQueue; });
-    if (pCopyQueue == nullptr) {
-        std::cout << "Device does not support seperate graphics and copy queues, ignoring...";
+    if (pCopyQueue == queues.end()) {
+        GTEST_LOG_(INFO) << "Device does not support seperate graphics and copy queues, skipping test...";
         return;
     }
 
