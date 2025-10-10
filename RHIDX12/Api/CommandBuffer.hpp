@@ -95,6 +95,7 @@ namespace PyroshockStudios {
 
             eastl::vector<ZombieDeleter> mDeferredDeleteOps = {};
             eastl::vector<LinearUploadBuffer*> mPendingReturnLinearUploadBuffers = {};
+            CommandQueueFlags queueFlags = {};
 
         private:
             inline void FlushPendingVertexBufferBinds();

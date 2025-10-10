@@ -167,7 +167,8 @@ protected:
     }
 
     void TearDown() override {
-        mDevice->WaitIdle();
+        // Do not wait idle, some tests also have an extra check where device idle shouldn't be necessary!
+        // mDevice->WaitIdle();
         mDevice = nullptr;
         if (fpDestroyContext && mApi.loadedContext)
             fpDestroyContext(&mApi);

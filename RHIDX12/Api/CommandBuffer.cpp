@@ -713,9 +713,11 @@ namespace PyroshockStudios {
         void D3DCommandBuffer::PushConstantVPtr(const PushConstantInfo& info) {
             ASSERT(PYRO_VERIFY_ALIGNMENT(info.size, 4), "Push constants must be DWord aligned!");
             ASSERT(PYRO_VERIFY_ALIGNMENT(info.offset, 4), "Push constants must be DWord aligned!");
-            if (bIsComputePipeline) {
+
+            if (queueFlags & CommandQueueFlagBits::COMPUTE) {
                 mCommandList->SetComputeRoot32BitConstants(0, info.size / 4, info.data, info.offset / 4);
-            } else {
+            }
+            if (queueFlags & CommandQueueFlagBits::GRAPHICS) {
                 mCommandList->SetGraphicsRoot32BitConstants(0, info.size / 4, info.data, info.offset / 4);
             }
             gDx12Context->FlushDebugMessages();
@@ -950,21 +952,21 @@ namespace PyroshockStudios {
                 descriptorTable.mHeap.Get(),
                 mDevice->ResourcePool().mSamplerHeap.InternalHeap()
             };
-            if (bIsComputePipeline) {
-                if (descriptorTable == mComputeLastBoundUAVDescriptorTable)
-                    return;
-                mComputeLastBoundUAVDescriptorTable = descriptorTable;
-
-                mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
-                mCommandList->SetComputeRootDescriptorTable(14, descriptorTable.gpuDescriptor);
-                mCommandList->SetComputeRootDescriptorTable(16, descriptorTable.gpuDescriptor);
-            } else {
-                if (descriptorTable == mGraphicsLastBoundUAVDescriptorTable)
-                    return;
-                mGraphicsLastBoundUAVDescriptorTable = descriptorTable;
-                mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
-                mCommandList->SetGraphicsRootDescriptorTable(14, descriptorTable.gpuDescriptor);
-                mCommandList->SetGraphicsRootDescriptorTable(16, descriptorTable.gpuDescriptor);
+            if (queueFlags & CommandQueueFlagBits::COMPUTE) {
+                if (descriptorTable != mComputeLastBoundUAVDescriptorTable) {
+                    mComputeLastBoundUAVDescriptorTable = descriptorTable;
+                    mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
+                    mCommandList->SetComputeRootDescriptorTable(14, descriptorTable.gpuDescriptor);
+                    mCommandList->SetComputeRootDescriptorTable(16, descriptorTable.gpuDescriptor);
+                }
+            }
+            if (queueFlags & CommandQueueFlagBits::GRAPHICS) {
+                if (descriptorTable != mGraphicsLastBoundUAVDescriptorTable) {
+                    mGraphicsLastBoundUAVDescriptorTable = descriptorTable;
+                    mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
+                    mCommandList->SetGraphicsRootDescriptorTable(14, descriptorTable.gpuDescriptor);
+                    mCommandList->SetGraphicsRootDescriptorTable(16, descriptorTable.gpuDescriptor);
+                }
             }
             gDx12Context->FlushDebugMessages();
         }

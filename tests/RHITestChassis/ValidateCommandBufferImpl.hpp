@@ -229,7 +229,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferClearUAVBufferSucceeds) {
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferClearUAVImageSucceeds) {
     ImageInfo imageInfo{};
-    imageInfo.size = {256,256,1};
+    imageInfo.size = { 256, 256, 1 };
     imageInfo.format = Format::RGBA16Unorm;
     imageInfo.usage = ImageUsageFlagBits::UNORDERED_ACCESS;
     imageInfo.name = "";

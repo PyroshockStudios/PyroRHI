@@ -45,10 +45,6 @@ namespace PyroshockStudios {
          */
         struct CommandBufferInfo {
             /**
-             * @brief Flags specifying usage. Must match the flags of the command queue it will be submitted to
-             * */
-            CommandQueueFlags queueFlags = CommandQueueFlagBits::NONE;
-            /**
              * @brief Optional name for debugging/profiling.
              * */
             eastl::string name = {};
