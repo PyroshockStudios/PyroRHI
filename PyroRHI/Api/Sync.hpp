@@ -56,16 +56,8 @@ namespace PyroshockStudios {
             /// @brief Buffer layout after the barrier. *MUST* not be `Undefined`
             BufferLayout dstLayout = BufferLayout::Undefined;
 
-            /// @brief Optional source queue for ownership transfer.
-            /// @note if srcQueue is non-null, then dstQueue *MUST* be non-null, and be a different command queue
-            ICommandQueue* srcQueue = nullptr;
-
-            /// @brief Optional destination queue for ownership transfer.
-            /// @note if dstQueue is non-null, then srcQueue *MUST* be non-null, and be a different command queue
-            ICommandQueue* dstQueue = nullptr;
-
-            PYRO_NODISCARD  bool operator==(const BufferMemoryBarrierInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const BufferMemoryBarrierInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const BufferMemoryBarrierInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const BufferMemoryBarrierInfo&) const = default;
         };
 
         /**
@@ -92,21 +84,15 @@ namespace PyroshockStudios {
             /// @brief Image layout after the barrier. *MUST* not be `Undefined`
             ImageLayout dstLayout = ImageLayout::Undefined;
 
-            /// @brief Optional source queue for ownership transfer.
-            ICommandQueue* srcQueue = nullptr;
-
-            /// @brief Optional destination queue for ownership transfer.
-            ICommandQueue* dstQueue = nullptr;
-
-            PYRO_NODISCARD  bool operator==(const ImageMemoryBarrierInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const ImageMemoryBarrierInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const ImageMemoryBarrierInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const ImageMemoryBarrierInfo&) const = default;
         };
 
         struct EventInfo {
             eastl::string name = {};
 
-            PYRO_NODISCARD  bool operator==(const EventInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const EventInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const EventInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const EventInfo&) const = default;
         };
 
         struct IEvent {

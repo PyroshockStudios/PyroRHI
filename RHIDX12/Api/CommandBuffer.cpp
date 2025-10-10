@@ -374,12 +374,7 @@ namespace PyroshockStudios {
             barrier.Transition.StateAfter = ToD3D12BufferResourceState(info.dstLayout);
             barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
             if (barrier.Transition.StateAfter == barrier.Transition.StateBefore) {
-                if (info.srcQueue == nullptr && info.dstQueue == nullptr || barrier.Transition.StateAfter != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-                    return;
-                } else {
-                    D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(barrier.Transition.pResource);
-                    mCommandList->ResourceBarrier(1, &uavBarrier);
-                }
+                return;
             }
             mCommandList->ResourceBarrier(1, &barrier);
             // FIXME: we need to keep 1 state per queue/command list, since this can be recorded on seperate threads, or submitted
@@ -448,12 +443,7 @@ namespace PyroshockStudios {
                 barrier.Transition.StateAfter = ToD3D12ImageResourceState(info.dstLayout) & validMask;
             }
             if (barrier.Transition.StateAfter == barrier.Transition.StateBefore) {
-                if (info.srcQueue == nullptr && info.dstQueue == nullptr || barrier.Transition.StateAfter != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-                    return;
-                } else {
-                    D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(barrier.Transition.pResource);
-                    mCommandList->ResourceBarrier(1, &uavBarrier);
-                }
+                return;
             }
             for (UINT i = 0; i < info.imageSlice.levelCount; ++i) {
                 for (UINT j = 0; j < info.imageSlice.layerCount; ++j) {
@@ -466,6 +456,28 @@ namespace PyroshockStudios {
                 }
             }
             gDx12Context->FlushDebugMessages();
+        }
+
+        void D3DCommandBuffer::TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) {
+        }
+
+        void D3DCommandBuffer::TransferImageOwnership(Image image, ICommandQueue* dstQueue) {
+        }
+
+        void D3DCommandBuffer::AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) {
+            auto& bufferInfo = mDevice->ResourcePool().Get(buffer);
+            if (bufferInfo.lastValidState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+                D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(bufferInfo.resource.Get());
+                mCommandList->ResourceBarrier(1, &uavBarrier);
+            }
+        }
+
+        void D3DCommandBuffer::AcquireImageOwnership(Image image, ICommandQueue* srcQueue) {
+            auto& imageInfo = mDevice->ResourcePool().Get(image);
+            if (imageInfo.lastValidStates[0] == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+                D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(imageInfo.resource.Get());
+                mCommandList->ResourceBarrier(1, &uavBarrier);
+            }
         }
 
         void D3DCommandBuffer::SignalEvent(const EventSignalInfo& info) {

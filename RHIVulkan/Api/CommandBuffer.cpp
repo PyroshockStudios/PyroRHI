@@ -41,7 +41,7 @@ namespace PyroshockStudios::RHIVulkan {
                 .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
                 .pNext = nullptr,
                 .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-                .queueFamilyIndex = queue->GetQueueFamily(), 
+                .queueFamilyIndex = queue->GetQueueFamily(),
             };
 
             vkCreateCommandPool(device->GetVkDevice(), &vk_command_pool_create_info, device->Context()->GetVkAllocator(), &pool);
@@ -75,7 +75,8 @@ namespace PyroshockStudios::RHIVulkan {
     }
 
     PYRO_FORCEINLINE static constexpr VkResolveModeFlagBits ToVkResolveMode(ResolveMode type) { return static_cast<VkResolveModeFlagBits>(type); }
-    VulkanCommandBuffer::VulkanCommandBuffer(VulkanDevice* device, VkCommandPool pool, VkCommandBuffer buffer, const CommandBufferInfo& info) : mDevice(device), mCommandPool(pool), mCommandBuffer(buffer) {
+    VulkanCommandBuffer::VulkanCommandBuffer(VulkanDevice* device, VulkanCommandQueue* queue, VkCommandPool pool, VkCommandBuffer buffer, const CommandBufferInfo& info)
+        : mDevice(device), mQueue(queue), mCommandPool(pool), mCommandBuffer(buffer) {
         const VkCommandBufferBeginInfo vkCommandBufferBeginInfo = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             .pNext = nullptr,
@@ -296,11 +297,6 @@ namespace PyroshockStudios::RHIVulkan {
             .offset = info.region.offset,
             .size = trueSize,
         };
-        if (info.srcQueue != info.dstQueue) {
-            ASSERT(info.srcQueue != nullptr && info.dstQueue, "Queue ownerships must define BOTH a correct SRC and DST ICommandQueue!!");
-            barrier.srcQueueFamilyIndex = static_cast<VulkanCommandQueue*>(info.srcQueue)->GetQueueFamily();
-            barrier.dstQueueFamilyIndex = static_cast<VulkanCommandQueue*>(info.dstQueue)->GetQueueFamily();
-        }
 
         mBufferBarriers.push_back(barrier);
     }
@@ -327,11 +323,84 @@ namespace PyroshockStudios::RHIVulkan {
                 .layerCount = info.imageSlice.layerCount,
             },
         };
-        if (info.srcQueue != info.dstQueue) {
-            ASSERT(info.srcQueue != nullptr && info.dstQueue, "Queue ownerships must define BOTH a correct SRC and DST ICommandQueue!!");
-            barrier.srcQueueFamilyIndex = static_cast<VulkanCommandQueue*>(info.srcQueue)->GetQueueFamily();
-            barrier.dstQueueFamilyIndex = static_cast<VulkanCommandQueue*>(info.dstQueue)->GetQueueFamily();
-        }
+
+        mImageBarriers.push_back(barrier);
+    }
+
+    void VulkanCommandBuffer::TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) {
+        ASSERT(mCompleted == false, "can not record commands to completed command list");
+
+        ImplBufferSlot& bufferSlot = mDevice->Slot(buffer);
+
+        VkBufferMemoryBarrier2 barrier = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+            .buffer = bufferSlot.vkBuffer,
+        };
+        ASSERT(dstQueue != nullptr && mQueue != dstQueue, "Queue ownerships must define BOTH a correct SRC and DST DIFFERENT ICommandQueue's!!");
+        barrier.srcQueueFamilyIndex = mQueue->GetQueueFamily();
+        barrier.dstQueueFamilyIndex = static_cast<VulkanCommandQueue*>(dstQueue)->GetQueueFamily();
+
+        mBufferBarriers.push_back(barrier);
+    }
+
+    void VulkanCommandBuffer::TransferImageOwnership(Image image, ICommandQueue* dstQueue) {
+        ASSERT(mCompleted == false, "can not record commands to completed command list");
+
+        ImplImageSlot& imageSlot = mDevice->Slot(image);
+
+        VkImageMemoryBarrier2 barrier = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+            .image = imageSlot.vkImage,
+            .subresourceRange = {
+                .aspectMask = imageSlot.aspectFlags,
+                .baseMipLevel = 0,
+                .levelCount = VK_REMAINING_MIP_LEVELS,
+                .baseArrayLayer = 0,
+                .layerCount = VK_REMAINING_ARRAY_LAYERS,
+            },
+        };
+        ASSERT(dstQueue != nullptr && mQueue != dstQueue, "Queue ownerships must define BOTH a correct SRC and DST DIFFERENT ICommandQueue's!!");
+        barrier.srcQueueFamilyIndex = mQueue->GetQueueFamily();
+        barrier.dstQueueFamilyIndex = static_cast<VulkanCommandQueue*>(dstQueue)->GetQueueFamily();
+
+        mImageBarriers.push_back(barrier);
+    }
+
+    void VulkanCommandBuffer::AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) {
+        ASSERT(mCompleted == false, "can not record commands to completed command list");
+
+        ImplBufferSlot& bufferSlot = mDevice->Slot(buffer);
+
+        VkBufferMemoryBarrier2 barrier = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+            .buffer = bufferSlot.vkBuffer,
+        };
+        ASSERT(srcQueue != nullptr && mQueue != srcQueue, "Queue ownerships must define BOTH a correct SRC and DST DIFFERENT ICommandQueue's!!");
+        barrier.srcQueueFamilyIndex = static_cast<VulkanCommandQueue*>(srcQueue)->GetQueueFamily();
+        barrier.dstQueueFamilyIndex = mQueue->GetQueueFamily();
+
+        mBufferBarriers.push_back(barrier);
+    }
+
+    void VulkanCommandBuffer::AcquireImageOwnership(Image image, ICommandQueue* srcQueue) {
+        ASSERT(mCompleted == false, "can not record commands to completed command list");
+
+        ImplImageSlot& imageSlot = mDevice->Slot(image);
+
+        VkImageMemoryBarrier2 barrier = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+            .image = imageSlot.vkImage,
+            .subresourceRange = {
+                .aspectMask = imageSlot.aspectFlags,
+                .baseMipLevel = 0,
+                .levelCount = VK_REMAINING_MIP_LEVELS,
+                .baseArrayLayer = 0,
+                .layerCount = VK_REMAINING_ARRAY_LAYERS,
+            },
+        };
+        ASSERT(srcQueue != nullptr && mQueue != srcQueue, "Queue ownerships must define BOTH a correct SRC and DST DIFFERENT ICommandQueue's!!");
+        barrier.srcQueueFamilyIndex = static_cast<VulkanCommandQueue*>(srcQueue)->GetQueueFamily();
+        barrier.dstQueueFamilyIndex = mQueue->GetQueueFamily();
 
         mImageBarriers.push_back(barrier);
     }

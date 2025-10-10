@@ -208,7 +208,7 @@ namespace PyroshockStudios::RHIVulkan {
         }
     }
         if (bTrueHeadlessInstance && eastl::find_if(enabledExtensions.begin(), enabledExtensions.end(),
-                                  [](const char* x) { return strcmp(x, VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME) == 0; }) == enabledExtensions.end()) {
+                                         [](const char* x) { return strcmp(x, VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME) == 0; }) == enabledExtensions.end()) {
             enabledExtensions.clear();
             bTrueHeadlessInstance = false;
             Logger::Warn(gVulkanSink, VK_EXT_HEADLESS_SURFACE_EXTENSION_NAME " not available, and HEADLESS was requested, ignoring extension...");
@@ -224,10 +224,43 @@ namespace PyroshockStudios::RHIVulkan {
             Logger::Info(gVulkanSink, "Enabled Extensions:{}", enabledextensionStr);
         }
 
-        eastl::vector<const char*> enabledLayers = {};
+        eastl::vector<const char*> implicitEnabledLayers = {};
+
+
+        static const VkValidationFeatureEnableEXT validationFeatureEnables[] = {
+            VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+        };
+
+        VkValidationFeaturesEXT validationFeatures = {};
+        validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+        validationFeatures.enabledValidationFeatureCount = PYRO_ARRAY_SIZE(validationFeatureEnables);
+        validationFeatures.pEnabledValidationFeatures = validationFeatureEnables;
+        validationFeatures.disabledValidationFeatureCount = 0;
+        validationFeatures.pDisabledValidationFeatures = nullptr;
 
         if (args.bEnableValidation) {
-            enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
+            implicitEnabledLayers.push_back("VK_LAYER_KHRONOS_validation");
+            implicitEnabledLayers.push_back("VK_LAYER_KHRONOS_synchronization2");
+        }
+        eastl::vector<const char*> enabledLayers = {};
+
+        eastl::vector<VkLayerProperties> instance_layers = {};
+        uint32_t instance_layer_count = {};
+        CheckVkResult(vkEnumerateInstanceLayerProperties(&instance_layer_count, nullptr));
+        instance_layers.resize(instance_layer_count);
+        CheckVkResult(vkEnumerateInstanceLayerProperties(&instance_layer_count, instance_layers.data()));
+
+        for (const char* lay : implicitEnabledLayers) {
+            bool found = false;
+            for (auto& instancelayer : instance_layers) {
+                if (strcmp(lay, instancelayer.layerName) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                enabledLayers.push_back(lay);
+            }
         }
 
         if (gVulkanSink) {
@@ -238,7 +271,6 @@ namespace PyroshockStudios::RHIVulkan {
             }
             Logger::Info(gVulkanSink, "Enabled Layers:{}", enabledlayerStr);
         }
-
 
         const VkApplicationInfo appInfo = {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -252,7 +284,7 @@ namespace PyroshockStudios::RHIVulkan {
 
         const VkInstanceCreateInfo instanceCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-            .pNext = nullptr,
+            .pNext = args.bEnableValidation ? &validationFeatures : nullptr,
 #ifdef PYRO_PLATFORM_MACOS
             .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
 #else

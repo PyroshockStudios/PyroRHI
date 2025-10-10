@@ -35,7 +35,6 @@
 #include <PyroRHI/Api/Pipeline.hpp>
 #include <PyroRHI/Api/RenderTarget.hpp>
 #include <PyroRHI/Api/Sync.hpp>
-#include <PyroRHI/Api/Sync.hpp>
 #include <PyroRHI/Api/Types.hpp>
 
 namespace PyroshockStudios {
@@ -48,8 +47,8 @@ namespace PyroshockStudios {
              * @brief Optional name for debugging/profiling.
              * */
             eastl::string name = {};
-            PYRO_NODISCARD  bool operator==(const CommandBufferInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const CommandBufferInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const CommandBufferInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const CommandBufferInfo&) const = default;
         };
         /**
          * @brief Parameters for copying a buffer to a buffer.
@@ -77,8 +76,8 @@ namespace PyroshockStudios {
              * */
             DeviceSize size = {};
 
-            PYRO_NODISCARD  bool operator==(const CopyBufferToBufferInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const CopyBufferToBufferInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const CopyBufferToBufferInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const CopyBufferToBufferInfo&) const = default;
         };
         /**
          * @brief Parameters for copying a buffer to an image.
@@ -226,8 +225,8 @@ namespace PyroshockStudios {
              */
             Filter filter = {};
 
-            PYRO_NODISCARD  bool operator==(const BlitImageToImageInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const BlitImageToImageInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const BlitImageToImageInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const BlitImageToImageInfo&) const = default;
         };
 
 
@@ -241,7 +240,7 @@ namespace PyroshockStudios {
             UnorderedAccessId view = PYRO_NULL_UAV;
             /**
              * @brief Clear value of the UAV. If an image, the 4 components will be used to clear.
-             * 
+             *
              * If a buffer, only the first component's value will be used to clear.
              */
             ColorClearValue clearValue = {};
@@ -270,8 +269,8 @@ namespace PyroshockStudios {
              */
             const void* data = {};
 
-            PYRO_NODISCARD  bool operator==(const UpdateBufferInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const UpdateBufferInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const UpdateBufferInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const UpdateBufferInfo&) const = default;
         };
 
         struct ResetEventInfo {
@@ -331,8 +330,8 @@ namespace PyroshockStudios {
              */
             eastl::string_view name = {};
 
-            PYRO_NODISCARD  bool operator==(const CommandLabelInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const CommandLabelInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const CommandLabelInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const CommandLabelInfo&) const = default;
         };
 
         /**
@@ -359,8 +358,8 @@ namespace PyroshockStudios {
              */
             RenderTarget target = {};
 
-            PYRO_NODISCARD  bool operator==(const AttachmentResolveInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const AttachmentResolveInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const AttachmentResolveInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const AttachmentResolveInfo&) const = default;
         };
 
         /**
@@ -388,8 +387,8 @@ namespace PyroshockStudios {
              */
             eastl::optional<AttachmentResolveInfo> resolve = {};
 
-            PYRO_NODISCARD  bool operator==(const ColorAttachmentInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const ColorAttachmentInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const ColorAttachmentInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const ColorAttachmentInfo&) const = default;
         };
 
         /**
@@ -421,8 +420,8 @@ namespace PyroshockStudios {
              */
             DepthStencilClearValue clearValue = {};
 
-            PYRO_NODISCARD  bool operator==(const DepthStencilAttachmentInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DepthStencilAttachmentInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const DepthStencilAttachmentInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DepthStencilAttachmentInfo&) const = default;
         };
 
         /**
@@ -442,8 +441,8 @@ namespace PyroshockStudios {
              */
             Rect2D renderArea = {};
 
-            PYRO_NODISCARD  bool operator==(const RenderPassBeginInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const RenderPassBeginInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const RenderPassBeginInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const RenderPassBeginInfo&) const = default;
         };
 
         /**
@@ -464,8 +463,8 @@ namespace PyroshockStudios {
              */
             u32 offset = {};
 
-            PYRO_NODISCARD  bool operator==(const PushConstantInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const PushConstantInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const PushConstantInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const PushConstantInfo&) const = default;
         };
 
         /**
@@ -489,8 +488,8 @@ namespace PyroshockStudios {
              */
             PipelineBindPoint bindPoint = {};
 
-            PYRO_NODISCARD  bool operator==(const SetUniformBufferViewInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const SetUniformBufferViewInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const SetUniformBufferViewInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const SetUniformBufferViewInfo&) const = default;
         };
 
         /**
@@ -531,8 +530,8 @@ namespace PyroshockStudios {
              */
             DeviceSize offset = {};
 
-            PYRO_NODISCARD  bool operator==(const SetVertexBufferInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const SetVertexBufferInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const SetVertexBufferInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const SetVertexBufferInfo&) const = default;
         };
 
         /**
@@ -552,8 +551,8 @@ namespace PyroshockStudios {
              */
             IndexType indexType = IndexType::Uint32;
 
-            PYRO_NODISCARD  bool operator==(const SetIndexBufferInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const SetIndexBufferInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const SetIndexBufferInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const SetIndexBufferInfo&) const = default;
         };
 
         struct DrawInfo {
@@ -562,8 +561,8 @@ namespace PyroshockStudios {
             u32 firstVertex = {};
             u32 firstInstance = {};
 
-            PYRO_NODISCARD  bool operator==(const DrawInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DrawInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const DrawInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DrawInfo&) const = default;
         };
 
         struct DrawIndexedInfo {
@@ -573,8 +572,8 @@ namespace PyroshockStudios {
             i32 vertexOffset = {};
             u32 firstInstance = {};
 
-            PYRO_NODISCARD  bool operator==(const DrawIndexedInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DrawIndexedInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const DrawIndexedInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DrawIndexedInfo&) const = default;
         };
 
         struct DrawIndirectInfo {
@@ -583,8 +582,8 @@ namespace PyroshockStudios {
             u32 drawCount = 1;
             u32 drawCommandStride = sizeof(DrawArgumentBuffer);
 
-            PYRO_NODISCARD  bool operator==(const DrawIndirectInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DrawIndirectInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const DrawIndirectInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DrawIndirectInfo&) const = default;
         };
 
         struct DrawIndexedIndirectInfo {
@@ -593,8 +592,8 @@ namespace PyroshockStudios {
             u32 drawCount = 1;
             u32 drawCommandStride = sizeof(DrawIndexedArgumentBuffer);
 
-            PYRO_NODISCARD  bool operator==(const DrawIndexedIndirectInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DrawIndexedIndirectInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const DrawIndexedIndirectInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DrawIndexedIndirectInfo&) const = default;
         };
 
         struct DispatchInfo {
@@ -602,18 +601,18 @@ namespace PyroshockStudios {
             u32 y = 1;
             u32 z = 1;
 
-            PYRO_NODISCARD  bool operator==(const DispatchInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DispatchInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const DispatchInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DispatchInfo&) const = default;
         };
 
         struct DispatchIndirectInfo {
             Buffer indirectBuffer = PYRO_NULL_BUFFER;
             DeviceSize indirectBufferOffset = {};
-            //u32 dispatchCount = 1;
-            //u32 dispatchCommandStride = sizeof(DispatchArgumentBuffer);
+            // u32 dispatchCount = 1;
+            // u32 dispatchCommandStride = sizeof(DispatchArgumentBuffer);
 
-            PYRO_NODISCARD  bool operator==(const DispatchIndirectInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DispatchIndirectInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const DispatchIndirectInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DispatchIndirectInfo&) const = default;
         };
 
         /**
@@ -681,6 +680,43 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
             // Synchronization
             // ---------------------------------------------------------------------
+
+            /**
+             * @brief Transfers ownership of a buffer to another queue.
+             *        The resource can no longer be used in the current queue after this call.
+             *
+             * @param buffer  The buffer whose ownership is being transferred.
+             * @param dstQueue The destination queue that will take ownership of the buffer.
+             */
+            virtual void TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) = 0;
+
+            /**
+             * @brief Transfers ownership of an image to another queue.
+             *        The resource can no longer be used in the current queue after this call.
+             *
+             * @param image   The image whose ownership is being transferred.
+             * @param dstQueue The destination queue that will take ownership of the image.
+             */
+            virtual void TransferImageOwnership(Image image, ICommandQueue* dstQueue) = 0;
+
+            /**
+             * @brief Acquires ownership of a buffer from another queue.
+             *        The resource can only be used in the current queue after this call.
+             *
+             * @param buffer   The buffer whose ownership is being acquired.
+             * @param srcQueue The source queue that previously owned the buffer.
+             */
+            virtual void AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) = 0;
+
+            /**
+             * @brief Acquires ownership of an image from another queue.
+             *        The resource can only be used in the current queue after this call.
+             *
+             * @param image    The image whose ownership is being acquired.
+             * @param srcQueue The source queue that previously owned the image.
+             */
+            virtual void AcquireImageOwnership(Image image, ICommandQueue* srcQueue) = 0;
+
 
             /**
              * @brief Signals an event when all prior commands complete.

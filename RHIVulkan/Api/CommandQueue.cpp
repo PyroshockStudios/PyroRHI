@@ -41,7 +41,7 @@ namespace PyroshockStudios::RHIVulkan {
 
     ICommandBuffer* VulkanCommandQueue::GetCommandBuffer(const CommandBufferInfo& info) {
         auto [pool, buffer] = mCommandBufferPool->Get(mDevice, this);
-        return new VulkanCommandBuffer(mDevice, pool, buffer, info);
+        return new VulkanCommandBuffer(mDevice, this, pool, buffer, info);
     }
 
     void VulkanCommandQueue::SubmitCommandBuffer(ICommandBuffer*& commandBuffer) {
@@ -60,4 +60,4 @@ namespace PyroshockStudios::RHIVulkan {
     f64 VulkanCommandQueue::GetTimestampTickPeriodNs() const {
         return static_cast<f64>(mDevice->GetVkPhysicalDeviceProperties().limits.timestampPeriod);
     }
-}
+} // namespace PyroshockStudios::RHIVulkan

@@ -94,11 +94,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
         EXPECT_NO_THROW(copyCommands->CopyImageToImage(copyInfo));
 
         // Transfer queue ownership! Very important!
-        EXPECT_NO_THROW(copyCommands->ImageBarrier({
-            .image = dst,
-            .srcQueue = *pCopyQueue,
-            .dstQueue = *pGraphicsQueue,
-        }));
+        EXPECT_NO_THROW(copyCommands->TransferImageOwnership(dst, *pGraphicsQueue));
 
         copyCommands->Complete();
         (*pCopyQueue)->SubmitCommandBuffer(copyCommands);
@@ -108,11 +104,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
         ICommandBuffer* graphicsCommands = (*pGraphicsQueue)->GetCommandBuffer({});
 
         // Acquire queue ownership transfer! Very important!
-        EXPECT_NO_THROW(graphicsCommands->ImageBarrier({
-            .image = dst,
-            .srcQueue = *pCopyQueue,
-            .dstQueue = *pGraphicsQueue,
-        }));
+        EXPECT_NO_THROW(graphicsCommands->AcquireImageOwnership(dst, *pCopyQueue));
 
         BlitImageToImageInfo blitInfo{};
         blitInfo.srcImage = dst;
@@ -127,7 +119,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
             .srcLayout = ImageLayout::TransferDst,
             // The ownership must be done in the graphics queue, since Blit[...] is a graphics queue layout.
             .dstLayout = ImageLayout::BlitSrc,
-            // Transfer queue ownership! Very important!
         }));
 
         EXPECT_NO_THROW(graphicsCommands->ImageBarrier({

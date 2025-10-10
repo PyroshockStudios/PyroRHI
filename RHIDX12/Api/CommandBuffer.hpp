@@ -45,6 +45,10 @@ namespace PyroshockStudios {
             void UpdateBuffer(const UpdateBufferInfo& info) override;
             void BufferBarrier(const BufferMemoryBarrierInfo& info) override;
             void ImageBarrier(const ImageMemoryBarrierInfo& info) override;
+            void TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) override;
+            void TransferImageOwnership(Image image, ICommandQueue* dstQueue) override;
+            void AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) override;
+            void AcquireImageOwnership(Image image, ICommandQueue* srcQueue) override;
             void SignalEvent(const EventSignalInfo& info) override;
             void WaitEvents(const eastl::span<const EventWaitInfo>& infos) override;
             void WaitEvent(const EventWaitInfo& info) override;

@@ -23,9 +23,9 @@
 #pragma once
 #include <EASTL/unique_ptr.h>
 
+#include <PyroRHI/Api/ICommandBuffer.hpp>
 #include <RHIVulkan/Api/GPUResourcePool.hpp>
 #include <RHIVulkan/Core.hpp>
-#include <PyroRHI/Api/ICommandBuffer.hpp>
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
@@ -36,7 +36,7 @@ namespace PyroshockStudios {
         };
 
         struct CommandBufferPool : DeleteCopy, DeleteMove {
-            eastl::pair<VkCommandPool, VkCommandBuffer> Get(VulkanDevice * device, VulkanCommandQueue* queue);
+            eastl::pair<VkCommandPool, VkCommandBuffer> Get(VulkanDevice* device, VulkanCommandQueue* queue);
             void PutBack(eastl::pair<VkCommandPool, VkCommandBuffer> poolAndBuffer);
             void Cleanup(VulkanDevice* device, VulkanCommandQueue* queue);
 
@@ -45,7 +45,7 @@ namespace PyroshockStudios {
 
         class VulkanCommandBuffer : public ICommandBuffer, DeleteCopy, DeleteMove {
         public:
-            VulkanCommandBuffer(VulkanDevice* device, VkCommandPool pool, VkCommandBuffer buffer, const CommandBufferInfo& info);
+            VulkanCommandBuffer(VulkanDevice* device, VulkanCommandQueue* queue, VkCommandPool pool, VkCommandBuffer buffer, const CommandBufferInfo& info);
             ~VulkanCommandBuffer();
 
             void CopyBufferToBuffer(const CopyBufferToBufferInfo& info) override;
@@ -57,6 +57,11 @@ namespace PyroshockStudios {
             void UpdateBuffer(const UpdateBufferInfo& info) override;
             void BufferBarrier(const BufferMemoryBarrierInfo& info) override;
             void ImageBarrier(const ImageMemoryBarrierInfo& info) override;
+
+            void TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) override;
+            void TransferImageOwnership(Image image, ICommandQueue* dstQueue) override;
+            void AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) override;
+            void AcquireImageOwnership(Image image, ICommandQueue* srcQueue) override;
 
             void SignalEvent(const EventSignalInfo& info) override;
             void WaitEvents(const eastl::span<const EventWaitInfo>& infos) override;
@@ -106,6 +111,7 @@ namespace PyroshockStudios {
             eastl::unique_ptr<CommandBufferZombieInfo> TakeZombies() {
                 return eastl::move(mZombieInfo);
             }
+
         private:
             inline void FlushBarriers();
             // TODO
@@ -117,6 +123,7 @@ namespace PyroshockStudios {
             bool mCompleted = false;
 
             VulkanDevice* mDevice;
+            VulkanCommandQueue* mQueue;
             VkCommandPool mCommandPool;
             VkCommandBuffer mCommandBuffer;
         };
