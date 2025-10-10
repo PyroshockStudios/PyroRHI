@@ -74,7 +74,8 @@ namespace PyroshockStudios {
             u32 appVersion = {};
             u32 engineVersion = {};
             RHIOptionData options[PYRO_RHI_MAX_OPTIONS] = {};
-            ILogStream* pLoggerSink = nullptr;
+            ILogStream* pLoggerSink = nullptr; /**< General logging output stream.*/
+            ILogStream* pDebugSink = nullptr; /**< Debug output stream. Stuff such as VVL or DX12 Debug output */
         };
 
         struct RHIContextApiInfo {

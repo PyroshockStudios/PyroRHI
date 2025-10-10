@@ -26,6 +26,7 @@
 #include "Pipeline.hpp"
 #include "QueryPool.hpp"
 #include "RenderTarget.hpp"
+#include <RHIDX12/D3DContext.hpp>
 
 #include <DirectXMath.h>
 #include <libassert/assert.hpp>
@@ -43,6 +44,7 @@ namespace PyroshockStudios {
             const auto& src = mDevice->ResourcePool().Get(info.srcBuffer);
             const auto& dst = mDevice->ResourcePool().Get(info.dstBuffer);
             mCommandList->CopyBufferRegion(dst.resource.Get(), info.dstOffset, src.resource.Get(), info.srcOffset, info.size);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::CopyBufferToImage(const CopyBufferToImageInfo& info) {
@@ -66,28 +68,69 @@ namespace PyroshockStudios {
                 CD3DX12_TEXTURE_COPY_LOCATION Src(src.resource.Get(), footprint);
                 mCommandList->CopyTextureRegion(&Dst, info.imageOffset.x, info.imageOffset.y, info.imageOffset.z, &Src, nullptr);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::CopyImageToBuffer(const CopyImageToBufferInfo& info) {
-            // TODO, this is probably broken
             const auto& src = mDevice->ResourcePool().Get(info.image);
             const auto& dst = mDevice->ResourcePool().Get(info.buffer);
 
             for (UINT j = 0; j < info.imageSlice.layerCount; ++j) {
-                UINT srcSubresource = D3D12CalcSubresource(info.imageSlice.mipLevel, info.imageSlice.baseArrayLayer + j, 0, src.info.mipLevelCount, src.info.arrayLayerCount);
+                UINT srcSubresource = D3D12CalcSubresource(
+                    info.imageSlice.mipLevel,
+                    info.imageSlice.baseArrayLayer + j,
+                    0,
+                    src.info.mipLevelCount,
+                    src.info.arrayLayerCount);
+
                 D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
-                UINT numRows = {};
-                UINT64 rowSizesInBytes = {};
-                UINT64 requiredSize = {};
-                mDevice->InternalDevice()->GetCopyableFootprints(&src.desc, srcSubresource, 1, 0,
-                    &footprint, &numRows, &rowSizesInBytes, &requiredSize);
-                ASSERT(PYRO_VERIFY_ALIGNMENT(info.rowPitch, rowSizesInBytes), "Row Pitch MUST be aligned to device requirements!");
-                rowSizesInBytes = info.rowPitch;
+                UINT numRows = 0;
+                UINT64 rowSizeInBytes = 0;
+                UINT64 requiredSize = 0;
+
+                // Use bufferOffset as base so footprint.Offset includes it
+                mDevice->InternalDevice()->GetCopyableFootprints(
+                    &src.desc,
+                    srcSubresource,
+                    1,
+                    info.bufferOffset, // base offset into destination buffer
+                    &footprint,
+                    &numRows,
+                    &rowSizeInBytes,
+                    &requiredSize);
+
+                ASSERT(PYRO_VERIFY_ALIGNMENT(info.rowPitch, rowSizeInBytes),
+                    "Row Pitch MUST be aligned to device requirements!");
+
+                // Update the footprint to reflect the desired copy region
+                footprint.Footprint.RowPitch = info.rowPitch;
+                footprint.Footprint.Width = info.imageExtent.x;
+                footprint.Footprint.Height = info.imageExtent.y;
+                footprint.Footprint.Depth = info.imageExtent.z;
+
+                // Destination is the buffer footprint, source is the image
                 CD3DX12_TEXTURE_COPY_LOCATION Dst(dst.resource.Get(), footprint);
                 CD3DX12_TEXTURE_COPY_LOCATION Src(src.resource.Get(), srcSubresource);
-                mCommandList->CopyTextureRegion(&Dst, info.bufferOffset, 0, 0, &Src, nullptr);
+
+                auto srcBox = CD3DX12_BOX(
+                    info.imageOffset.x,
+                    info.imageOffset.y,
+                    info.imageOffset.z,
+                    info.imageOffset.x + info.imageExtent.x,
+                    info.imageOffset.y + info.imageExtent.y,
+                    info.imageOffset.z + info.imageExtent.z);
+                // Copy from the specified offset within the image
+                mCommandList->CopyTextureRegion(
+                    &Dst,
+                    0, 0, 0, // destination coords in buffer
+                    &Src,
+                    reinterpret_cast<const D3D12_BOX*>(
+                        &srcBox));
             }
+
+            gDx12Context->FlushDebugMessages();
         }
+
 
         void D3DCommandBuffer::CopyImageToImage(const CopyImageToImageInfo& info) {
             const auto& src = mDevice->ResourcePool().Get(info.srcImage);
@@ -100,6 +143,7 @@ namespace PyroshockStudios {
                 D3D12_BOX srcBox = ToD3D12Box(Box3D::Cut(info.extent, info.srcOffset));
                 mCommandList->CopyTextureRegion(&dstCpy, (UINT)info.dstOffset.x, (UINT)info.dstOffset.y, (UINT)info.dstOffset.z, &srcCpy, &srcBox);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::BlitImageToImage(const BlitImageToImageInfo& info) {
@@ -206,40 +250,50 @@ namespace PyroshockStudios {
                 mCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
                 mCommandList->DrawInstanced(4, 1, 0, 0);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::ClearUnorderedAccessView(const ClearUnorderedAccessViewInfo& info) {
             // FIXME: optimise this by caching the UAVs, this is probably insanely slow
-            ID3D12DescriptorHeap* heap = nullptr;
+            ID3D12DescriptorHeap* heapGpu = nullptr;
+            ID3D12DescriptorHeap* heapCpu = nullptr;
             D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
             heapDesc.NumDescriptors = 1;
             heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
             heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heap)));
-            D3DSetDebugName(heap, "UAV Clear Desriptor Heap");
+            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heapGpu)));
+            heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heapCpu)));
+            D3DSetDebugName(heapGpu, "UAV Clear GPU Desriptor Heap");
+            D3DSetDebugName(heapCpu, "UAV Clear CPU Desriptor Heap");
 
             D3D12_CPU_DESCRIPTOR_HANDLE handle = mDevice->ResourcePool().mUAVHeap.Resolve(info.view);
-            mDevice->InternalDevice()->CopyDescriptorsSimple(1U, heap->GetCPUDescriptorHandleForHeapStart(), handle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            mDevice->InternalDevice()->CopyDescriptorsSimple(1U, heapGpu->GetCPUDescriptorHandleForHeapStart(), handle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+            mDevice->InternalDevice()->CopyDescriptorsSimple(1U, heapCpu->GetCPUDescriptorHandleForHeapStart(), handle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
             ID3D12Resource* resource = {};
             bool bUintClear = false;
             bool bRepeatFirst = false;
             const auto& vinfo = mDevice->ResourcePool().mUAVHeap.GetInfo(info.view);
+
             if (eastl::holds_alternative<BufferResourceInfo>(vinfo)) {
-                resource = mDevice->ResourcePool().Get(eastl::get<BufferResourceInfo>(vinfo).buffer).resource.Get();
+                auto& bresinfo = eastl::get<BufferResourceInfo>(vinfo);
+                resource = mDevice->ResourcePool().Get(bresinfo.buffer).resource.Get();
                 bUintClear = true;
+                bRepeatFirst = true;
             } else if (eastl::holds_alternative<ImageResourceInfo>(vinfo)) {
-                auto& imgInfo = mDevice->ResourcePool().Get(eastl::get<ImageResourceInfo>(vinfo).image);
+                auto& iresinfo = eastl::get<ImageResourceInfo>(vinfo);
+                auto& imgInfo = mDevice->ResourcePool().Get(iresinfo.image);
                 resource = imgInfo.resource.Get();
                 bUintClear = RHIUtil::GetFormatNumericType(eastl::get<ImageResourceInfo>(vinfo).format == Format::Inherit
                                                                ? imgInfo.info.format
                                                                : eastl::get<ImageResourceInfo>(vinfo).format) != RHIUtil::FormatNumericType::Float;
+                bRepeatFirst = false;
             } else {
                 ASSERT(false, "BAD VARIANT");
             }
 
-            mCommandList->SetDescriptorHeaps(1U, &heap);
+            mCommandList->SetDescriptorHeaps(1U, &heapGpu);
             if (bUintClear) {
                 UINT clearUint[4];
                 if (bRepeatFirst) {
@@ -253,8 +307,8 @@ namespace PyroshockStudios {
                     clearUint[2] = info.clearValue.uint32[2];
                     clearUint[3] = info.clearValue.uint32[3];
                 }
-                mCommandList->ClearUnorderedAccessViewUint(heap->GetGPUDescriptorHandleForHeapStart(), heap->GetCPUDescriptorHandleForHeapStart(),
-                    resource, clearUint, 1, nullptr);
+                mCommandList->ClearUnorderedAccessViewUint(heapGpu->GetGPUDescriptorHandleForHeapStart(), heapCpu->GetCPUDescriptorHandleForHeapStart(),
+                    resource, clearUint, 0, nullptr);
             } else {
                 FLOAT clearFlt[4];
                 if (bRepeatFirst) {
@@ -268,11 +322,17 @@ namespace PyroshockStudios {
                     clearFlt[2] = info.clearValue.float32[2];
                     clearFlt[3] = info.clearValue.float32[3];
                 }
-                mCommandList->ClearUnorderedAccessViewFloat(heap->GetGPUDescriptorHandleForHeapStart(), heap->GetCPUDescriptorHandleForHeapStart(),
-                    resource, clearFlt, 1, nullptr);
+                mCommandList->ClearUnorderedAccessViewFloat(heapGpu->GetGPUDescriptorHandleForHeapStart(), heapCpu->GetCPUDescriptorHandleForHeapStart(),
+                    resource, clearFlt, 0, nullptr);
             }
             mDeferredDeleteOps.push_back({
-                .resource = reinterpret_cast<void*>(heap),
+                .resource = reinterpret_cast<void*>(heapGpu),
+                .deleter = [](D3DDevice* device, void* resource) {
+                    reinterpret_cast<ID3D12DescriptorHeap*>(resource)->Release();
+                },
+            });
+            mDeferredDeleteOps.push_back({
+                .resource = reinterpret_cast<void*>(heapCpu),
                 .deleter = [](D3DDevice* device, void* resource) {
                     reinterpret_cast<ID3D12DescriptorHeap*>(resource)->Release();
                 },
@@ -281,6 +341,7 @@ namespace PyroshockStudios {
             mGraphicsLastBoundUAVDescriptorTable = {};
             mComputeLastBoundUAVDescriptorTable = {};
             FlushPendingUnorderedAccessViewBinds();
+            gDx12Context->FlushDebugMessages();
         }
         void D3DCommandBuffer::UpdateBuffer(const UpdateBufferInfo& info) {
             if (!mCurrentLinearUploadBuffer) {
@@ -298,9 +359,12 @@ namespace PyroshockStudios {
             memcpy(ptr, info.data, sz);
             mCommandList->CopyBufferRegion(dstBuffer.resource.Get(), info.region.offset,
                 mCurrentLinearUploadBuffer->GetResource(), offset, sz);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::BufferBarrier(const BufferMemoryBarrierInfo& info) {
+            if (info.srcLayout == BufferLayout::Undefined && info.dstLayout == BufferLayout::Undefined)
+                return;
             auto& bufferInfo = mDevice->ResourcePool().Get(info.buffer);
             D3D12_RESOURCE_BARRIER barrier = {};
             barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -310,20 +374,18 @@ namespace PyroshockStudios {
             barrier.Transition.StateAfter = ToD3D12BufferResourceState(info.dstLayout);
             barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
             if (barrier.Transition.StateAfter == barrier.Transition.StateBefore) {
-                if (info.srcQueue == nullptr && info.dstQueue == nullptr || barrier.Transition.StateAfter != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-                    return;
-                } else {
-                    D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(barrier.Transition.pResource);
-                    mCommandList->ResourceBarrier(1, &uavBarrier);
-                }
+                return;
             }
             mCommandList->ResourceBarrier(1, &barrier);
-            // FIXME: we need to keep 1 state per queue/command list, since this can be recorded on seperate threads, or submitted 
+            // FIXME: we need to keep 1 state per queue/command list, since this can be recorded on seperate threads, or submitted
             // in a different order!!!
             bufferInfo.lastValidState = barrier.Transition.StateAfter;
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::ImageBarrier(const ImageMemoryBarrierInfo& info) {
+            if (info.srcLayout == ImageLayout::Undefined && info.dstLayout == ImageLayout::Undefined)
+                return;
             auto& imageInfo = mDevice->ResourcePool().Get(info.image);
             D3D12_RESOURCE_BARRIER barrier = {};
             barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -381,12 +443,7 @@ namespace PyroshockStudios {
                 barrier.Transition.StateAfter = ToD3D12ImageResourceState(info.dstLayout) & validMask;
             }
             if (barrier.Transition.StateAfter == barrier.Transition.StateBefore) {
-                if (info.srcQueue == nullptr && info.dstQueue == nullptr || barrier.Transition.StateAfter != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-                    return;
-                } else {
-                    D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(barrier.Transition.pResource);
-                    mCommandList->ResourceBarrier(1, &uavBarrier);
-                }
+                return;
             }
             for (UINT i = 0; i < info.imageSlice.levelCount; ++i) {
                 for (UINT j = 0; j < info.imageSlice.layerCount; ++j) {
@@ -397,6 +454,29 @@ namespace PyroshockStudios {
                     // in a different order!!!
                     imageInfo.lastValidStates[barrier.Transition.Subresource] = barrier.Transition.StateAfter;
                 }
+            }
+            gDx12Context->FlushDebugMessages();
+        }
+
+        void D3DCommandBuffer::TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) {
+        }
+
+        void D3DCommandBuffer::TransferImageOwnership(Image image, ICommandQueue* dstQueue) {
+        }
+
+        void D3DCommandBuffer::AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) {
+            auto& bufferInfo = mDevice->ResourcePool().Get(buffer);
+            if (bufferInfo.lastValidState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+                D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(bufferInfo.resource.Get());
+                mCommandList->ResourceBarrier(1, &uavBarrier);
+            }
+        }
+
+        void D3DCommandBuffer::AcquireImageOwnership(Image image, ICommandQueue* srcQueue) {
+            auto& imageInfo = mDevice->ResourcePool().Get(image);
+            if (imageInfo.lastValidStates[0] == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+                D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(imageInfo.resource.Get());
+                mCommandList->ResourceBarrier(1, &uavBarrier);
             }
         }
 
@@ -514,6 +594,7 @@ namespace PyroshockStudios {
             auto& pair = mPendingQueryPoolMinMaxResolves[pool];
             pair.first = eastl::min(pair.first, info.queryIndex);
             pair.second = eastl::max(pair.second, info.queryIndex);
+            gDx12Context->FlushDebugMessages();
         }
 
 
@@ -525,12 +606,14 @@ namespace PyroshockStudios {
                          (u64)(info.labelColor.b * 255) << 8 |
                          (u64)(info.labelColor.a * 255) << 0;
             gPixBeginEventOnCommandListFn(mCommandList.Get(), col, info.name.data());
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::EndLabel() {
             if (!gPixBeginEventOnCommandListFn)
                 return;
             gPixEndEventOnCommandListFn(mCommandList.Get());
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::BeginRenderPass(const RenderPassBeginInfo& info) {
@@ -607,6 +690,7 @@ namespace PyroshockStudios {
             };
             mCommandList->RSSetViewports(1, &viewport);
             mCommandList->RSSetScissorRects(1, &renderArea);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::EndRenderPass() {
@@ -639,16 +723,20 @@ namespace PyroshockStudios {
                 mCommandList->ResourceBarrier(2, exitBarriers);
             }
             mRenderPassResolves.clear();
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::PushConstantVPtr(const PushConstantInfo& info) {
             ASSERT(PYRO_VERIFY_ALIGNMENT(info.size, 4), "Push constants must be DWord aligned!");
             ASSERT(PYRO_VERIFY_ALIGNMENT(info.offset, 4), "Push constants must be DWord aligned!");
-            if (bIsComputePipeline) {
+
+            if (queueFlags & CommandQueueFlagBits::COMPUTE) {
                 mCommandList->SetComputeRoot32BitConstants(0, info.size / 4, info.data, info.offset / 4);
-            } else {
+            }
+            if (queueFlags & CommandQueueFlagBits::GRAPHICS) {
                 mCommandList->SetGraphicsRoot32BitConstants(0, info.size / 4, info.data, info.offset / 4);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetUniformBufferView(const SetUniformBufferViewInfo& info) {
@@ -660,6 +748,7 @@ namespace PyroshockStudios {
             } else if (info.bindPoint == PipelineBindPoint::Compute) {
                 mCommandList->SetComputeRootConstantBufferView(info.slot + 6, gpuAddress);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetUnorderedAccessView(const SetUnorderedAccessViewInfo& info) {
@@ -667,6 +756,7 @@ namespace PyroshockStudios {
                 mPendingUAVBinds.boundUavs.resize(info.slot + 1);
             }
             mPendingUAVBinds.boundUavs[info.slot] = info.view;
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetRasterPipeline(RasterPipeline pipeline) {
@@ -698,6 +788,7 @@ namespace PyroshockStudios {
                 mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
                 bBlitImageState = false;
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetComputePipeline(ComputePipeline pipeline) {
@@ -708,6 +799,7 @@ namespace PyroshockStudios {
                     pipe->mEmulatedSpecialisationConstant->GetGPUVirtualAddress());
             }
             bIsComputePipeline = true;
+            gDx12Context->FlushDebugMessages();
         }
         void D3DCommandBuffer::SetViewport(const ViewportInfo& info) {
             D3D12_VIEWPORT viewport{
@@ -719,11 +811,13 @@ namespace PyroshockStudios {
                 .MaxDepth = info.maxDepth,
             };
             mCommandList->RSSetViewports(1, &viewport);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetScissor(const Rect2D& info) {
             D3D12_RECT renderArea = ToD3D12Rect(info);
             mCommandList->RSSetScissorRects(1, &renderArea);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetVertexBuffer(const SetVertexBufferInfo& info) {
@@ -738,6 +832,7 @@ namespace PyroshockStudios {
             mPendingVertexBufferBinds[info.slot].BufferLocation = bufferInfo.resource->GetGPUVirtualAddress() + info.offset;
             mPendingVertexBufferBinds[info.slot].SizeInBytes = static_cast<u32>(eastl::min(bufferInfo.info.size - info.offset, static_cast<u64>(UINT32_MAX)));
             mInvalidatedVertexBufferBindings.emplace(info.slot);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::SetIndexBuffer(const SetIndexBufferInfo& info) {
@@ -758,18 +853,21 @@ namespace PyroshockStudios {
             view.BufferLocation = bufferInfo.resource->GetGPUVirtualAddress() + info.offset;
             view.SizeInBytes = static_cast<u32>(eastl::min(bufferInfo.info.size - info.offset, static_cast<u64>(UINT32_MAX)));
             mCommandList->IASetIndexBuffer(&view);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::Draw(const DrawInfo& info) {
             FlushPendingUnorderedAccessViewBinds();
             FlushPendingVertexBufferBinds();
             mCommandList->DrawInstanced(info.vertexCount, info.instanceCount, info.firstVertex, info.firstInstance);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::DrawIndexed(const DrawIndexedInfo& info) {
             FlushPendingUnorderedAccessViewBinds();
             FlushPendingVertexBufferBinds();
             mCommandList->DrawIndexedInstanced(info.indexCount, info.instanceCount, info.firstIndex, info.vertexOffset, info.firstInstance);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::DrawIndirect(const DrawIndirectInfo& info) {
@@ -787,6 +885,7 @@ namespace PyroshockStudios {
             if (info.drawCount > 1) {
                 mCommandList->SetGraphicsRoot32BitConstant(17, 0, 0);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::DrawIndexedIndirect(const DrawIndexedIndirectInfo& info) {
@@ -804,11 +903,13 @@ namespace PyroshockStudios {
             if (info.drawCount > 1) {
                 mCommandList->SetGraphicsRoot32BitConstant(17, 0, 0);
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::Dispatch(const DispatchInfo& info) {
             FlushPendingUnorderedAccessViewBinds();
             mCommandList->Dispatch(info.x, info.y, info.z);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::DispatchIndirect(const DispatchIndirectInfo& info) {
@@ -816,6 +917,7 @@ namespace PyroshockStudios {
             ID3D12CommandSignature* signature = mDevice->GetDispatchCommandSignature();
             mCommandList->ExecuteIndirect(signature,
                 1, mDevice->ResourcePool().Get(info.indirectBuffer).resource.Get(), info.indirectBufferOffset, nullptr, 0);
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::Complete() {
@@ -839,6 +941,7 @@ namespace PyroshockStudios {
                 mPendingReturnLinearUploadBuffers.push_back(mCurrentLinearUploadBuffer);
                 mCurrentLinearUploadBuffer = nullptr;
             }
+            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::FlushPendingVertexBufferBinds() {
@@ -852,6 +955,7 @@ namespace PyroshockStudios {
                 mCommandList->IASetVertexBuffers(binding, 1, &mPendingVertexBufferBinds[binding]);
             }
             mInvalidatedVertexBufferBindings.clear();
+            gDx12Context->FlushDebugMessages();
         }
         void D3DCommandBuffer::FlushPendingUnorderedAccessViewBinds() {
             // HACK:
@@ -864,22 +968,23 @@ namespace PyroshockStudios {
                 descriptorTable.mHeap.Get(),
                 mDevice->ResourcePool().mSamplerHeap.InternalHeap()
             };
-            if (bIsComputePipeline) {
-                if (descriptorTable == mComputeLastBoundUAVDescriptorTable)
-                    return;
-                mComputeLastBoundUAVDescriptorTable = descriptorTable;
-
-                mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
-                mCommandList->SetComputeRootDescriptorTable(14, descriptorTable.gpuDescriptor);
-                mCommandList->SetComputeRootDescriptorTable(16, descriptorTable.gpuDescriptor);
-            } else {
-                if (descriptorTable == mGraphicsLastBoundUAVDescriptorTable)
-                    return;
-                mGraphicsLastBoundUAVDescriptorTable = descriptorTable;
-                mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
-                mCommandList->SetGraphicsRootDescriptorTable(14, descriptorTable.gpuDescriptor);
-                mCommandList->SetGraphicsRootDescriptorTable(16, descriptorTable.gpuDescriptor);
+            if (queueFlags & CommandQueueFlagBits::COMPUTE) {
+                if (descriptorTable != mComputeLastBoundUAVDescriptorTable) {
+                    mComputeLastBoundUAVDescriptorTable = descriptorTable;
+                    mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
+                    mCommandList->SetComputeRootDescriptorTable(14, descriptorTable.gpuDescriptor);
+                    mCommandList->SetComputeRootDescriptorTable(16, descriptorTable.gpuDescriptor);
+                }
             }
+            if (queueFlags & CommandQueueFlagBits::GRAPHICS) {
+                if (descriptorTable != mGraphicsLastBoundUAVDescriptorTable) {
+                    mGraphicsLastBoundUAVDescriptorTable = descriptorTable;
+                    mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
+                    mCommandList->SetGraphicsRootDescriptorTable(14, descriptorTable.gpuDescriptor);
+                    mCommandList->SetGraphicsRootDescriptorTable(16, descriptorTable.gpuDescriptor);
+                }
+            }
+            gDx12Context->FlushDebugMessages();
         }
     } // namespace RHIDX12
 } // namespace PyroshockStudios

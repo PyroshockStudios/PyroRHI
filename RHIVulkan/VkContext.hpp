@@ -33,12 +33,13 @@ namespace PyroshockStudios {
             const char* engineName = "";
             u32 appVersion = {};
             u32 engineVersion = {};
+            bool bHeadless = false;
             bool bEnableValidation = false;
             i64 preferredPhysicalDevice = -1; // -1 == pick most suitable
         };
         class VulkanContext : public RHIContext {
         public:
-            VulkanContext(const VulkanContextArgs& args,  ILogStream* logSink);
+            VulkanContext(const VulkanContextArgs& args, ILogStream* logSink, ILogStream* vvlSink);
             ~VulkanContext();
 
             IDevice* CreateDevice() override;
@@ -64,6 +65,12 @@ namespace PyroshockStudios {
             static void OnFreeNotify(void* userData, usize size, VkInternalAllocationType allocationType, VkSystemAllocationScope scope);
 
             eastl::vector<VulkanDevice*> mCreatedDevices = {};
+
+            ILogStream* mVVLSink = nullptr;
+
+            VkDebugUtilsMessengerEXT mMessenger = VK_NULL_HANDLE;
+            PFN_vkCreateDebugUtilsMessengerEXT m_fnVkCreateDebugUtilsMessengerEXT = nullptr;
+            PFN_vkDestroyDebugUtilsMessengerEXT m_fnVkDestroyDebugUtilsMessengerEXT = nullptr;
 
             VkInstance mInstance = {};
             VkAllocationCallbacks mAllocator = {};

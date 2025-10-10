@@ -41,11 +41,13 @@ static constexpr PyroshockStudios::GUID gVulkanRhiGuid = "303e392f-9d80-4e96-88c
 
 enum RhiOptionIndices {
     eValidation = 0,
-    eDevice = 1,
+    eHeadless = 1,
+    eDevice = 2,
     eMAX_OPTIONS
 };
 static const RHIOptionInfo gRhiOptions[PYRO_RHI_MAX_OPTIONS] = {
     { .name = "debug" },
+    { .name = "headless" },
     { .name = "device", .valueType = RHIOptionValueType::Integer }
 };
 
@@ -78,6 +80,10 @@ PYRO_EXPORT void PYRO_CDECL CreateRHIContext(const RHICreateInfo* pCreateInfo, R
             Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Enabled validation layers");
             contextArgs.bEnableValidation = true;
             break;
+        case eHeadless:
+            Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Chose physical device index {}", option.intValue);
+            contextArgs.bHeadless = true;
+            break;
         case eDevice:
             Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Chose physical device index {}", option.intValue);
             contextArgs.preferredPhysicalDevice = option.intValue;
@@ -88,7 +94,7 @@ PYRO_EXPORT void PYRO_CDECL CreateRHIContext(const RHICreateInfo* pCreateInfo, R
         }
     }
 
-    pApi->loadedContext = new VulkanContext(contextArgs, pCreateInfo->pLoggerSink);
+    pApi->loadedContext = new VulkanContext(contextArgs, pCreateInfo->pLoggerSink, pCreateInfo->pDebugSink);
 }
 PYRO_EXPORT void PYRO_CDECL DestroyRHIContext(RHIContextApiInfo* pApi) {
     VulkanContext* ctx = static_cast<VulkanContext*>(pApi->loadedContext);

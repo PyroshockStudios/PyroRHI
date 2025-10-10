@@ -32,11 +32,11 @@ namespace PyroshockStudios {
                 const auto& imageData = mDevice->ResourcePool().Get(mInfo.image);
                 view.Format = ToDXGIFormat(imageData.info.format);
                 if (mInfo.slice.arrayLayer == 0) {
-                    view.ViewDimension = imageData.info.sampleCount == 1 ? D3D12_DSV_DIMENSION_TEXTURE2D : D3D12_DSV_DIMENSION_TEXTURE2DMS;
+                    view.ViewDimension = imageData.info.sampleCount == RasterizationSamples::e1 ? D3D12_DSV_DIMENSION_TEXTURE2D : D3D12_DSV_DIMENSION_TEXTURE2DMS;
                     view.Texture2D.MipSlice = mInfo.slice.mipLevel;
                     mSubresource = D3D12CalcSubresource(view.Texture2D.MipSlice, 0, 0, imageData.info.mipLevelCount, imageData.info.arrayLayerCount);
                 } else {
-                    view.ViewDimension = imageData.info.sampleCount == 1 ? D3D12_DSV_DIMENSION_TEXTURE2DARRAY : D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
+                    view.ViewDimension = imageData.info.sampleCount == RasterizationSamples::e1 ? D3D12_DSV_DIMENSION_TEXTURE2DARRAY : D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
                     view.Texture2DArray.MipSlice = mInfo.slice.mipLevel;
                     view.Texture2DArray.FirstArraySlice = mInfo.slice.arrayLayer;
                     view.Texture2DArray.ArraySize = 1;
@@ -49,11 +49,11 @@ namespace PyroshockStudios {
                 view.Format = ToDXGIFormat(imageData.info.format);
 
                 if (mInfo.slice.arrayLayer == 0) {
-                    view.ViewDimension = imageData.info.sampleCount == 1 ? D3D12_RTV_DIMENSION_TEXTURE2D : D3D12_RTV_DIMENSION_TEXTURE2DMS;
+                    view.ViewDimension = imageData.info.sampleCount == RasterizationSamples::e1 ? D3D12_RTV_DIMENSION_TEXTURE2D : D3D12_RTV_DIMENSION_TEXTURE2DMS;
                     view.Texture2D.MipSlice = mInfo.slice.mipLevel;
                     mSubresource = D3D12CalcSubresource(view.Texture2D.MipSlice, 0, 0, imageData.info.mipLevelCount, imageData.info.arrayLayerCount);
                 } else {
-                    view.ViewDimension = imageData.info.sampleCount == 1 ? D3D12_RTV_DIMENSION_TEXTURE2DARRAY : D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
+                    view.ViewDimension = imageData.info.sampleCount == RasterizationSamples::e1 ? D3D12_RTV_DIMENSION_TEXTURE2DARRAY : D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
                     view.Texture2DArray.MipSlice = mInfo.slice.mipLevel;
                     view.Texture2DArray.FirstArraySlice = mInfo.slice.arrayLayer;
                     view.Texture2DArray.ArraySize = 1;

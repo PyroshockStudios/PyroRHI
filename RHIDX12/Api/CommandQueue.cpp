@@ -20,6 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <RHIDX12/D3DContext.hpp>
 #include "CommandQueue.hpp"
 #include "CommandBuffer.hpp"
 #include "SwapChain.hpp"
@@ -45,6 +46,7 @@ namespace PyroshockStudios {
                 D3DSetDebugName(commandAllocator, (info.name + " Allocator").c_str());
                 CheckD3DResult(mDevice->InternalDevice()->CreateCommandList(0, type, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
                 commands = new D3DCommandBuffer(mDevice, eastl::move(commandList), eastl::move(commandAllocator));
+                commands->queueFlags = mInfo.flags;
             } else {
                 commands = mPooledCommandBuffers.back();
                 mPooledCommandBuffers.pop_back();
@@ -56,21 +58,29 @@ namespace PyroshockStudios {
             } else {
                 commands->bUsedBefore = true;
             }
-            commands->GetCommands()->SetGraphicsRootSignature(mDevice->mRootSignature.Get());
-            commands->GetCommands()->SetComputeRootSignature(mDevice->mRootSignature.Get());
-
-            commands->GetCommands()->SetGraphicsRoot32BitConstant(17, 0, 0);
-
             eastl::array<ID3D12DescriptorHeap* const, 2u> descriptorHeaps{
-               mDevice-> mDefaultUAVDescriptorTable.mHeap.Get(),
+                mDevice->mDefaultUAVDescriptorTable.mHeap.Get(),
                 mDevice->ResourcePool().mSamplerHeap.InternalHeap()
             };
 
             commands->GetCommands()->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
-            commands->GetCommands()->SetGraphicsRootDescriptorTable(14, mDevice->mDefaultUAVDescriptorTable.gpuDescriptor);
-            commands->GetCommands()->SetGraphicsRootDescriptorTable(15, mDevice->ResourcePool().mSamplerHeap.DeviceHandle());
-            commands->GetCommands()->SetComputeRootDescriptorTable(14, mDevice->mDefaultUAVDescriptorTable.gpuDescriptor);
-            commands->GetCommands()->SetComputeRootDescriptorTable(15, mDevice->ResourcePool().mSamplerHeap.DeviceHandle());
+            if (mInfo.flags & CommandQueueFlagBits::COMPUTE) {
+                commands->GetCommands()->SetComputeRootSignature(mDevice->mRootSignature.Get());
+
+                commands->GetCommands()->SetComputeRootDescriptorTable(14, mDevice->mDefaultUAVDescriptorTable.gpuDescriptor);
+                commands->GetCommands()->SetComputeRootDescriptorTable(15, mDevice->ResourcePool().mSamplerHeap.DeviceHandle());
+
+            }
+            if (mInfo.flags & CommandQueueFlagBits::GRAPHICS) {
+                commands->GetCommands()->SetGraphicsRootSignature(mDevice->mRootSignature.Get());
+
+                commands->GetCommands()->SetGraphicsRoot32BitConstant(17, 0, 0);
+
+                commands->GetCommands()->SetGraphicsRootDescriptorTable(14, mDevice->mDefaultUAVDescriptorTable.gpuDescriptor);
+                commands->GetCommands()->SetGraphicsRootDescriptorTable(15, mDevice->ResourcePool().mSamplerHeap.DeviceHandle());
+            }
+
+            gDx12Context->FlushDebugMessages();
 
             return commands;
         }

@@ -114,7 +114,7 @@ namespace PyroshockStudios {
             if (type & ImageUsageFlagBits::SHADER_RESOURCE)
                 retFlags |= VK_IMAGE_USAGE_SAMPLED_BIT;
             if (type & ImageUsageFlagBits::UNORDERED_ACCESS)
-                retFlags |= VK_IMAGE_USAGE_STORAGE_BIT;
+                retFlags |= VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT /* clear UAV */;
             if (type & ImageUsageFlagBits::RENDER_TARGET)
                 retFlags |= RHIUtil::FormatIsDepthStencil(format) ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
             if (type & ImageUsageFlagBits::TRANSIENT_ATTACHMENT)

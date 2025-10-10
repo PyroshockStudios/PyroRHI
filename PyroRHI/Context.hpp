@@ -38,6 +38,7 @@ namespace PyroshockStudios {
             RightHanded_OriginBottomLeft
         };
         struct RHIProperties {
+            bool bHeadlessEnvironment = false;
             bool bBufferDeviceAddress = false;
             bool bDrawIndirectCount = false;
             bool bUint8IndexBuffer = false;

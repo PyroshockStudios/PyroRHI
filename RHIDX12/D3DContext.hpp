@@ -27,13 +27,16 @@
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
+        class D3DContext;
+        extern D3DContext* gDx12Context;
         class D3DDevice;
         struct D3DContextArgs {
             bool bDebug = false;
+            bool bWarpDriver = false;
         };
         class D3DContext : public RHIContext {
         public:
-            D3DContext(const D3DContextArgs& args,  ILogStream* logSink);
+            D3DContext(const D3DContextArgs& args, ILogStream* logSink, ILogStream* debugSink);
             ~D3DContext();
             void GetHardwareAdapter(
                 IDXGIFactory1* pFactory,
@@ -44,9 +47,19 @@ namespace PyroshockStudios {
             IShaderFeatureSet* ShaderFeatureSet() override;
 
             void InjectLogger( ILogStream* stream) override;
+
+            PYRO_FORCEINLINE void FlushDebugMessages() {
+                if (!mInfoQueue) return;
+
+                InternalFlushDebugMessages();
+            }
         private:
+            void InternalFlushDebugMessages();
+
+            ComPtr<ID3D12InfoQueue> mInfoQueue =nullptr;
             D3DDevice* mDevice = nullptr;
             HMODULE mPixRuntimeDll = {};
+            ILogStream* mDebugSink = nullptr;
         };
-    } // namespace RHIDX12
+    }
 } // namespace PyroshockStudios

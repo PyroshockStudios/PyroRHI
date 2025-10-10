@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #pragma once
-#include <PyroRHI/Core.hpp>
 #include <PyroCommon/Platform.hpp>
 
 //-------------------------------------------------------------------------------------------------

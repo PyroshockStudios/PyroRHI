@@ -1,4 +1,4 @@
-name: Linux Build (GCC & Clang)
+name: Vulkan Validation (Ubuntu GCC)
 permissions:
   contents: read
   
@@ -14,16 +14,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [gcc, clang]
+        compiler: [gcc]
         build_type: [Release]
         include:
           - compiler: gcc
             c: gcc
             cxx: g++
-          - compiler: clang
-            c: clang
-            cxx: clang++
-
     steps:
       - name: Checkout repository with submodules
         uses: actions/checkout@v4
@@ -38,6 +34,10 @@ jobs:
             vulkan-query-version: latest
             vulkan-components: Vulkan-Headers, Vulkan-Loader
             vulkan-use-cache: true
+      - name: Install Vulkan Validation Layers
+        run: sudo apt-get update && sudo apt-get install -y vulkan-validationlayers
+      - name: Install Vulkan Mesa Drivers
+        run: sudo apt install mesa-vulkan-drivers
       - name: Configure CMake (Linux)
         run: >
           cmake -B build
@@ -48,11 +48,15 @@ jobs:
           -DPYRO_COMMON_BUILD_TESTS=OFF
           -DPYRO_COMMON_SHARED_LIBRARY=OFF
           -DPYRO_RHI_BUILD_VULKAN=ON
-          -DPYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS=OFF
+          -DPYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS=ON
           -DPYRO_RHI_BUILD_DX12=OFF
           -DPYRO_RHI_BUILD_METAL=OFF
           -S .
 
       - name: Build (Linux)
         run: cmake --build build --config ${{ matrix.build_type }} --parallel 4
+
+      - name: Run API validation tests
+        working-directory: build
+        run: ctest --build-config ${{ matrix.build_type }} --rerun-failed --output-on-failure
 

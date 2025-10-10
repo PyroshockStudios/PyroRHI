@@ -220,6 +220,7 @@ namespace PyroshockStudios {
                 u32 maxBuffersViews,
                 u32 maxImageViews,
                 u32 maxSamplers,
+                u32 maxMemoryBlocks,
                 VkDevice device,
                 const VkAllocationCallbacks* allocator,
                 VkBuffer deviceAddressBuffer,
