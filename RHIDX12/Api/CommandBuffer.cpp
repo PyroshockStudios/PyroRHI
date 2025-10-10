@@ -363,6 +363,8 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::BufferBarrier(const BufferMemoryBarrierInfo& info) {
+            if (info.srcLayout == BufferLayout::Undefined && info.dstLayout == BufferLayout::Undefined)
+                return;
             auto& bufferInfo = mDevice->ResourcePool().Get(info.buffer);
             D3D12_RESOURCE_BARRIER barrier = {};
             barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -387,6 +389,8 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::ImageBarrier(const ImageMemoryBarrierInfo& info) {
+            if (info.srcLayout == ImageLayout::Undefined && info.dstLayout == ImageLayout::Undefined)
+                return;
             auto& imageInfo = mDevice->ResourcePool().Get(info.image);
             D3D12_RESOURCE_BARRIER barrier = {};
             barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;

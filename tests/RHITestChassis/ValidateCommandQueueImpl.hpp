@@ -90,15 +90,12 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
             .srcLayout = ImageLayout::Undefined,
             .dstLayout = ImageLayout::TransferDst,
         }));
+
         EXPECT_NO_THROW(copyCommands->CopyImageToImage(copyInfo));
 
+        // Transfer queue ownership! Very important!
         EXPECT_NO_THROW(copyCommands->ImageBarrier({
-            .image = src,
-            .srcAccess = AccessConsts::TRANSFER_READ,
-            .dstAccess = AccessConsts::BLIT_READ,
-            .srcLayout = ImageLayout::TransferDst,
-            .dstLayout = ImageLayout::BlitSrc,
-            // Transfer queue ownership! Very important!
+            .image = dst,
             .srcQueue = *pCopyQueue,
             .dstQueue = *pGraphicsQueue,
         }));
@@ -110,24 +107,31 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
     {
         ICommandBuffer* graphicsCommands = (*pGraphicsQueue)->GetCommandBuffer({});
 
+        // Acquire queue ownership transfer! Very important!
+        EXPECT_NO_THROW(graphicsCommands->ImageBarrier({
+            .image = dst,
+            .srcQueue = *pCopyQueue,
+            .dstQueue = *pGraphicsQueue,
+        }));
+
         BlitImageToImageInfo blitInfo{};
-        blitInfo.srcImage = src;
-        blitInfo.dstImage = dst;
+        blitInfo.srcImage = dst;
+        blitInfo.dstImage = graphicsDest;
         blitInfo.srcImageRect = Rect2D::Cut({ imageInfo.size.x, imageInfo.size.y });
         blitInfo.dstImageRect = Rect2D::Cut({ imageInfo.size.x, imageInfo.size.y });
 
         EXPECT_NO_THROW(graphicsCommands->ImageBarrier({
-            .image = src,
-            .srcAccess = AccessConsts::TRANSFER_READ,
+            .image = dst,
+            .srcAccess = AccessConsts::TRANSFER_WRITE,
             .dstAccess = AccessConsts::BLIT_READ,
             .srcLayout = ImageLayout::TransferDst,
+            // The ownership must be done in the graphics queue, since Blit[...] is a graphics queue layout.
             .dstLayout = ImageLayout::BlitSrc,
             // Transfer queue ownership! Very important!
-            .srcQueue = *pCopyQueue,
-            .dstQueue = *pGraphicsQueue,
         }));
+
         EXPECT_NO_THROW(graphicsCommands->ImageBarrier({
-            .image = dst,
+            .image = graphicsDest,
             .srcAccess = AccessConsts::NONE,
             .dstAccess = AccessConsts::BLIT_WRITE,
             .srcLayout = ImageLayout::Undefined,
