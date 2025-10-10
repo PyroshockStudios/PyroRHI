@@ -307,6 +307,7 @@ namespace PyroshockStudios {
             Logger::Debug(gDX12Sink, "Creating D3D12MA Allocator...");
             {
                 D3D12MA::ALLOCATOR_DESC allocatorDesc{};
+                allocatorDesc.Flags = D3D12MA::ALLOCATOR_FLAG_NONE;
                 allocatorDesc.pDevice = mDevice.Get();
                 allocatorDesc.pAllocationCallbacks = nullptr;
                 allocatorDesc.pAdapter = mAdapter.Get();

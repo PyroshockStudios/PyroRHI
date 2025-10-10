@@ -62,12 +62,23 @@ namespace PyroshockStudios::RHIDX12 {
         CheckD3DResult(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
         D3DSetDebugName(factory, "DXGI Factory 4");
 
-        ComPtr<IDXGIAdapter1> hardwareAdapter;
-        GetHardwareAdapter(factory.Get(), &hardwareAdapter, args.bWarpDriver);
-        D3DSetDebugName(hardwareAdapter, "HW Adaptor");
+        ComPtr<IDXGIAdapter1> adapter;
+
+        if (args.bWarpDriver) {
+            factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter));
+            if (!adapter) {
+                Logger::Fatal(gDX12Sink, "Failed to get the DX12 WARP device!");
+                return;
+            }
+            D3DSetDebugName(adapter, "Warp Adaptor");
+        } else {
+            GetHardwareAdapter(factory.Get(), &adapter);
+            D3DSetDebugName(adapter, "Hardware Adaptor");
+        }
+
         ComPtr<ID3D12Device> device;
         CheckD3DResult(D3D12CreateDevice(
-            hardwareAdapter.Get(),
+            adapter.Get(),
             D3D_FEATURE_LEVEL_11_0,
             IID_PPV_ARGS(&device)));
         D3DSetDebugName(device, "D3D12 Device (Feature level 11_0)");
@@ -90,7 +101,7 @@ namespace PyroshockStudios::RHIDX12 {
                 mInfoQueue->AddStorageFilterEntries(&filter);
             }
         }
-        mDevice = new D3DDevice(eastl::move(device), eastl::move(factory), eastl::move(hardwareAdapter));
+        mDevice = new D3DDevice(eastl::move(device), eastl::move(factory), eastl::move(adapter));
     }
     D3DContext::~D3DContext() {
         gDx12Context = nullptr;
@@ -103,7 +114,6 @@ namespace PyroshockStudios::RHIDX12 {
     void D3DContext::GetHardwareAdapter(
         IDXGIFactory1* pFactory,
         IDXGIAdapter1** ppAdapter,
-        bool bWarp,
         i32 deviceIndex) {
         *ppAdapter = nullptr;
 
@@ -121,11 +131,8 @@ namespace PyroshockStudios::RHIDX12 {
                 DXGI_ADAPTER_DESC1 desc;
                 adapter->GetDesc1(&desc);
 
-                if (bWarp) {
-                    if (!(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)) {
-                        // force WARP selection
-                        continue;
-                    }
+                if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
+                    continue;
                 }
                 // Check to see whether the adapter supports Direct3D 12, but don't create the
                 // actual device yet.
@@ -140,11 +147,9 @@ namespace PyroshockStudios::RHIDX12 {
                 DXGI_ADAPTER_DESC1 desc;
                 adapter->GetDesc1(&desc);
 
-                if (bWarp) {
-                    if (!(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)) {
-                        // force WARP selection
-                        continue;
-                    }
+                if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
+                    // force WARP selection
+                    continue;
                 }
                 // Check to see whether the adapter supports Direct3D 12, but don't create the
                 // actual device yet.

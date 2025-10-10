@@ -41,7 +41,6 @@ namespace PyroshockStudios {
             void GetHardwareAdapter(
                 IDXGIFactory1* pFactory,
                 IDXGIAdapter1** ppAdapter,
-                bool bWarp,
                 i32 deviceIndex = -1);
             IDevice* CreateDevice() override;
             const RHIProperties& Properties() override;
