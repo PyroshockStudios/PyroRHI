@@ -73,8 +73,8 @@ namespace PyroshockStudios {
             Semaphore semaphore = nullptr;                          /**< Semaphore handle*/
             PipelineStageFlags stage = PipelineStageFlagBits::NONE; /**< Pipeline stage where the signal/wait should occur*/
 
-            PYRO_FORCEINLINE PYRO_NODISCARD bool operator==(const SemaphoreSubmitInfo&) const = default;
-            PYRO_FORCEINLINE PYRO_NODISCARD bool operator!=(const SemaphoreSubmitInfo&) const = default;
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const SemaphoreSubmitInfo&) const = default;
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator!=(const SemaphoreSubmitInfo&) const = default;
         };
 
         /**
@@ -84,8 +84,8 @@ namespace PyroshockStudios {
             IFence* fence = nullptr; /**< Fence handle*/
             u64 value = 0;           /**< Fence value that should be signalled */
 
-            PYRO_FORCEINLINE PYRO_NODISCARD bool operator==(const FenceSubmitInfo&) const = default;
-            PYRO_FORCEINLINE PYRO_NODISCARD bool operator!=(const FenceSubmitInfo&) const = default;
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const FenceSubmitInfo&) const = default;
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator!=(const FenceSubmitInfo&) const = default;
         };
 
         /**
