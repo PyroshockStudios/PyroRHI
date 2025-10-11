@@ -42,10 +42,10 @@ if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS OR PYRO_RHI_BUILD_DX12_VALIDATION_TES
 add_subdirectory(tests)
 
 if (PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
-add_coverage_instrumentation(RHIValidationTestDX12)
+add_coverage_instrumentation(RHIDX12)
 endif()
 if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS)
-add_coverage_instrumentation(RHIValidationTestVulkan)
+add_coverage_instrumentation(RHIVulkan)
 endif()
 
 endif()
