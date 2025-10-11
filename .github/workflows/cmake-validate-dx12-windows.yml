@@ -1,7 +1,7 @@
 name: DirectX 12 Validation (Windows ClangCL)
 permissions:
   contents: read
-  
+
 on:
   push:
     branches: [ "**" ]
@@ -22,55 +22,54 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install MSYS2 (for lcov/genhtml)
-        uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          install: lcov
-
       - name: Configure CMake (Clang-CL + Coverage)
-        shell: bash
+        shell: pwsh
         run: |
-          cmake -B build \
-            -DCMAKE_C_COMPILER=clang-cl \
-            -DCMAKE_CXX_COMPILER=clang-cl \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DPYRO_COMMON_BUILD_TESTS=OFF \
-            -DPYRO_COMMON_SHARED_LIBRARY=OFF \
-            -DPYRO_RHI_BUILD_VULKAN=OFF \
-            -DPYRO_RHI_BUILD_DX12=ON \
-            -DPYRO_RHI_BUILD_DX12_VALIDATION_TESTS=ON \
-            -DPYRO_RHI_BUILD_METAL=OFF \
-            -DPYRO_RHI_ENABLE_CODE_COVERAGE=ON \
+          cmake -B build `
+            -DCMAKE_C_COMPILER=clang-cl `
+            -DCMAKE_CXX_COMPILER=clang-cl `
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
+            -DPYRO_COMMON_BUILD_TESTS=OFF `
+            -DPYRO_COMMON_SHARED_LIBRARY=OFF `
+            -DPYRO_RHI_BUILD_VULKAN=OFF `
+            -DPYRO_RHI_BUILD_DX12=ON `
+            -DPYRO_RHI_BUILD_DX12_VALIDATION_TESTS=ON `
+            -DPYRO_RHI_BUILD_METAL=OFF `
+            -DPYRO_RHI_ENABLE_CODE_COVERAGE=ON `
             -S .
 
       - name: Build (Clang-CL)
-        shell: bash
+        shell: pwsh
         run: cmake --build build --config ${{ matrix.build_type }} --parallel 4
 
       - name: Run API validation tests
-        shell: bash
-        run: ctest --output-on-failure --test-dir build
+        shell: pwsh
+        working-directory: build
+        run: ctest --output-on-failure --rerun-failed
 
-      - name: Coverage Sanity Check & Generate lcov Info
-        shell: bash
+      - name: Generate Coverage Report (LLVM)
+        shell: pwsh
         run: |
-          echo "=== Checking for .gcda coverage files ==="
-          GCDA_FILES=$(find build -name '*.gcda')
-          if [ -z "$GCDA_FILES" ]; then
-              echo "❌ No .gcda files found!"
-              exit 1
-          else
-              echo "✅ Found the following .gcda files:"
-              echo "$GCDA_FILES"
-          fi
+          $llvmProfdata = "C:\Program Files\LLVM\bin\llvm-profdata.exe"
+          $llvmCov = "C:\Program Files\LLVM\bin\llvm-cov.exe"
 
-          lcov --directory build --capture --output-file coverage.info --include "RHIDX12/*"
-          lcov --summary coverage.info
+          # Merge raw profiles from test run
+          & $llvmProfdata merge -sparse build\*.profraw -o coverage.profdata
+
+          # Generate lcov-style report
+          & $llvmCov show build\bin\Debug\RHIValidationTestDX12.exe `
+            -instr-profile=coverage.profdata `
+            -format=lcov `
+            -output-file=coverage.info
 
       - name: Generate HTML Report
-        shell: bash
-        run: genhtml coverage.info --output-directory coverage_html
+        shell: pwsh
+        run: |
+          $llvmCov = "C:\Program Files\LLVM\bin\llvm-cov.exe"
+          & $llvmCov show build\bin\Debug\RHIValidationTestDX12.exe `
+            -instr-profile=coverage.profdata `
+            -format=html `
+            -output-dir coverage_html
 
       - name: Upload Coverage Artifact
         uses: actions/upload-artifact@v4

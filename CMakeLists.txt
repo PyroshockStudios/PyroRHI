@@ -8,10 +8,10 @@ if(PYRO_RHI_ENABLE_CODE_COVERAGE)
         message(STATUS "Building with code coverage enabled (Linux / GCC/Clang)")
 
         # GCC/Clang coverage flags
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage -O0 -g")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage -O0 -g")
         add_link_options(--coverage)
 
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage -O0 -g")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage -O0 -g")
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
         message(STATUS "Building with code coverage enabled (Windows clang-cl)")
 
@@ -26,6 +26,9 @@ if(PYRO_RHI_ENABLE_CODE_COVERAGE)
             -fsanitize-coverage=trace-pc-guard,indirect-calls
         )
 
+
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
         # Optionally define environment variable for llvm-cov
         # set(CMAKE_EXPORT_COMPILE_COMMANDS ON) 
     else()
