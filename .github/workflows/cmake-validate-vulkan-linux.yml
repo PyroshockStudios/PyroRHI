@@ -68,15 +68,10 @@ jobs:
         working-directory: build
         run: ctest --output-on-failure
 
-      - name: Generate Coverage Report (lcov)
-        run: |
-          lcov --directory build --capture --output-file coverage.info
-          lcov --remove coverage.info '/usr/*' '*/tests/*' --output-file coverage.info
-          lcov --list coverage.info
-        
-      - name: Coverage Sanity Check
+      - name: Coverage Sanity Check & Generate lcov Info
         run: |
           echo "=== Checking for .gcda coverage files ==="
+          # Find all .gcda files recursively
           GCDA_FILES=$(find build -name '*.gcda')
           if [ -z "$GCDA_FILES" ]; then
               echo "❌ No .gcda files found! Coverage instrumentation may be missing or tests didn't run."
@@ -86,11 +81,14 @@ jobs:
               echo "$GCDA_FILES"
           fi
 
-          # Quick coverage summary with lcov
-          lcov --directory build --capture --output-file coverage.info
-          TOTAL_LINES=$(lcov --summary coverage.info | grep "lines......:" | awk '{print $2}')
-          COVERED_LINES=$(lcov --summary coverage.info | grep "lines......:" | awk '{print $4}')
-          echo "Coverage summary: $COVERED_LINES / $TOTAL_LINES lines covered"
+          # Capture coverage from the build directory recursively
+          lcov --capture --directory build --output-file coverage.info
+
+          # Remove external and test files
+          lcov --remove coverage.info '/usr/*' '*/tests/*' --output-file coverage.info
+
+          # Show coverage summary
+          lcov --summary coverage.info
 
       - name: Generate HTML Report
         run: genhtml coverage.info --output-directory coverage_html
