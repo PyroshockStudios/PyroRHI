@@ -110,9 +110,10 @@ namespace PyroshockStudios {
             /**
              * @brief Number of back buffers in the swap chain.
              * Typically 2 or 3 for double or triple buffering.
-             * A minimum of 2 is required.
+             * @note This value may be clamped to the swapchain's requirements. Never assume the input bufferCount is the created bufferCount,
+             * make sure to query this true value by calling ISwapChain::Info()
              */
-            usize bufferCount = 2;
+            u32 bufferCount = 2;
 
             /**
              * @brief Intended usage flags for swap chain images.

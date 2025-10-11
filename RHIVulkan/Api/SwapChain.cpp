@@ -93,7 +93,6 @@ namespace PyroshockStudios::RHIVulkan {
         if (finalFormat.format == VK_FORMAT_UNDEFINED) {
             Logger::Fatal(gVulkanSink, "SwapChain format is not available!");
         }
-        mInfo.extent = { mSupportInfo.capabilities.currentExtent.width, mSupportInfo.capabilities.currentExtent.height };
         TrySetPresentMode(info.presentMode);
 
         CreateSwapChain(VK_NULL_HANDLE);
@@ -125,8 +124,8 @@ namespace PyroshockStudios::RHIVulkan {
     }
 
     void VulkanSwapChain::Resize() {
-        auto supportInfo = mDevice->GetSwapChainSupport(mSurface);
-        mInfo.extent = { supportInfo.capabilities.currentExtent.width, supportInfo.capabilities.currentExtent.height };
+        mSupportInfo = mDevice->GetSwapChainSupport(mSurface);
+        mInfo.extent = { mSupportInfo.capabilities.currentExtent.width, mSupportInfo.capabilities.currentExtent.height };
         mImageIndex = 0;
         for (Image img : mWrappedImages) {
             mDevice->DestroyImage(img);
@@ -189,6 +188,10 @@ namespace PyroshockStudios::RHIVulkan {
         CheckVkResult(result);
     }
     void VulkanSwapChain::CreateSwapChain(VkSwapchainKHR oldSwapChain) {
+        mInfo.bufferCount = eastl::clamp(mInfo.bufferCount, mSupportInfo.capabilities.minImageCount, mSupportInfo.capabilities.maxImageCount);
+        mInfo.extent.x = eastl::clamp(mInfo.extent.x, mSupportInfo.capabilities.minImageExtent.width, mSupportInfo.capabilities.maxImageExtent.width);
+        mInfo.extent.y = eastl::clamp(mInfo.extent.y, mSupportInfo.capabilities.minImageExtent.height, mSupportInfo.capabilities.maxImageExtent.height);
+
         VkSwapchainCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         createInfo.surface = mSurface;

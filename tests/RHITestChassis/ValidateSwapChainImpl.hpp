@@ -21,6 +21,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
     ISwapChain* swapChain = mDevice->CreateSwapChain({
         .format = SwapChainFormat::Unorm8BitLDR,
         .bufferCount = 2,
+        .imageUsage = ImageUsageFlagBits::TRANSFER_DST, // we need at least 1 image usage
         .extent = { 256, 256 },
         .name = "Headless Swap Chain",
     });
@@ -48,8 +49,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
     ICommandBuffer* commandBuffer = queue->GetCommandBuffer({});
     commandBuffer->ImageBarrier({
         .image = image,
-        .srcAccess = AccessConsts::NONE,
-        .dstAccess = AccessConsts::READ,
+        .srcAccess = AccessConsts::BOTTOM_OF_PIPE_READ,
+        .dstAccess = AccessConsts::TOP_OF_PIPE_READ_WRITE,
         .srcLayout = ImageLayout::Undefined,
         .dstLayout = ImageLayout::PresentSrc,
     });
