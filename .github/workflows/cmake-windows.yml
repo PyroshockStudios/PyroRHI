@@ -33,7 +33,8 @@ jobs:
       - name: Configure CMake
         shell: pwsh
         run: |
-          if (${{ matrix.compiler }} -eq "msvc") {
+          $compiler = "${{ matrix.compiler }}"
+          if ($compiler -eq "msvc") {
               Write-Host "Configuring for MSVC"
               cmake -B build `
                 -DCMAKE_POLICY_VERSION_MINIMUM=3.5 `
@@ -42,11 +43,11 @@ jobs:
                 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
                 -DPYRO_COMMON_BUILD_TESTS=OFF `
                 -DPYRO_COMMON_SHARED_LIBRARY=OFF `
-                -DPYRO_RHI_BUILD_VULKAN=ON `
+                -DPYRO_RHI_BUILD_VULKAN=OFF `
                 -DPYRO_RHI_BUILD_DX12=ON `
                 -DPYRO_RHI_BUILD_METAL=OFF `
                 -S .
-          } elseif (${{ matrix.compiler }} -eq "clang-cl") {
+          } elseif ($compiler -eq "clang-cl") {
               Write-Host "Configuring for ClangCL"
               cmake -B build `
                 -DCMAKE_POLICY_VERSION_MINIMUM=3.5 `
@@ -55,11 +56,12 @@ jobs:
                 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
                 -DPYRO_COMMON_BUILD_TESTS=OFF `
                 -DPYRO_COMMON_SHARED_LIBRARY=OFF `
-                -DPYRO_RHI_BUILD_VULKAN=ON `
+                -DPYRO_RHI_BUILD_VULKAN=OFF `
                 -DPYRO_RHI_BUILD_DX12=ON `
                 -DPYRO_RHI_BUILD_METAL=OFF `
                 -S .
           }
+
 
       - name: Build
         shell: pwsh

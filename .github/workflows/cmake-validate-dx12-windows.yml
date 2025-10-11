@@ -37,9 +37,9 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DPYRO_COMMON_BUILD_TESTS=OFF \
             -DPYRO_COMMON_SHARED_LIBRARY=OFF \
-            -DPYRO_RHI_BUILD_VULKAN=ON \
-            -DPYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS=ON \
-            -DPYRO_RHI_BUILD_DX12=OFF \
+            -DPYRO_RHI_BUILD_VULKAN=OFF \
+            -DPYRO_RHI_BUILD_DX12=ON \
+            -DPYRO_RHI_BUILD_DX12_VALIDATION_TESTS=ON \
             -DPYRO_RHI_BUILD_METAL=OFF \
             -DPYRO_RHI_ENABLE_CODE_COVERAGE=ON \
             -S .
