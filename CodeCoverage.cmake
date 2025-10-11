@@ -14,9 +14,9 @@ if(PYRO_RHI_ENABLE_CODE_COVERAGE)
         message(STATUS "Building with code coverage enabled (Windows clang-cl / LLVM coverage)")
         # clang-cl style flags (use MSVC-style slash for clang-cl compatibility)
         # Use /Zi and /Od for debug/no-optim, and /fprofile-instr-generate and /fcoverage-mapping for LLVM
-        set(_COV_COMPILE_FLAGS /Zi /Od /fprofile-instr-generate /fcoverage-mapping)
+        set(_COV_COMPILE_FLAGS /Zi /Od -fprofile-instr-generate -fcoverage-mapping)
         # link flags: ensure we keep debug info; use clang flags too
-        set(_COV_LINK_FLAGS /DEBUG /fprofile-instr-generate)
+        set(_COV_LINK_FLAGS /DEBUG -fprofile-instr-generate)
     else()
         message(FATAL_ERROR "Code coverage requested, but compiler/platform is not supported: ${CMAKE_CXX_COMPILER_ID} / ${CMAKE_SYSTEM_NAME}")
     endif()

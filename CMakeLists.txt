@@ -4,14 +4,14 @@ project(PyroRHI)
 include(CodeCoverage.cmake)
 
 if (MSVC)
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-Wno-unused-command-line-argument)
-else()
-	add_compile_options(
-	 /Zc:preprocessor   # libassert preprocessor issues
-	 /MP                # multithreading 
-	)
-endif()
+	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+		add_compile_options(-Wno-unused-command-line-argument)
+	else()
+		add_compile_options(
+		 /Zc:preprocessor   # libassert preprocessor issues
+		 /MP                # multithreading 
+		)
+	endif()
 endif()
 
 include(Config.cmake)
