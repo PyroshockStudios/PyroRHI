@@ -179,7 +179,52 @@ jobs:
           }
           Write-Host "HTML coverage generated at $htmlDir"
 
-      
+      - name: Filter LCOV to RHIDX12 sources (lcov or PowerShell fallback)
+        shell: pwsh
+        working-directory: build
+        run: |
+          $raw = Join-Path (Get-Location) "coverage.info"
+          if (-not (Test-Path $raw)) { Write-Error "coverage.info not found"; Exit 1 }
+          $out = Join-Path (Get-Location) "coverage_rhidx12.info"
+
+          # Prefer lcov --extract if available
+          $lcovCmd = (Get-Command lcov -ErrorAction SilentlyContinue).Path
+          if ($lcovCmd) {
+            Write-Host "Using lcov to extract RHIDX12 files"
+            & $lcovCmd --extract $raw "*/RHIDX12/*" -o $out
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $out)) {
+              Write-Warning "lcov extract failed; falling back to PowerShell filter"
+              Remove-Item -ErrorAction SilentlyContinue $out
+            } else {
+              Write-Host "Extracted coverage -> $out"
+              Exit 0
+            }
+          } else {
+            Write-Host "lcov not found; using PowerShell filter"
+          }
+
+          # PowerShell fallback: LCOV is a sequence of records ending with 'end_of_record'
+          # Keep only records whose SF: path contains 'RHIDX12'
+          $lines = Get-Content $raw -Raw -ErrorAction Stop
+          # Split records by 'end_of_record' (we preserve it in each block)
+          $records = $lines -split "(?<=\r?\n)end_of_record\r?\n"
+          $kept = @()
+          foreach ($rec in $records) {
+            if ($rec -match "SF:.*RHIDX12") {
+              # ensure record ends with newline and end_of_record
+              if (-not $rec.TrimEnd().EndsWith("end_of_record")) { $rec = $rec.TrimEnd() + "`nend_of_record`n" }
+              $kept += $rec
+            }
+          }
+
+          if ($kept.Count -eq 0) {
+            Write-Error "No RHIDX12 records found in coverage.info. Nothing to output."
+            Exit 1
+          }
+
+          $kept -join "" | Set-Content -Encoding Ascii $out
+          Write-Host "Generated filtered LCOV -> $out (records: $($kept.Count))"
+          
       - name: Upload Coverage Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -190,7 +235,7 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: build/coverage.info
+          files: build/coverage_rhidx12.info
           flags: dx12
           fail_ci_if_error: true
       
