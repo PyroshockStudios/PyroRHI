@@ -82,7 +82,7 @@ jobs:
           fi
 
           # Capture coverage from the build directory recursively
-          lcov --directory build --capture --output-file coverage.info --rc geninfo_run_for_each_test=1 --rc geninfo_ignore_errors=mismatch
+          lcov --directory build --capture --output-file coverage.info --include "RHIVulkan/*"
 
           # Remove external and test files
           lcov --remove coverage.info '/usr/*' '*/tests/*' --output-file coverage.info
