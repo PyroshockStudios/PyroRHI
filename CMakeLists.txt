@@ -10,7 +10,7 @@ if(PYRO_RHI_ENABLE_CODE_COVERAGE)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage -O0 -g")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage -O0 -g")
 
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER MATCHES ".*cl\\.exe$")
+	elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_ID MATCHES ".*Clang.*" AND WIN32)
         message(STATUS "Building with code coverage enabled (Windows clang-cl)")
         add_compile_options(
             /ZI
