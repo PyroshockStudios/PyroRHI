@@ -15,19 +15,25 @@ jobs:
       fail-fast: false
       matrix:
         compiler: [gcc]
-        build_type: [Release]
+        build_type: [Debug]  # coverage should be done in Debug builds
         include:
           - compiler: gcc
             c: gcc
             cxx: g++
+
     steps:
       - name: Checkout repository with submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
       - name: Install Dependencies
         run: |
-          sudo apt install libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libxkbcommon-dev
+          sudo apt update
+          sudo apt install -y \
+            lcov \
+            libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libxkbcommon-dev 
+
       - name: Prepare Vulkan SDK
         uses: humbletim/setup-vulkan-sdk@v1.2.1
         with:
@@ -38,7 +44,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y vulkan-validationlayers
       - name: Install Vulkan Mesa Drivers
         run: sudo apt install mesa-vulkan-drivers
-      - name: Configure CMake (Linux)
+        
+      - name: Configure CMake (Linux + Coverage)
         run: >
           cmake -B build
           -DCMAKE_POLICY_VERSION_MINIMUM=3.5
@@ -51,6 +58,7 @@ jobs:
           -DPYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS=ON
           -DPYRO_RHI_BUILD_DX12=OFF
           -DPYRO_RHI_BUILD_METAL=OFF
+          -DPYRO_RHI_ENABLE_CODE_COVERAGE=ON
           -S .
 
       - name: Build (Linux)
@@ -58,5 +66,45 @@ jobs:
 
       - name: Run API validation tests
         working-directory: build
-        run: ctest --build-config ${{ matrix.build_type }} --rerun-failed --output-on-failure
+        run: ctest --output-on-failure
 
+      - name: Generate Coverage Report (lcov)
+        run: |
+          lcov --directory build --capture --output-file coverage.info
+          lcov --remove coverage.info '/usr/*' '*/tests/*' --output-file coverage.info
+          lcov --list coverage.info
+        
+      - name: Coverage Sanity Check
+        run: |
+          echo "=== Checking for .gcda coverage files ==="
+          GCDA_FILES=$(find build -name '*.gcda')
+          if [ -z "$GCDA_FILES" ]; then
+              echo "❌ No .gcda files found! Coverage instrumentation may be missing or tests didn't run."
+              exit 1
+          else
+              echo "✅ Found the following .gcda files:"
+              echo "$GCDA_FILES"
+          fi
+
+          # Quick coverage summary with lcov
+          lcov --directory build --capture --output-file coverage.info
+          TOTAL_LINES=$(lcov --summary coverage.info | grep "lines......:" | awk '{print $2}')
+          COVERED_LINES=$(lcov --summary coverage.info | grep "lines......:" | awk '{print $4}')
+          echo "Coverage summary: $COVERED_LINES / $TOTAL_LINES lines covered"
+
+      - name: Generate HTML Report
+        run: genhtml coverage.info --output-directory coverage_html
+
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vulkan-Coverage-Report
+          path: coverage_html
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.info
+          flags: vulkan
+          fail_ci_if_error: true

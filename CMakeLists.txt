@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.28)
 project(PyroRHI)
 
+option(PYRO_RHI_ENABLE_CODE_COVERAGE "Enable code coverage reporting" OFF)
+
+if(ENABLE_CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    message(STATUS "Building with code coverage enabled")
+    add_compile_options(-O0 -g --coverage)
+    add_link_options(--coverage)
+endif()
+
+
 if (MSVC)
 add_compile_options(
  /Zc:preprocessor   # libassert preprocessor issues
