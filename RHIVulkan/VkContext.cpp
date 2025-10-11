@@ -340,6 +340,7 @@ namespace PyroshockStudios::RHIVulkan {
 
             CheckVkResult(m_fnVkCreateDebugUtilsMessengerEXT(mInstance, &debugInfo, &mAllocator, &mMessenger));
         }
+        bHeadlessEnabled = bTrueHeadlessInstance;
     }
 
     VulkanContext::~VulkanContext() {
@@ -430,7 +431,7 @@ namespace PyroshockStudios::RHIVulkan {
         vkGetPhysicalDeviceFeatures(vkPhysicalDevice, &vkPhysicalDeviceFeatures);
         Logger::Info(gVulkanSink, "Using physical device: " + eastl::string(vkPhysicalDeviceProperties.deviceName));
 
-        VulkanDevice* device = new VulkanDevice(this, vkPhysicalDevice, vkPhysicalDeviceFeatures);
+        VulkanDevice* device = new VulkanDevice(this, vkPhysicalDevice, vkPhysicalDeviceFeatures, bHeadlessEnabled);
         mCreatedDevices.push_back(device);
 
         rhiProps = {

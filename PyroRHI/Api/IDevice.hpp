@@ -60,6 +60,7 @@ namespace PyroshockStudios {
             RasterizationSamples maxShaderResourceImageSamples = RasterizationSamples::e1;
             u32 bufferImageRowAlignment = 0;
             u32 bufferImageCopyOffsetAlignment = 0;
+            bool bSupportsHeadlessSwapChainWindow = false;
 
             PYRO_NODISCARD bool operator==(const DevicePropertiesInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DevicePropertiesInfo&) const = default;
@@ -99,22 +100,22 @@ namespace PyroshockStudios {
              *      - Signal: []
              *      - Wait: [(Semaphore0, COMPUTE_SHADER)]
              */
-            eastl::span<SemaphoreSubmitInfo> waitSemaphores = {};
+            eastl::span<const SemaphoreSubmitInfo> waitSemaphores = {};
             /**
              * @brief Semaphores to signal, if applicable
              */
-            eastl::span<SemaphoreSubmitInfo> signalSemaphores = {};
+            eastl::span<const SemaphoreSubmitInfo> signalSemaphores = {};
             /**
              * @brief Semaphores to signal that the swapchain can present the rendered image, if applicable
              * @note: this is *NOT* for swapchain acquiring the next available image, but rather a signal from
              * the queue to the presenting engine that the frame is ready to be presented. This is to cope with
              * the seperation of frames in flight and swap chain buffer count.
              */
-            eastl::span<SemaphoreSubmitInfo> signalPresentReadySemaphores = {};
+            eastl::span<const SemaphoreSubmitInfo> signalPresentReadySemaphores = {};
             /**
              * @brief Pairs of fences to signal, with a value.
              */
-            eastl::span<FenceSubmitInfo> signalFences = {};
+            eastl::span<const FenceSubmitInfo> signalFences = {};
 
             PYRO_NODISCARD bool operator==(const CommandQueueSubmitInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const CommandQueueSubmitInfo&) const = default;

@@ -62,6 +62,7 @@ namespace PyroshockStudios {
             }
             mProperties.bufferImageRowAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
             mProperties.bufferImageCopyOffsetAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+            mProperties.bSupportsHeadlessSwapChainWindow = true;
             {
                 Logger::Debug(gDX12Sink, "Checking MSAA Support");
                 // FIXME better querying?
