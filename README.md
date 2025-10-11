@@ -8,4 +8,7 @@
 
 ### API Validation tests:
 [![Vulkan 1.3 (Ubuntu GCC)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-vulkan-linux.yml/badge.svg)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-vulkan-linux.yml)
-[![DirectX 12 (Windows MSVC)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-dx12-windows.yml/badge.svg)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-dx12-windows.yml)
+
+[![DirectX 12 (Windows ClangCL)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-dx12-windows.yml/badge.svg)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-dx12-windows.yml)
+
+[![Test Coverage](https://codecov.io/gh/PyroshockStudios/PyroRHI/branch/master/graph/badge.svg)](https://codecov.io/gh/PyroshockStudios/PyroRHI)

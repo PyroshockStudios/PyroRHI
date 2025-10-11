@@ -146,3 +146,96 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
     mDevice->DestroyImage(dst);
     mDevice->DestroyImage(graphicsDest);
 }
+
+
+
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, ComputeQueueToGraphicsQueueSyncUAV) {
+    auto queues = mDevice->GetCommandQueues();
+    ASSERT_FALSE(queues.empty());
+
+    ICommandQueue** pGraphicsQueue = eastl::find_if(queues.begin(), queues.end(),
+        [](ICommandQueue* q) { return q->Info().flags & CommandQueueFlagBits::GRAPHICS; });
+    ASSERT_NE(pGraphicsQueue, nullptr);
+    ICommandQueue** pComputeQueue = eastl::find_if(queues.begin(), queues.end(),
+        [pGraphicsQueue](ICommandQueue* q) { return q->Info().flags & CommandQueueFlagBits::COMPUTE && q != *pGraphicsQueue; });
+    if (pComputeQueue == queues.end()) {
+        GTEST_LOG_(INFO) << "Device does not support seperate graphics and compute queues, skipping test...";
+        return;
+    }
+
+    Semaphore waitForComputeQueueSemaphore = mDevice->CreateSemaphore({ .name = "waitForComputeQueueSemaphore" });
+
+    eastl::array signalSemaphores = {
+        SemaphoreSubmitInfo{
+            .semaphore = waitForComputeQueueSemaphore,
+            .stage = PipelineStageFlagBits::CLEAR,
+        }
+    };
+
+    CommandQueueSubmitInfo computeSubmitInfo = {};
+    computeSubmitInfo.signalSemaphores = signalSemaphores;
+    computeSubmitInfo.queue = *pComputeQueue;
+
+    eastl::array waitSemaphores = {
+        SemaphoreSubmitInfo{
+            .semaphore = waitForComputeQueueSemaphore,
+            .stage = PipelineStageFlagBits::VERTEX_INPUT,
+        }
+    };
+
+    CommandQueueSubmitInfo graphicsSubmitInfo = {};
+    graphicsSubmitInfo.waitSemaphores = waitSemaphores;
+    graphicsSubmitInfo.queue = *pGraphicsQueue;
+
+    // Create images!
+    ImageInfo imageInfo{};
+    imageInfo.format = Format::RGBA8Unorm;
+    imageInfo.usage = ImageUsageFlagBits::UNORDERED_ACCESS;
+    Image uavImage = mDevice->CreateImage(imageInfo);
+    UnorderedAccessId uav = mDevice->CreateUnorderedAccess(ImageResourceInfo{ .image = uavImage });
+
+    // Record compute commands
+    {
+        ICommandBuffer* computeCommands = (*pComputeQueue)->GetCommandBuffer({});
+
+        EXPECT_NO_THROW(computeCommands->ImageBarrier({
+            .image = uavImage,
+            .srcAccess = AccessConsts::NONE,
+            .dstAccess = AccessConsts::CLEAR_WRITE,
+            .srcLayout = ImageLayout::Undefined,
+            .dstLayout = ImageLayout::UnorderedAccess,
+        }));
+
+        EXPECT_NO_THROW(computeCommands->ClearUnorderedAccessView({ .view = uav, .clearValue = { 0, 0, 0, 0 } }));
+
+        // Transfer queue ownership! Very important!
+        EXPECT_NO_THROW(computeCommands->TransferImageOwnership(uavImage, *pGraphicsQueue));
+
+        computeCommands->Complete();
+        (*pComputeQueue)->SubmitCommandBuffer(computeCommands);
+    }
+    // Record graphics commands
+    {
+        ICommandBuffer* graphicsCommands = (*pGraphicsQueue)->GetCommandBuffer({});
+
+        // Acquire queue ownership transfer! Very important!
+        EXPECT_NO_THROW(graphicsCommands->AcquireImageOwnership(uavImage, *pComputeQueue));
+
+        // No need for an image barrier, since the layout does not change, only a queue ownership ocurred!
+        EXPECT_NO_THROW(graphicsCommands->ClearUnorderedAccessView({ .view = uav, .clearValue = { 1, 0, 1, 1, } }));
+
+        graphicsCommands->Complete();
+        (*pGraphicsQueue)->SubmitCommandBuffer(graphicsCommands);
+    }
+
+    // While execution is concurrent, submission must be in order
+    mDevice->SubmitQueue(computeSubmitInfo);
+    mDevice->SubmitQueue(graphicsSubmitInfo);
+
+    (*pGraphicsQueue)->WaitIdle();
+    // waiting for the graphics queue alone should be fine for destruction
+    mDevice->DestroySemaphore(waitForComputeQueueSemaphore);
+
+    mDevice->DestroyUnorderedAccess(uav);
+    mDevice->DestroyImage(uavImage);
+}

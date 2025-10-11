@@ -26,8 +26,8 @@
 
 #include "Device.hpp"
 
-#include <RHIVulkan/VkContext.hpp>
 #include <PyroCommon/Logger.hpp>
+#include <RHIVulkan/VkContext.hpp>
 
 #ifdef PYRO_PLATFORM_WINDOWS
 #include <Windows.h>
@@ -93,7 +93,6 @@ namespace PyroshockStudios::RHIVulkan {
         if (finalFormat.format == VK_FORMAT_UNDEFINED) {
             Logger::Fatal(gVulkanSink, "SwapChain format is not available!");
         }
-        mInfo.extent = { mSupportInfo.capabilities.currentExtent.width, mSupportInfo.capabilities.currentExtent.height };
         TrySetPresentMode(info.presentMode);
 
         CreateSwapChain(VK_NULL_HANDLE);
@@ -125,8 +124,8 @@ namespace PyroshockStudios::RHIVulkan {
     }
 
     void VulkanSwapChain::Resize() {
-        auto supportInfo = mDevice->GetSwapChainSupport(mSurface);
-        mInfo.extent = { supportInfo.capabilities.currentExtent.width, supportInfo.capabilities.currentExtent.height };
+        mSupportInfo = mDevice->GetSwapChainSupport(mSurface);
+        mInfo.extent = { mSupportInfo.capabilities.currentExtent.width, mSupportInfo.capabilities.currentExtent.height };
         mImageIndex = 0;
         for (Image img : mWrappedImages) {
             mDevice->DestroyImage(img);
@@ -154,35 +153,45 @@ namespace PyroshockStudios::RHIVulkan {
     }
     void VulkanSwapChain::CreateSurface() {
         VkResult result = VK_ERROR_UNKNOWN;
+        if (mInfo.nativeWindow) {
 #ifdef PYRO_PLATFORM_WINDOWS
-        VkWin32SurfaceCreateInfoKHR createInfo{
-            .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-            .hinstance = reinterpret_cast<HINSTANCE>(mInfo.nativeInstance),
-            .hwnd = reinterpret_cast<HWND>(mInfo.nativeWindow)
-        };
-        auto func = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>(vkGetInstanceProcAddr(mDevice->Context()->GetVkInstance(), "vkCreateWin32SurfaceKHR"));
-        result = func(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
+            VkWin32SurfaceCreateInfoKHR createInfo{
+                .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+                .hinstance = reinterpret_cast<HINSTANCE>(mInfo.nativeInstance),
+                .hwnd = reinterpret_cast<HWND>(mInfo.nativeWindow)
+            };
+            auto func = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>(vkGetInstanceProcAddr(mDevice->Context()->GetVkInstance(), "vkCreateWin32SurfaceKHR"));
+            result = func(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
 #elif PYRO_PLATFORM_LINUX
-        VkXlibSurfaceCreateInfoKHR createInfo{
-            .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
-            .dpy = reinterpret_cast<Display*>(mInfo.nativeInstance),
-            .window = reinterpret_cast<Window>(mInfo.nativeWindow)
-        };
-        auto func = reinterpret_cast<PFN_vkCreateXlibSurfaceKHR>(vkGetInstanceProcAddr(mDevice->Context()->GetVkInstance(), "vkCreateXlibSurfaceKHR"));
-        result = func(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
+            VkXlibSurfaceCreateInfoKHR createInfo{
+                .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
+                .dpy = reinterpret_cast<Display*>(mInfo.nativeInstance),
+                .window = reinterpret_cast<Window>(mInfo.nativeWindow)
+            };
+            auto func = reinterpret_cast<PFN_vkCreateXlibSurfaceKHR>(vkGetInstanceProcAddr(mDevice->Context()->GetVkInstance(), "vkCreateXlibSurfaceKHR"));
+            result = func(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
 #elif PYRO_PLATFORM_MACOS
-        VkMacOSSurfaceCreateInfoMVK createInfo{
-            .sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK,
-            .pView = reinterpret_cast<void*>(mInfo.nativeWindow)
-        };
-        auto func = reinterpret_cast<PFN_vkCreateMacOSSurfaceMVK>(vkGetInstanceProcAddr(mDevice->Context()->GetVkInstance(), "vkCreateMacOSSurfaceMVK"));
-        result = func(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
+            VkMacOSSurfaceCreateInfoMVK createInfo{
+                .sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK,
+                .pView = reinterpret_cast<void*>(mInfo.nativeWindow)
+            };
+            auto func = reinterpret_cast<PFN_vkCreateMacOSSurfaceMVK>(vkGetInstanceProcAddr(mDevice->Context()->GetVkInstance(), "vkCreateMacOSSurfaceMVK"));
+            result = func(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
 #else
 #error VulkanWindowSurface Not supported!
 #endif
+        } else {
+            ASSERT(mDevice->GetProperties().bSupportsHeadlessSwapChainWindow, "Cannot create a VkSurface without VK_EXT_headless_surface support!");
+            VkHeadlessSurfaceCreateInfoEXT createInfo{ VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT };
+            result = vkCreateHeadlessSurfaceEXT(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
+        }
         CheckVkResult(result);
     }
     void VulkanSwapChain::CreateSwapChain(VkSwapchainKHR oldSwapChain) {
+        mInfo.bufferCount = eastl::clamp(mInfo.bufferCount, mSupportInfo.capabilities.minImageCount, mSupportInfo.capabilities.maxImageCount);
+        mInfo.extent.x = eastl::clamp(mInfo.extent.x, mSupportInfo.capabilities.minImageExtent.width, mSupportInfo.capabilities.maxImageExtent.width);
+        mInfo.extent.y = eastl::clamp(mInfo.extent.y, mSupportInfo.capabilities.minImageExtent.height, mSupportInfo.capabilities.maxImageExtent.height);
+
         VkSwapchainCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         createInfo.surface = mSurface;

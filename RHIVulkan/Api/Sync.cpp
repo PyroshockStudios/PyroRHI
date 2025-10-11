@@ -48,7 +48,7 @@ namespace PyroshockStudios {
         }
         void VulkanFence::SetValue(u64 value) {
             VkSemaphoreSignalInfo const signalInfo{
-                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO,
                 .pNext = nullptr,
                 .semaphore = mSemaphore,
                 .value = value,

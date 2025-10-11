@@ -1,7 +1,7 @@
-name: DirectX 12 Validation (Windows MSVC)
+name: DirectX 12 Validation (Windows ClangCL)
 permissions:
   contents: read
-  
+
 on:
   push:
     branches: [ "**" ]
@@ -9,36 +9,233 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build-windows:
+  build-windows-coverage:
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Release]
+        build_type: [Debug]
 
     steps:
       - name: Checkout repository with submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Configure CMake (MSVC)
-        run: >
-          cmake -B build
-          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          -DCMAKE_C_COMPILER=cl
-          -DCMAKE_CXX_COMPILER=cl
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          -DPYRO_COMMON_BUILD_TESTS=OFF
-          -DPYRO_COMMON_SHARED_LIBRARY=OFF
-          -DPYRO_RHI_BUILD_VULKAN=OFF
-          -DPYRO_RHI_BUILD_DX12=ON
-          -DPYRO_RHI_BUILD_DX12_VALIDATION_TESTS=ON
-          -DPYRO_RHI_BUILD_METAL=OFF
-          -S .
+          
+      - name: Ensure LLVM (clang-cl) and Ninja present
+        shell: pwsh
+        run: |
+          choco install llvm -y --no-progress
+          choco install ninja -y --no-progress
+          # put LLVM on PATH for this step
+          $llvmBin = 'C:\Program Files\LLVM\bin'
+          if (Test-Path $llvmBin) {
+            $env:Path = "$env:Path;$llvmBin"
+          }
+          clang-cl --version
+          ninja --version
+      
+      - name: Configure CMake (Ninja + clang-cl + coverage)
+        shell: pwsh
+        run: |
+          # Use Ninja generator so clang-cl is invoked directly (not via MSBuild/cl.exe)
+          cmake -G "Ninja" -B build -S . `
+            -DCMAKE_C_COMPILER=clang-cl `
+            -DCMAKE_CXX_COMPILER=clang-cl `
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
+            -DPYRO_COMMON_BUILD_TESTS=OFF `
+            -DPYRO_COMMON_SHARED_LIBRARY=OFF `
+            -DPYRO_RHI_BUILD_VULKAN=OFF `
+            -DPYRO_RHI_BUILD_DX12=ON `
+            -DPYRO_RHI_BUILD_DX12_VALIDATION_TESTS=ON `
+            -DPYRO_RHI_BUILD_METAL=OFF `
+            -DPYRO_RHI_ENABLE_CODE_COVERAGE=ON
 
-      - name: Build (MSVC)
-        run: cmake --build build --config ${{ matrix.build_type }} --parallel 4
+      - name: Build (Ninja)
+        shell: pwsh
+        run: cmake --build build --parallel 4
 
-      - name: Run API validation tests
+      - name: Run API validation tests (generate .profraw)
+        shell: pwsh
         working-directory: build
-        run: ctest --build-config ${{ matrix.build_type }} --rerun-failed --output-on-failure
+        run: |
+          # Emit profraw files per-process into the build directory (pid suffix)
+          $buildDir = (Get-Location).Path
+          $env:LLVM_PROFILE_FILE = "$buildDir\\%p.profraw"
+          Write-Host "LLVM_PROFILE_FILE = $env:LLVM_PROFILE_FILE"
+      
+          # Run tests. ctest will launch the instrumented binaries which produce .profraw files.
+          ctest --build-config ${{ matrix.build_type }} --output-on-failure --rerun-failed
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "ctest returned non-zero exit code ($LASTEXITCODE) — tests may have failed. Continuing to gather any .profraw files produced."
+          }
+      
+      - name: Find .profraw files
+        shell: pwsh
+        working-directory: build
+        run: |
+          $profraw = Get-ChildItem -Path . -Recurse -Filter '*.profraw' -File -ErrorAction SilentlyContinue
+          if (-not $profraw -or $profraw.Count -eq 0) {
+            Write-Error "No .profraw files found. Coverage instrumentation may be missing or tests didn't run."
+            Exit 1
+          }
+          Write-Host "Found profraw files:"
+          $profraw | ForEach-Object { Write-Host "  $($_.FullName)" }
+      
+      - name: Merge .profraw -> coverage.profdata
+        shell: pwsh
+        working-directory: build
+        run: |
+          $files = @(Get-ChildItem -Path . -Recurse -Filter '*.profraw' -File | ForEach-Object { $_.FullName })
+          if ($files.Count -eq 0) { Write-Error "No profraw files to merge"; Exit 1 }
+      
+          # Find llvm-profdata
+          $profdataCmd = (Get-Command llvm-profdata.exe -ErrorAction SilentlyContinue).Path
+          if (-not $profdataCmd) { $profdataCmd = (Get-Command llvm-profdata -ErrorAction SilentlyContinue).Path }
+          if (-not $profdataCmd) {
+            # try common installation location (Chocolatey / LLVM installer)
+            $maybe = "C:\Program Files\LLVM\bin\llvm-profdata.exe"
+            if (Test-Path $maybe) { $profdataCmd = $maybe }
+          }
+          if (-not $profdataCmd) { Write-Error "llvm-profdata not found in PATH. Install LLVM or ensure llvm-profdata is on PATH."; Exit 1 }
+      
+          Write-Host "Using llvm-profdata: $profdataCmd"
+          $profdataOut = Join-Path (Get-Location) "coverage.profdata"
+          # merge with -sparse; expand $files as arguments
+          & $profdataCmd merge -sparse $files -o $profdataOut
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $profdataOut)) {
+            Write-Error "llvm-profdata merge failed or coverage.profdata not produced."
+            Exit 1
+          }
+          Write-Host "Merged -> $profdataOut"
+      
+      - name: Generate lcov-format report (llvm-cov -> lcov) and HTML
+        shell: pwsh
+        working-directory: build
+        run: |
+          # locate llvm-cov
+          $llvmCovCmd = (Get-Command llvm-cov.exe -ErrorAction SilentlyContinue).Path
+          if (-not $llvmCovCmd) { $llvmCovCmd = (Get-Command llvm-cov -ErrorAction SilentlyContinue).Path }
+          if (-not $llvmCovCmd) {
+            $maybe = "C:\Program Files\LLVM\bin\llvm-cov.exe"
+            if (Test-Path $maybe) { $llvmCovCmd = $maybe }
+          }
+          if (-not $llvmCovCmd) { Write-Error "llvm-cov not found in PATH. Install LLVM or ensure llvm-cov is on PATH."; Exit 1 }
+          Write-Host "Using llvm-cov: $llvmCovCmd"
+        
+          $profdata = Join-Path (Get-Location) "coverage.profdata"
+          if (-not (Test-Path $profdata)) { Write-Error "Merged profile ($profdata) not found"; Exit 1 }
+        
+          # Try hard-coded dll path first, else search for the test executable
+          $dllRel = "bin\Debug\RHI\RHIDX12.dll"
+          $dllPath = Join-Path (Get-Location) $dllRel
+          if (-not (Test-Path $dllPath)) {
+            Write-Host "Library not found at $dllRel. Searching for instrumented test dll by name..."
+            $found = Get-ChildItem -Path . -Recurse -Include 'RHIDX12.dll' -File -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $dllPath = $found.FullName; Write-Host "Found dll: $dllPath" }
+          } else {
+            Write-Host "Using dll: $dllPath"
+          }
+          if (-not (Test-Path $dllPath)) {
+            Write-Error "Test executable not found. Update \$dllRel in the workflow to the correct path or ensure tests produced an instrumented exe."
+            Write-Host "Listing some .dll files for debugging:"
+            Get-ChildItem -Path . -Recurse -Include '*.dll' -File | Select-Object -First 50 | ForEach-Object { Write-Host "  $($_.FullName)" }
+            Exit 1
+          }
+        
+          # produce lcov-format coverage.info using llvm-cov export (preferred)
+          $coverageInfo = Join-Path (Get-Location) "coverage.info"
+          Write-Host "Attempting to generate LCOV using 'llvm-cov export' -> $coverageInfo"
+        
+          # Try the preferred 'export' command (writes to stdout; redirect to file)
+          & $llvmCovCmd export ("-instr-profile=$profdata") ("-format=lcov") $dllPath > $coverageInfo
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $coverageInfo)) {
+            Write-Warning "llvm-cov export failed (maybe older llvm). Falling back to 'llvm-cov show -format=text' (NOT true LCOV)."
+            # remove possibly partial file
+            if (Test-Path $coverageInfo) { Remove-Item $coverageInfo -Force }
+            & $llvmCovCmd show $dllPath ("-instr-profile=$profdata") ("-format=text") > $coverageInfo
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $coverageInfo)) {
+              Write-Error "Both llvm-cov export and fallback show (text) failed. Inspect llvm-cov output above for details."
+              # print a textual report for debugging
+              & $llvmCovCmd report $dllPath ("-instr-profile=$profdata") 2>&1 | ForEach-Object { Write-Host $_ }
+              Exit 1
+            } else {
+              Write-Warning "Fallback produced a text-format coverage file at $coverageInfo (not LCOV). Consider installing a newer LLVM with 'llvm-cov export'."
+            }
+          } else {
+            Write-Host "Generated LCOV-format coverage.info"
+          }
+        
+          # Print short textual summary (always useful)
+          & $llvmCovCmd report $dllPath ("-instr-profile=$profdata") | ForEach-Object { Write-Host $_ }
+        
+          # Generate HTML using show (still correct)
+          $htmlDir = Join-Path (Get-Location) "coverage_html"
+          Write-Host "Generating HTML -> $htmlDir"
+          & $llvmCovCmd show $dllPath ("-instr-profile=$profdata") ("-format=html") ("-output-dir=$htmlDir")
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $htmlDir)) {
+            Write-Error "llvm-cov html generation failed."
+            Exit 1
+          }
+          Write-Host "HTML coverage generated at $htmlDir"
+
+      - name: Filter LCOV to RHIDX12 sources (lcov or PowerShell fallback)
+        shell: pwsh
+        working-directory: build
+        run: |
+          $raw = Join-Path (Get-Location) "coverage.info"
+          if (-not (Test-Path $raw)) { Write-Error "coverage.info not found"; Exit 1 }
+          $out = Join-Path (Get-Location) "coverage_rhidx12.info"
+
+          # Prefer lcov --extract if available
+          $lcovCmd = (Get-Command lcov -ErrorAction SilentlyContinue).Path
+          if ($lcovCmd) {
+            Write-Host "Using lcov to extract RHIDX12 files"
+            & $lcovCmd --extract $raw "*/RHIDX12/*" -o $out
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $out)) {
+              Write-Warning "lcov extract failed; falling back to PowerShell filter"
+              Remove-Item -ErrorAction SilentlyContinue $out
+            } else {
+              Write-Host "Extracted coverage -> $out"
+              Exit 0
+            }
+          } else {
+            Write-Host "lcov not found; using PowerShell filter"
+          }
+
+          # PowerShell fallback: LCOV is a sequence of records ending with 'end_of_record'
+          # Keep only records whose SF: path contains 'RHIDX12'
+          $lines = Get-Content $raw -Raw -ErrorAction Stop
+          # Split records by 'end_of_record' (we preserve it in each block)
+          $records = $lines -split "(?<=\r?\n)end_of_record\r?\n"
+          $kept = @()
+          foreach ($rec in $records) {
+            if ($rec -match "SF:.*RHIDX12") {
+              # ensure record ends with newline and end_of_record
+              if (-not $rec.TrimEnd().EndsWith("end_of_record")) { $rec = $rec.TrimEnd() + "`nend_of_record`n" }
+              $kept += $rec
+            }
+          }
+
+          if ($kept.Count -eq 0) {
+            Write-Error "No RHIDX12 records found in coverage.info. Nothing to output."
+            Exit 1
+          }
+
+          $kept -join "" | Set-Content -Encoding Ascii $out
+          Write-Host "Generated filtered LCOV -> $out (records: $($kept.Count))"
+          
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DX12-Coverage-Report
+          path: build/coverage_html
+      
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: build/coverage_rhidx12.info
+          flags: dx12
+          fail_ci_if_error: true
+      

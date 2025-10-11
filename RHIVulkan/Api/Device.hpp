@@ -59,7 +59,7 @@ namespace PyroshockStudios {
 
         class VulkanDevice : public IDevice, DeleteCopy, DeleteMove {
         public:
-            VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features);
+            VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features, bool bHeadlessEnabled);
             virtual ~VulkanDevice() override;
 
             bool IsMemoryBlockValid(MemoryBlock handle) const override;

@@ -160,7 +160,7 @@ namespace PyroshockStudios::RHIDX12 {
         }
 
         *ppAdapter = adapter.Detach();
-        if (*ppAdapter = nullptr) {
+        if (*ppAdapter == nullptr) {
             Logger::Fatal(gDX12Sink, "Failed to pick a suitable DX12 device!");
         }
     }

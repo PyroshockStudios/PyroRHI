@@ -24,7 +24,6 @@
 #include <RHIDX12/Core.hpp>
 #include <PyroRHI/Api/IFence.hpp>
 #include <PyroRHI/Api/Semaphore.hpp>
-#include <PyroRHI/Api/Sync.hpp>
 namespace PyroshockStudios {
     namespace RHIDX12 {
         class D3DDevice;

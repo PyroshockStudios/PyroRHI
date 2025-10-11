@@ -374,6 +374,10 @@ namespace PyroshockStudios {
             barrier.Transition.StateAfter = ToD3D12BufferResourceState(info.dstLayout);
             barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
             if (barrier.Transition.StateAfter == barrier.Transition.StateBefore) {
+                if (barrier.Transition.StateAfter == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+                    D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(barrier.Transition.pResource);
+                    mCommandList->ResourceBarrier(1, &uavBarrier);
+                }
                 return;
             }
             mCommandList->ResourceBarrier(1, &barrier);
@@ -443,6 +447,10 @@ namespace PyroshockStudios {
                 barrier.Transition.StateAfter = ToD3D12ImageResourceState(info.dstLayout) & validMask;
             }
             if (barrier.Transition.StateAfter == barrier.Transition.StateBefore) {
+                if (barrier.Transition.StateAfter == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+                    D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(barrier.Transition.pResource);
+                    mCommandList->ResourceBarrier(1, &uavBarrier);
+                }
                 return;
             }
             for (UINT i = 0; i < info.imageSlice.levelCount; ++i) {
@@ -465,31 +473,19 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) {
-            auto& bufferInfo = mDevice->ResourcePool().Get(buffer);
-            if (bufferInfo.lastValidState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-                D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(bufferInfo.resource.Get());
-                mCommandList->ResourceBarrier(1, &uavBarrier);
-            }
+            // auto& bufferInfo = mDevice->ResourcePool().Get(buffer);
+            // if (bufferInfo.lastValidState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+            //     D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(bufferInfo.resource.Get());
+            //     mCommandList->ResourceBarrier(1, &uavBarrier);
+            // }
         }
 
         void D3DCommandBuffer::AcquireImageOwnership(Image image, ICommandQueue* srcQueue) {
-            auto& imageInfo = mDevice->ResourcePool().Get(image);
-            if (imageInfo.lastValidStates[0] == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-                D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(imageInfo.resource.Get());
-                mCommandList->ResourceBarrier(1, &uavBarrier);
-            }
-        }
-
-        void D3DCommandBuffer::SignalEvent(const EventSignalInfo& info) {
-        }
-
-        void D3DCommandBuffer::WaitEvents(const eastl::span<const EventWaitInfo>& infos) {
-        }
-
-        void D3DCommandBuffer::WaitEvent(const EventWaitInfo& info) {
-        }
-
-        void D3DCommandBuffer::ResetEvent(const ResetEventInfo& info) {
+            // auto& imageInfo = mDevice->ResourcePool().Get(image);
+            // if (imageInfo.lastValidStates[0] == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+            //     D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(imageInfo.resource.Get());
+            //     mCommandList->ResourceBarrier(1, &uavBarrier);
+            // }
         }
 
         void D3DCommandBuffer::InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) {

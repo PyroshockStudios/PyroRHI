@@ -43,8 +43,10 @@ namespace PyroshockStudios {
     namespace RHIVulkan {
         PYRO_FORCEINLINE static constexpr VkImageViewType ToVkImageViewType(ImageViewType type) { return static_cast<VkImageViewType>(type); }
 
-        VulkanDevice::VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features)
+        VulkanDevice::VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features, bool bHeadlessEnabled)
             : mContext(context), mPhysicalDevice(physicalDevice) {
+            mProperties.bSupportsHeadlessSwapChainWindow = bHeadlessEnabled;
+
             Logger::Trace(gVulkanSink, "Creating Vulkan Device");
 
             VkPhysicalDeviceDescriptorIndexingFeatures physicalDeviceDescriptorIndexingFeatures = {
@@ -608,7 +610,14 @@ namespace PyroshockStudios {
                     break;
                 }
                 VkDeviceSize offset;
-                vmaVirtualAllocate(blockInfo.vmaBlock, &vmaVirtualAllocationCreateInfo, &ret.vmaAllocation.Get<VmaVirtualAllocation>(), &offset);
+                VkResult allocateResult = vmaVirtualAllocate(blockInfo.vmaBlock, &vmaVirtualAllocationCreateInfo, &ret.vmaAllocation.Get<VmaVirtualAllocation>(), &offset);
+                if (allocateResult == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+                    Logger::Debug(gVulkanSink, "Memory block {} of size {} ran out of space to allocate buffer {} with size {}. This is not an error",
+                        blockInfo.info.name, blockInfo.info.size, info.name, info.size);
+                    vkDestroyBuffer(mDevice, ret.vkBuffer, mContext->GetVkAllocator());
+                    mResourceTable.mBufferSlots.ReturnSlot(id);
+                    return PYRO_NULL_BUFFER;
+                }
                 CheckVkResult(vkBindBufferMemory(mDevice, ret.vkBuffer, blockInfo.vmaAllocationInfo.deviceMemory, offset));
                 vmaGetVirtualAllocationInfo(blockInfo.vmaBlock, ret.vmaAllocation.Get<VmaVirtualAllocation>(), &ret.allocationInfo.Get<VmaVirtualAllocationInfo>());
                 ++blockInfo.debugReferences;
@@ -719,7 +728,15 @@ namespace PyroshockStudios {
                     break;
                 }
                 VkDeviceSize offset;
-                vmaVirtualAllocate(blockInfo.vmaBlock, &vmaVirtualAllocationCreateInfo, &ret.vmaAllocation.Get<VmaVirtualAllocation>(), &offset);
+                VkResult allocateResult = vmaVirtualAllocate(blockInfo.vmaBlock, &vmaVirtualAllocationCreateInfo, &ret.vmaAllocation.Get<VmaVirtualAllocation>(), &offset);
+                if (allocateResult == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+                    Logger::Debug(gVulkanSink, "Memory block {} of size {} ran out of space to allocate image {} with {} bytes. This is not an error",
+                        blockInfo.info.name, blockInfo.info.size, info.name, requirements.size);
+                    vkDestroyImage(mDevice, ret.vkImage, mContext->GetVkAllocator());
+                    mResourceTable.mImageSlots.ReturnSlot(id);
+                    return PYRO_NULL_IMAGE;
+                }
+
                 CheckVkResult(vkBindImageMemory(mDevice, ret.vkImage, blockInfo.vmaAllocationInfo.deviceMemory, offset));
                 vmaGetVirtualAllocationInfo(blockInfo.vmaBlock, ret.vmaAllocation.Get<VmaVirtualAllocation>(), &ret.allocationInfo.Get<VmaVirtualAllocationInfo>());
                 ++blockInfo.debugReferences;
@@ -1280,9 +1297,9 @@ namespace PyroshockStudios {
                 waitSemaphores.push_back(semaphoreSubmit);
             }
             // TODO for Lukas, add timeline semaphores here?
-            for (auto semaphore : vkQueue->RefSubmittedSwapAcquireSemaphores()) {
+            for (VkSemaphore semaphore : vkQueue->RefSubmittedSwapAcquireSemaphores()) {
                 VkSemaphoreSubmitInfo semaphoreSubmit{ VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
-                semaphoreSubmit.semaphore = eastl::bit_cast<VulkanSemaphore*>(semaphore)->GetVkSemaphore();
+                semaphoreSubmit.semaphore = semaphore;
                 semaphoreSubmit.stageMask = /*FIXME: is this efficient? -> */ VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
                 waitSemaphores.push_back(semaphoreSubmit);
             }

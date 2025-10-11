@@ -1,13 +1,17 @@
 cmake_minimum_required(VERSION 3.28)
 project(PyroRHI)
 
-if (MSVC)
-add_compile_options(
- /Zc:preprocessor   # libassert preprocessor issues
- /MP                # multithreading 
-)
+include(CodeCoverage.cmake)
 
-add_compile_options()
+if (MSVC)
+	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+		add_compile_options(-Wno-unused-command-line-argument)
+	else()
+		add_compile_options(
+		 /Zc:preprocessor   # libassert preprocessor issues
+		 /MP                # multithreading 
+		)
+	endif()
 endif()
 
 include(Config.cmake)
@@ -38,6 +42,14 @@ endif()
 
 if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS OR PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
 add_subdirectory(tests)
+
+if (PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
+add_coverage_instrumentation(RHIDX12)
+endif()
+if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS)
+add_coverage_instrumentation(RHIVulkan)
+endif()
+
 endif()
 
 

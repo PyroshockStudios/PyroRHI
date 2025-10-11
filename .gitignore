@@ -437,3 +437,6 @@ imgui.ini
 
 # ignore vscode files
 /.vscode/
+
+# docker
+Dockerfile

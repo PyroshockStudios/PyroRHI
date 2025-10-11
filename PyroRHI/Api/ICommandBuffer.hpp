@@ -34,7 +34,6 @@
 #include <PyroRHI/Api/Limits.hpp>
 #include <PyroRHI/Api/Pipeline.hpp>
 #include <PyroRHI/Api/RenderTarget.hpp>
-#include <PyroRHI/Api/Sync.hpp>
 #include <PyroRHI/Api/Types.hpp>
 
 namespace PyroshockStudios {
@@ -273,12 +272,60 @@ namespace PyroshockStudios {
             PYRO_NODISCARD bool operator!=(const UpdateBufferInfo&) const = default;
         };
 
-        struct ResetEventInfo {
-            IEvent* event;
-            PipelineStageFlags stage = {};
+        /**
+         * @brief Parameters describing a buffer memory barrier.
+         *
+         * Used to synchronize access to buffer resources between pipeline stages or queues.
+         */
+        struct BufferMemoryBarrierInfo {
+            /// @brief Buffer handle to apply the barrier to.
+            Buffer buffer = PYRO_NULL_BUFFER;
 
-            PYRO_NODISCARD bool operator==(const ResetEventInfo&) const = default;
-            PYRO_NODISCARD bool operator!=(const ResetEventInfo&) const = default;
+            /// @brief Region of the buffer affected by this barrier.
+            BufferRegion region = {};
+
+            /// @brief Source access flags (before the barrier).
+            Access srcAccess = AccessConsts::NONE;
+
+            /// @brief Destination access flags (after the barrier).
+            Access dstAccess = AccessConsts::NONE;
+
+            /// @brief Buffer layout before the barrier. If `Undefined`, contents may not be preserved
+            BufferLayout srcLayout = BufferLayout::Undefined;
+
+            /// @brief Buffer layout after the barrier. *MUST* not be `Undefined`
+            BufferLayout dstLayout = BufferLayout::Undefined;
+
+            PYRO_NODISCARD bool operator==(const BufferMemoryBarrierInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const BufferMemoryBarrierInfo&) const = default;
+        };
+
+        /**
+         * @brief Parameters describing an image memory barrier.
+         *
+         * Used to synchronize access to image resources between pipeline stages, layouts, or queues.
+         */
+        struct ImageMemoryBarrierInfo {
+            /// @brief Image handle to apply the barrier to.
+            Image image = PYRO_NULL_IMAGE;
+
+            /// @brief Mip and array slice of the image affected by this barrier.
+            ImageMipArraySlice imageSlice = {};
+
+            /// @brief Source access flags (before the barrier).
+            Access srcAccess = AccessConsts::NONE;
+
+            /// @brief Destination access flags (after the barrier).
+            Access dstAccess = AccessConsts::NONE;
+
+            /// @brief Image layout before the barrier. If `Undefined`, contents may not be preserved
+            ImageLayout srcLayout = ImageLayout::Undefined;
+
+            /// @brief Image layout after the barrier. *MUST* not be `Undefined`
+            ImageLayout dstLayout = ImageLayout::Undefined;
+
+            PYRO_NODISCARD bool operator==(const ImageMemoryBarrierInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const ImageMemoryBarrierInfo&) const = default;
         };
 
         /**
@@ -716,27 +763,6 @@ namespace PyroshockStudios {
              * @param srcQueue The source queue that previously owned the image.
              */
             virtual void AcquireImageOwnership(Image image, ICommandQueue* srcQueue) = 0;
-
-
-            /**
-             * @brief Signals an event when all prior commands complete.
-             */
-            virtual void SignalEvent(const EventSignalInfo& info) = 0;
-
-            /**
-             * @brief Waits for multiple events before continuing execution.
-             */
-            virtual void WaitEvents(const eastl::span<const EventWaitInfo>& infos) = 0;
-
-            /**
-             * @brief Waits for a single event before continuing execution.
-             */
-            virtual void WaitEvent(const EventWaitInfo& info) = 0;
-
-            /**
-             * @brief Resets an event to the unsignaled state.
-             */
-            virtual void ResetEvent(const ResetEventInfo& info) = 0;
 
             // ---------------------------------------------------------------------
             // Deferred Resource Destruction
