@@ -22,12 +22,6 @@ jobs:
         with:
           submodules: recursive
           
-      - name: Debug: show compiler info
-        shell: pwsh
-        run: |
-          clang-cl --version
-          where.exe clang-cl
-          cl.exe --version  # if cl exists on PATH
       - name: Ensure LLVM (clang-cl) and Ninja present
         shell: pwsh
         run: |
