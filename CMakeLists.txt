@@ -5,6 +5,8 @@ option(PYRO_RHI_ENABLE_CODE_COVERAGE "Enable code coverage reporting" OFF)
 
 if(PYRO_RHI_ENABLE_CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     message(STATUS "Building with code coverage enabled")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
     add_compile_options(-O0 -g --coverage)
     add_link_options(--coverage)
 endif()
