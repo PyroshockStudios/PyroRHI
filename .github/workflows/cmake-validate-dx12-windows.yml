@@ -65,7 +65,7 @@ jobs:
           Write-Host "LLVM_PROFILE_FILE = $env:LLVM_PROFILE_FILE"
 
           # Run tests. ctest will launch the instrumented binaries which produce .profraw files.
-          ctest --config ${{ matrix.build_type }} --output-on-failure --rerun-failed
+          ctest --build-config ${{ matrix.build_type }} --output-on-failure --rerun-failed
 
       - name: Find .profraw files
         shell: pwsh
