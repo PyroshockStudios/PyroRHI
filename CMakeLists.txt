@@ -1,30 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 project(PyroRHI)
 
-option(PYRO_RHI_ENABLE_CODE_COVERAGE "Enable code coverage reporting" OFF)
-
-if(PYRO_RHI_ENABLE_CODE_COVERAGE)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT CMAKE_CXX_COMPILER MATCHES ".*cl\\.exe$")
-        message(STATUS "Building with code coverage enabled (Linux / GCC/Clang)")
-        add_link_options(--coverage)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage -O0 -g")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage -O0 -g")
-
-	elseif(WIN32)
-        message(STATUS "Building with code coverage enabled (Windows clang-cl)")
-        add_compile_options(
-            /ZI
-            /Od
-            -fprofile-instr-generate
-            -fcoverage-mapping
-        )
-        add_link_options(/DEBUG)
-    else()
-        message(FATAL_ERROR "Code coverage requested, but compiler is not supported")
-    endif()
-endif()
-
-
+include(CodeCoverage.cmake)
 
 if (MSVC)
 add_compile_options(
@@ -63,6 +40,14 @@ endif()
 
 if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS OR PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
 add_subdirectory(tests)
+
+if (PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
+add_coverage_instrumentation(RHIValidationTestDX12)
+endif()
+if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS)
+add_coverage_instrumentation(RHIValidationTestVulkan)
+endif()
+
 endif()
 
 
