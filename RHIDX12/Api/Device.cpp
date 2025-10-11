@@ -1210,7 +1210,6 @@ namespace PyroshockStudios {
                             view.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
                             view.Texture2D.MipSlice = i;
                         }
-                        mResourcePool->mRTVHeap.AcquireSlot();
                         mDevice->CreateRenderTargetView(data.resource.Get(), &view, mResourcePool->mRTVHeap.Resolve(descriptor));
                     }
                 }

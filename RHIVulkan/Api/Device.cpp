@@ -1280,9 +1280,9 @@ namespace PyroshockStudios {
                 waitSemaphores.push_back(semaphoreSubmit);
             }
             // TODO for Lukas, add timeline semaphores here?
-            for (auto semaphore : vkQueue->RefSubmittedSwapAcquireSemaphores()) {
+            for (VkSemaphore semaphore : vkQueue->RefSubmittedSwapAcquireSemaphores()) {
                 VkSemaphoreSubmitInfo semaphoreSubmit{ VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
-                semaphoreSubmit.semaphore = eastl::bit_cast<VulkanSemaphore*>(semaphore)->GetVkSemaphore();
+                semaphoreSubmit.semaphore = semaphore;
                 semaphoreSubmit.stageMask = /*FIXME: is this efficient? -> */ VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
                 waitSemaphores.push_back(semaphoreSubmit);
             }
