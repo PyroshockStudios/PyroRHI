@@ -57,9 +57,9 @@ jobs:
             -DPYRO_RHI_BUILD_METAL=OFF `
             -DPYRO_RHI_ENABLE_CODE_COVERAGE=ON
 
-        - name: Build (Ninja)
-          shell: pwsh
-          run: cmake --build build --parallel 4
+      - name: Build (Ninja)
+        shell: pwsh
+        run: cmake --build build --parallel 4
 
       - name: Run API validation tests (generate .profraw)
         shell: pwsh
