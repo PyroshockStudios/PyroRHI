@@ -11,7 +11,7 @@ if(PYRO_RHI_ENABLE_CODE_COVERAGE)
         set(_COV_COMPILE_FLAGS -O0 -g -fprofile-arcs -ftest-coverage)
         set(_COV_LINK_FLAGS --coverage)
 
-    elseif(WIN32)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32)
         message(STATUS "Building with code coverage enabled (Windows clang-cl / LLVM coverage)")
         # clang-cl style flags (use MSVC-style slash for clang-cl compatibility)
         # Use /Zi and /Od for debug/no-optim, and /fprofile-instr-generate and /fcoverage-mapping for LLVM

@@ -26,19 +26,19 @@ jobs:
         shell: pwsh
         run: |
           choco install llvm -y --no-progress
-          # ensure choco path is available
-          $env:Path += ";C:\Program Files\LLVM\bin"
+          # Add LLVM to PATH for this step (choco should place it in Program Files\LLVM)
+          $llvmBin = 'C:\Program Files\LLVM\bin'
+          if (Test-Path $llvmBin) {
+            $env:Path = "$env:Path;$llvmBin"
+          }
           llvm-profdata --version
           llvm-cov --version
 
       - name: Configure CMake (Clang-CL + Coverage)
         shell: pwsh
-        env:
-          # Optional: force Visual Studio generator - you can pick the generator you want
-          # Adjust generator if needed, e.g. "Visual Studio 17 2022"
-          #CMAKE_GENERATOR: "Visual Studio 17 2022"
         run: |
-          cmake -B build `
+          # Configure CMake to use clang-cl and enable coverage via the CMake option.
+          & cmake -B build `
             -DCMAKE_C_COMPILER=clang-cl `
             -DCMAKE_CXX_COMPILER=clang-cl `
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
@@ -59,22 +59,22 @@ jobs:
         shell: pwsh
         working-directory: build
         run: |
-          # Make sure LLVM_PROFILE_FILE will output profraw files into the build dir.
-          # %p is replaced by pid for each process; adjust pattern if you want multiple files per test.
-          $env:LLVM_PROFILE_FILE = "$(pwd)\%p.profraw"
-
+          # Emit profraw files per-process into the build directory (pid suffix)
+          $buildDir = (Get-Location).Path
+          $env:LLVM_PROFILE_FILE = "$buildDir\\%p.profraw"
           Write-Host "LLVM_PROFILE_FILE = $env:LLVM_PROFILE_FILE"
-          # Run tests (ctest will run the instrumented exe). Ensure tests spawn processes that inherit environment.
+
+          # Run tests. ctest will launch the instrumented binaries which produce .profraw files.
           ctest --config ${{ matrix.build_type }} --output-on-failure --rerun-failed
 
       - name: Find .profraw files
         shell: pwsh
         working-directory: build
         run: |
-          $profraw = Get-ChildItem -Path . -Recurse -Filter *.profraw -ErrorAction SilentlyContinue
+          $profraw = Get-ChildItem -Path . -Recurse -Filter '*.profraw' -ErrorAction SilentlyContinue
           if (-not $profraw) {
-              Write-Error "No .profraw files found. Coverage instrumentation may be missing or tests didn't run."
-              Exit 1
+            Write-Error "No .profraw files found. Coverage instrumentation may be missing or tests didn't run."
+            Exit 1
           }
           Write-Host "Found profraw files:"
           $profraw | ForEach-Object { Write-Host $_.FullName }
@@ -83,39 +83,37 @@ jobs:
         shell: pwsh
         working-directory: build
         run: |
-          # gather file list
-          $files = Get-ChildItem -Path . -Recurse -Filter *.profraw | ForEach-Object { $_.FullName }
+          $files = Get-ChildItem -Path . -Recurse -Filter '*.profraw' | ForEach-Object { $_.FullName }
           if ($files.Count -eq 0) { Write-Error "No profraw files to merge"; Exit 1 }
-
-          # merge (sparse) into one profdata
+          # llvm-profdata supports multiple files; pass them directly
           llvm-profdata merge -sparse $files -o coverage.profdata
-          Write-Host "Merged into: $(Get-Item coverage.profdata).FullName"
+          Write-Host "Merged into coverage.profdata"
 
       - name: Generate lcov-format report (llvm-cov -> lcov)
         shell: pwsh
         working-directory: build
         run: |
-          # Path to the test executable that was instrumented. Update if different.
-          $exe = "bin\Debug\RHIValidationTestDX12.exe"
-          if (-not (Test-Path $exe)) {
-              Write-Error "Test executable not found at build\$exe. Update workflow EXE path to match actual output."
-              Exit 1
+          # Update EXE_PATH to the actual instrumented test binary produced by your build
+          $exePath = "bin\Debug\RHIValidationTestDX12.exe"
+          if (-not (Test-Path $exePath)) {
+            Write-Error "Test executable not found at build\$exePath. Update workflow EXE path to match actual output."
+            Exit 1
           }
 
-          # Output lcov format
-          llvm-cov show $exe -instr-profile=coverage.profdata -format=lcov -output-file=coverage.info
+          # Produce lcov-style coverage.info
+          llvm-cov show $exePath -instr-profile=coverage.profdata -format=lcov -output-file=coverage.info
           Write-Host "Generated coverage.info"
 
-          # Quick summary via llvm-cov report (text) - also useful for logs
-          llvm-cov report $exe -instr-profile=coverage.profdata
+          # Print a short text summary for the logs
+          llvm-cov report $exePath -instr-profile=coverage.profdata
 
-      - name: Generate HTML Report (llvm-cov)
+      - name: Generate HTML Report
         shell: pwsh
         working-directory: build
         run: |
-          $exe = "bin\Debug\RHIValidationTestDX12.exe"
-          llvm-cov show $exe -instr-profile=coverage.profdata -format=html -output-dir coverage_html
-          Write-Host "HTML coverage at build\coverage_html"
+          $exePath = "bin\Debug\RHIValidationTestDX12.exe"
+          llvm-cov show $exePath -instr-profile=coverage.profdata -format=html -output-dir coverage_html
+          Write-Host "HTML coverage at build/coverage_html"
 
       - name: Upload Coverage Artifact
         uses: actions/upload-artifact@v4
