@@ -1,4 +1,4 @@
-name: Windows Clang-CL Coverage
+name: DirectX 12 Validation (Windows ClangCL)
 permissions:
   contents: read
   
@@ -23,7 +23,7 @@ jobs:
           submodules: recursive
 
       - name: Install MSYS2 (for lcov/genhtml)
-        uses: msys2/setup-msys2@v3
+        uses: msys2/setup-msys2@v2
         with:
           update: true
           install: lcov
@@ -75,7 +75,7 @@ jobs:
       - name: Upload Coverage Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Vulkan-Coverage-Report
+          name: DX12-Coverage-Report
           path: coverage_html
 
       - name: Upload to Codecov
@@ -83,5 +83,5 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.info
-          flags: vulkan
+          flags: dx12
           fail_ci_if_error: true
