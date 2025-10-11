@@ -1,0 +1,67 @@
+name: Windows Build (MSVC + Clang-CL)
+permissions:
+  contents: read
+  
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release]
+        compiler: [msvc, clang-cl]
+
+    steps:
+      - name: Checkout repository with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Prepare Vulkan SDK
+        uses: humbletim/setup-vulkan-sdk@v1.2.1
+        with:
+            vulkan-query-version: latest
+            vulkan-components: Vulkan-Headers, Vulkan-Loader
+            vulkan-use-cache: true
+
+      - name: Configure CMake
+        run: |
+          if [ "${{ matrix.compiler }}" == "msvc" ]; then
+            cmake -B build-msvc \
+              -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+              -DCMAKE_C_COMPILER=cl \
+              -DCMAKE_CXX_COMPILER=cl \
+              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DPYRO_COMMON_BUILD_TESTS=OFF \
+              -DPYRO_COMMON_SHARED_LIBRARY=OFF \
+              -DPYRO_RHI_BUILD_VULKAN=ON \
+              -DPYRO_RHI_BUILD_DX12=ON \
+              -DPYRO_RHI_BUILD_DX12_VALIDATION_TESTS=OFF \
+              -DPYRO_RHI_BUILD_METAL=OFF \
+              -S .
+          else
+            cmake -B build-clang \
+              -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+              -DCMAKE_C_COMPILER=clang-cl \
+              -DCMAKE_CXX_COMPILER=clang-cl \
+              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DPYRO_COMMON_BUILD_TESTS=OFF \
+              -DPYRO_COMMON_SHARED_LIBRARY=OFF \
+              -DPYRO_RHI_BUILD_VULKAN=ON \
+              -DPYRO_RHI_BUILD_DX12=ON \
+              -DPYRO_RHI_BUILD_DX12_VALIDATION_TESTS=OFF \
+              -DPYRO_RHI_BUILD_METAL=OFF \
+              -S .
+
+      - name: Build
+        run: |
+          if [ "${{ matrix.compiler }}" == "msvc" ]; then
+            cmake --build build-msvc --config ${{ matrix.build_type }} --parallel 4
+          else
+            cmake --build build-clang --config ${{ matrix.build_type }} --parallel 4

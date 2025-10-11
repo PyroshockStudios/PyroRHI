@@ -1,4 +1,4 @@
-name: DirectX 12 Validation (Windows MSVC)
+name: Windows Clang-CL Coverage
 permissions:
   contents: read
   
@@ -9,36 +9,79 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build-windows:
+  build-windows-coverage:
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Release]
+        build_type: [Debug]
 
     steps:
       - name: Checkout repository with submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Configure CMake (MSVC)
-        run: >
-          cmake -B build
-          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          -DCMAKE_C_COMPILER=cl
-          -DCMAKE_CXX_COMPILER=cl
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          -DPYRO_COMMON_BUILD_TESTS=OFF
-          -DPYRO_COMMON_SHARED_LIBRARY=OFF
-          -DPYRO_RHI_BUILD_VULKAN=OFF
-          -DPYRO_RHI_BUILD_DX12=ON
-          -DPYRO_RHI_BUILD_DX12_VALIDATION_TESTS=ON
-          -DPYRO_RHI_BUILD_METAL=OFF
-          -S .
 
-      - name: Build (MSVC)
+      - name: Install MSYS2 (for lcov/genhtml)
+        uses: msys2/setup-msys2@v3
+        with:
+          update: true
+          install: lcov
+
+      - name: Configure CMake (Clang-CL + Coverage)
+        shell: bash
+        run: |
+          cmake -B build \
+            -DCMAKE_C_COMPILER=clang-cl \
+            -DCMAKE_CXX_COMPILER=clang-cl \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DPYRO_COMMON_BUILD_TESTS=OFF \
+            -DPYRO_COMMON_SHARED_LIBRARY=OFF \
+            -DPYRO_RHI_BUILD_VULKAN=ON \
+            -DPYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS=ON \
+            -DPYRO_RHI_BUILD_DX12=OFF \
+            -DPYRO_RHI_BUILD_METAL=OFF \
+            -DPYRO_RHI_ENABLE_CODE_COVERAGE=ON \
+            -S .
+
+      - name: Build (Clang-CL)
+        shell: bash
         run: cmake --build build --config ${{ matrix.build_type }} --parallel 4
 
       - name: Run API validation tests
-        working-directory: build
-        run: ctest --build-config ${{ matrix.build_type }} --rerun-failed --output-on-failure
+        shell: bash
+        run: ctest --output-on-failure --test-dir build
+
+      - name: Coverage Sanity Check & Generate lcov Info
+        shell: bash
+        run: |
+          echo "=== Checking for .gcda coverage files ==="
+          GCDA_FILES=$(find build -name '*.gcda')
+          if [ -z "$GCDA_FILES" ]; then
+              echo "❌ No .gcda files found!"
+              exit 1
+          else
+              echo "✅ Found the following .gcda files:"
+              echo "$GCDA_FILES"
+          fi
+
+          lcov --directory build --capture --output-file coverage.info --include "RHIDX12/*"
+          lcov --summary coverage.info
+
+      - name: Generate HTML Report
+        shell: bash
+        run: genhtml coverage.info --output-directory coverage_html
+
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vulkan-Coverage-Report
+          path: coverage_html
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.info
+          flags: vulkan
+          fail_ci_if_error: true

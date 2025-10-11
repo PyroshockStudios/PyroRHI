@@ -3,12 +3,34 @@ project(PyroRHI)
 
 option(PYRO_RHI_ENABLE_CODE_COVERAGE "Enable code coverage reporting" OFF)
 
-if(PYRO_RHI_ENABLE_CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    message(STATUS "Building with code coverage enabled")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
-    add_compile_options(-O0 -g --coverage)
-    add_link_options(--coverage)
+if(PYRO_RHI_ENABLE_CODE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(STATUS "Building with code coverage enabled (Linux / GCC/Clang)")
+
+        # GCC/Clang coverage flags
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage -O0 -g")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage -O0 -g")
+        add_link_options(--coverage)
+
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
+        message(STATUS "Building with code coverage enabled (Windows clang-cl)")
+
+        # clang-cl coverage flags for Windows
+        add_compile_options(
+            /ZI              # Program database for edit & continue
+            /Od              # Disable optimization for coverage accuracy
+            -fsanitize-coverage=trace-pc-guard,indirect-calls
+        )
+
+        add_link_options(
+            -fsanitize-coverage=trace-pc-guard,indirect-calls
+        )
+
+        # Optionally define environment variable for llvm-cov
+        # set(CMAKE_EXPORT_COMPILE_COMMANDS ON) 
+    else()
+        message(WARNING "Code coverage requested, but compiler is not supported")
+    endif()
 endif()
 
 
