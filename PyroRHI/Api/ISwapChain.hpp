@@ -23,8 +23,8 @@
 #pragma once
 
 #include <PyroCommon/Core.hpp>
-#include <PyroRHI/Api/Sync.hpp>
 #include <PyroRHI/Api/Types.hpp>
+#include <PyroRHI/Api/GPUResource.hpp>
 
 namespace PyroshockStudios {
     inline namespace RHI {

@@ -38,6 +38,8 @@ namespace PyroshockStudios {
             constexpr u32 MAX_BOUND_COLOR_TARGETS = 8;
             /// @brief Max specialisation constants can be set per shader stage
             constexpr u32 MAX_SPECIALIZATION_CONSTANTS = 16U;
+            /// @brief Max update size that ICommandBuffer::UpdateBuffer() can perform
+            constexpr u32 MAX_UPDATE_BUFFER_SIZE = 65536U;
         } // namespace Limits
     } // namespace RHI
 } // namespace PyroshockStudios

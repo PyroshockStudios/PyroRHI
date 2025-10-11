@@ -556,7 +556,12 @@ namespace PyroshockStudios {
                 }
                 UINT64 offset;
                 HRESULT hr = block.block->Allocate(&allocDesc, &data.virtualAlloc, &offset);
-                CheckD3DResult(hr);
+                if (hr == E_OUTOFMEMORY) {
+                    Logger::Debug(gDX12Sink, "Memory block {} of size {} ran out of space to allocate buffer {} with size {}. This is not an error",
+                        block.info.name, block.info.size, info.name, info.size);
+                    mResourcePool->ReleaseBuffer(buffer);
+                    return PYRO_NULL_BUFFER;
+                }
                 hr = mDevice->CreatePlacedResource(
                     block.heap.Get(), // heap from above
                     offset,           // offset of this virtual slice
@@ -661,7 +666,12 @@ namespace PyroshockStudios {
                 }
                 UINT64 offset;
                 HRESULT hr = block.block->Allocate(&allocDesc, &data.virtualAlloc, &offset);
-                CheckD3DResult(hr);
+                if (hr == E_OUTOFMEMORY) {
+                    Logger::Debug(gDX12Sink, "Memory block {} of size {} ran out of space to allocate image {} with {} bytes. This is not an error",
+                        block.info.name, block.info.size, info.name, allocDesc.Size);
+                    mResourcePool->ReleaseImage(image);
+                    return PYRO_NULL_IMAGE;
+                }
                 hr = mDevice->CreatePlacedResource(
                     block.heap.Get(), // heap from above
                     offset,           // offset of this virtual slice

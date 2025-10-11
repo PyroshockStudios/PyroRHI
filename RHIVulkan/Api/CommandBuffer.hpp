@@ -63,11 +63,6 @@ namespace PyroshockStudios {
             void AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) override;
             void AcquireImageOwnership(Image image, ICommandQueue* srcQueue) override;
 
-            void SignalEvent(const EventSignalInfo& info) override;
-            void WaitEvents(const eastl::span<const EventWaitInfo>& infos) override;
-            void WaitEvent(const EventWaitInfo& info) override;
-            void ResetEvent(const ResetEventInfo& info) override;
-
             void DestroyMemoryBlockDeferred(MemoryBlock memory) override;
             void DestroyBufferDeferred(Buffer buffer) override;
             void DestroyImageDeferred(Image image) override;

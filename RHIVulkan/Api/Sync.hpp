@@ -24,7 +24,6 @@
 #include <RHIVulkan/Core.hpp>
 #include <PyroRHI/Api/IFence.hpp>
 #include <PyroRHI/Api/Semaphore.hpp>
-#include <PyroRHI/Api/Sync.hpp>
 
 namespace PyroshockStudios {
     namespace RHIVulkan {

@@ -610,7 +610,14 @@ namespace PyroshockStudios {
                     break;
                 }
                 VkDeviceSize offset;
-                vmaVirtualAllocate(blockInfo.vmaBlock, &vmaVirtualAllocationCreateInfo, &ret.vmaAllocation.Get<VmaVirtualAllocation>(), &offset);
+                VkResult allocateResult = vmaVirtualAllocate(blockInfo.vmaBlock, &vmaVirtualAllocationCreateInfo, &ret.vmaAllocation.Get<VmaVirtualAllocation>(), &offset);
+                if (allocateResult == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+                    Logger::Debug(gVulkanSink, "Memory block {} of size {} ran out of space to allocate buffer {} with size {}. This is not an error",
+                        blockInfo.info.name, blockInfo.info.size, info.name, info.size);
+                    vkDestroyBuffer(mDevice, ret.vkBuffer, mContext->GetVkAllocator());
+                    mResourceTable.mBufferSlots.ReturnSlot(id);
+                    return PYRO_NULL_BUFFER;
+                }
                 CheckVkResult(vkBindBufferMemory(mDevice, ret.vkBuffer, blockInfo.vmaAllocationInfo.deviceMemory, offset));
                 vmaGetVirtualAllocationInfo(blockInfo.vmaBlock, ret.vmaAllocation.Get<VmaVirtualAllocation>(), &ret.allocationInfo.Get<VmaVirtualAllocationInfo>());
                 ++blockInfo.debugReferences;
@@ -721,7 +728,15 @@ namespace PyroshockStudios {
                     break;
                 }
                 VkDeviceSize offset;
-                vmaVirtualAllocate(blockInfo.vmaBlock, &vmaVirtualAllocationCreateInfo, &ret.vmaAllocation.Get<VmaVirtualAllocation>(), &offset);
+                VkResult allocateResult = vmaVirtualAllocate(blockInfo.vmaBlock, &vmaVirtualAllocationCreateInfo, &ret.vmaAllocation.Get<VmaVirtualAllocation>(), &offset);
+                if (allocateResult == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+                    Logger::Debug(gVulkanSink, "Memory block {} of size {} ran out of space to allocate image {} with {} bytes. This is not an error",
+                        blockInfo.info.name, blockInfo.info.size, info.name, requirements.size);
+                    vkDestroyImage(mDevice, ret.vkImage, mContext->GetVkAllocator());
+                    mResourceTable.mImageSlots.ReturnSlot(id);
+                    return PYRO_NULL_IMAGE;
+                }
+
                 CheckVkResult(vkBindImageMemory(mDevice, ret.vkImage, blockInfo.vmaAllocationInfo.deviceMemory, offset));
                 vmaGetVirtualAllocationInfo(blockInfo.vmaBlock, ret.vmaAllocation.Get<VmaVirtualAllocation>(), &ret.allocationInfo.Get<VmaVirtualAllocationInfo>());
                 ++blockInfo.debugReferences;

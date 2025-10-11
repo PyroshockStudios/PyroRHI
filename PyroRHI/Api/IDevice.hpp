@@ -31,7 +31,6 @@
 #include "ISwapChain.hpp"
 #include "Pipeline.hpp"
 #include "Semaphore.hpp"
-#include "Sync.hpp"
 
 #include "RenderTarget.hpp"
 

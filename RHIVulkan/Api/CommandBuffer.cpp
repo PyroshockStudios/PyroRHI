@@ -405,31 +405,6 @@ namespace PyroshockStudios::RHIVulkan {
         mImageBarriers.push_back(barrier);
     }
 
-    void VulkanCommandBuffer::SignalEvent(const EventSignalInfo& info) {
-        ASSERT(false, "TODO");
-        // VkEvent event;
-        //  event = ...
-        // vkCmdSetEvent(mCommandBuffer, event, info.stage);
-    }
-
-    void VulkanCommandBuffer::WaitEvents(const eastl::span<const EventWaitInfo>& infos) {
-        ASSERT(false, "TODO");
-    }
-
-    void VulkanCommandBuffer::WaitEvent(const EventWaitInfo& info) {
-        ASSERT(false, "TODO");
-        VkEvent event;
-        // event = ...
-        // vkCmdWaitEvents();
-    }
-
-    void VulkanCommandBuffer::ResetEvent(const ResetEventInfo& info) {
-        ASSERT(false, "TODO");
-        // VkEvent event;
-        //  event = ...
-        // vkCmdResetEvent(mCommandBuffer, event, ToVkPipelineStageFlags(info.stage));
-    }
-
     void VulkanCommandBuffer::DestroyMemoryBlockDeferred(MemoryBlock memory) {
         mZombieInfo->zombies.push_back({
             .resource = eastl::bit_cast<void*>(memory),
