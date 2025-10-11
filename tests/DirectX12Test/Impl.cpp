@@ -17,3 +17,4 @@
 #include <RHITestChassis/ValidateFenceImpl.hpp>
 #include <RHITestChassis/ValidateImageImpl.hpp>
 #include <RHITestChassis/ValidateSemaphoreImpl.hpp>
+#include <RHITestChassis/ValidateSwapChainImpl.hpp>

@@ -80,6 +80,8 @@ namespace PyroshockStudios {
             usize mNumAllocatedBytes = {};
 
             RHIProperties rhiProps = {};
+
+            bool bHeadlessEnabled = false;
         };
     } // namespace RHIVulkan
 } // namespace PyroshockStudios

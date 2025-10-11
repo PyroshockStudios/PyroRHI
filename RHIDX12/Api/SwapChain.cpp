@@ -103,37 +103,56 @@ namespace PyroshockStudios {
 
             ComPtr<IDXGISwapChain1> swapChain;
             if (info.alphaMode == SwapChainAlphaMode::None) {
-                CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForHwnd(
-                    static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
-                    hwnd,
-                    &swapChainDesc,
-                    nullptr,
-                    nullptr,
-                    &swapChain));
-                gDx12Context->FlushDebugMessages();
+                if (info.nativeWindow) {
+                    CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForHwnd(
+                        static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
+                        hwnd,
+                        &swapChainDesc,
+                        nullptr,
+                        nullptr,
+                        &swapChain));
+                    gDx12Context->FlushDebugMessages();
+                } else {
+                    // no window
+                    CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForComposition(
+                        static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
+                        &swapChainDesc,
+                        nullptr,
+                        &swapChain));
+                    gDx12Context->FlushDebugMessages();
+                }
             } else {
-                CheckD3DResult(DCompositionCreateDevice(
-                    nullptr,
-                    __uuidof(IDCompositionDevice),
-                    reinterpret_cast<void**>(mDcompDevice.GetAddressOf())));
-
-                CheckD3DResult(mDcompDevice->CreateTargetForHwnd(hwnd, TRUE, &mDcompTarget));
-
-                CheckD3DResult(mDcompDevice->CreateVisual(&mDcompVisual));
-
                 // Attach swapchain to the visual
                 CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForComposition(
                     static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(),
                     &swapChainDesc,
                     nullptr,
                     &swapChain));
-
-                CheckD3DResult(mDcompVisual->SetContent(swapChain.Get()));
-                // Add visual to target
-                CheckD3DResult(mDcompTarget->SetRoot(mDcompVisual.Get()));
-                // Commit composition
-                CheckD3DResult(mDcompDevice->Commit());
                 gDx12Context->FlushDebugMessages();
+
+                if (info.nativeWindow) {
+                    CheckD3DResult(DCompositionCreateDevice(
+                        nullptr,
+                        __uuidof(IDCompositionDevice),
+                        reinterpret_cast<void**>(mDcompDevice.GetAddressOf())));
+                    gDx12Context->FlushDebugMessages();
+
+                    CheckD3DResult(mDcompDevice->CreateTargetForHwnd(hwnd, TRUE, &mDcompTarget));
+                    gDx12Context->FlushDebugMessages();
+
+                    CheckD3DResult(mDcompDevice->CreateVisual(&mDcompVisual));
+                    gDx12Context->FlushDebugMessages();
+
+
+                    CheckD3DResult(mDcompVisual->SetContent(swapChain.Get()));
+                    gDx12Context->FlushDebugMessages();
+                    // Add visual to target
+                    CheckD3DResult(mDcompTarget->SetRoot(mDcompVisual.Get()));
+                    gDx12Context->FlushDebugMessages();
+                    // Commit composition
+                    CheckD3DResult(mDcompDevice->Commit());
+                    gDx12Context->FlushDebugMessages();
+                }
             }
 
             CheckD3DResult(swapChain.As(&mSwapChain));
@@ -161,6 +180,7 @@ namespace PyroshockStudios {
         }
 
         void D3DSwapChain::Resize() {
+            ASSERT(mInfo.nativeWindow, "Headless swapchains cannot be resized, as they have no window attached to them");
             DestroyImages();
             HWND window = reinterpret_cast<HWND>(mInfo.nativeWindow);
             RECT area;
