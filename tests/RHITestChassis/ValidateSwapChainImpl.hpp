@@ -194,8 +194,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
         });
         queue->SubmitSwapChain(swapChain);
     }
-    queue->SubmitCommandBuffer(commandBuffer);
     commandBuffer->Complete();
+    queue->SubmitCommandBuffer(commandBuffer);
 
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);

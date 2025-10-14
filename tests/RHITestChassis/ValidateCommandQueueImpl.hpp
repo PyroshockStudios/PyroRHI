@@ -257,11 +257,18 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, QueueSubmitAgainIsOkay) {
     submitInfo.queue = queues[0];
 
     ICommandBuffer* commandBuffer = submitInfo.queue->GetCommandBuffer({ .name = "test1 cmds" });
+    commandBuffer->Complete();
     submitInfo.queue->SubmitCommandBuffer(commandBuffer);
+    // Submit 1
     mDevice->SubmitQueue(submitInfo);
+    // Wait
     submitInfo.queue->WaitIdle();
+    // Get new commands
     commandBuffer = submitInfo.queue->GetCommandBuffer({ .name = "test2 cmds" });
+    commandBuffer->Complete();
     submitInfo.queue->SubmitCommandBuffer(commandBuffer);
+    // Submit 2
     mDevice->SubmitQueue(submitInfo);
-    mDevice->WaitIdle();
+    // Finally wait for queue to finish.
+    submitInfo.queue->WaitIdle();
 }

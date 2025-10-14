@@ -49,12 +49,16 @@ namespace PyroshockStudios::RHIDX12 {
 
         UINT dxgiFactoryFlags = 0;
         if (args.bDebug) {
+            Logger::Trace(gDX12Sink, "Requesting Debug Layer");
             ComPtr<ID3D12Debug> debugController;
             if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
                 debugController->EnableDebugLayer();
 
                 // Enable additional debug layers.
                 dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+                Logger::Info(gDX12Sink, "Enabled Debug Layer");
+            } else {
+                Logger::Warn(gDX12Sink, "Failed to enable Debug Layer, skipping ID3D12Debug...");
             }
         }
 
