@@ -1,5 +1,9 @@
 #pragma once
 
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN 1
+#endif
+
 #ifndef RHI_TEST_CHASSIS_API_LIB
 #error Missing RHI_TEST_CHASSIS_API_LIB
 #endif
@@ -24,7 +28,7 @@
 #include <gtest/gtest.h>
 
 #if defined(_WIN32)
-#include <windows.h>
+#include <Windows.h>
 #define LOAD_LIB(path) LoadLibraryA(path)
 #define GET_SYM(lib, name) GetProcAddress((HMODULE)(lib), name)
 #define CLOSE_LIB(lib) FreeLibrary((HMODULE)(lib))

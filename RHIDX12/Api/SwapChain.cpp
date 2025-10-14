@@ -102,59 +102,48 @@ namespace PyroshockStudios {
             HWND hwnd = reinterpret_cast<HWND>(info.nativeWindow);
 
             ComPtr<IDXGISwapChain1> swapChain;
-            if (info.alphaMode == SwapChainAlphaMode::None) {
-                if (info.nativeWindow) {
-                    CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForHwnd(
-                        static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
-                        hwnd,
-                        &swapChainDesc,
-                        nullptr,
-                        nullptr,
-                        &swapChain));
-                    gDx12Context->FlushDebugMessages();
-                } else {
-                    // no window
-                    CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForComposition(
-                        static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
-                        &swapChainDesc,
-                        nullptr,
-                        &swapChain));
-                    gDx12Context->FlushDebugMessages();
-                }
-            } else {
-                // Attach swapchain to the visual
+            if (info.alphaMode != SwapChainAlphaMode::None || !info.nativeWindow) {
+                // no window
                 CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForComposition(
-                    static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(),
+                    static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
                     &swapChainDesc,
                     nullptr,
                     &swapChain));
                 gDx12Context->FlushDebugMessages();
-
-                if (info.nativeWindow) {
-                    CheckD3DResult(DCompositionCreateDevice(
-                        nullptr,
-                        __uuidof(IDCompositionDevice),
-                        reinterpret_cast<void**>(mDcompDevice.GetAddressOf())));
-                    gDx12Context->FlushDebugMessages();
-
-                    CheckD3DResult(mDcompDevice->CreateTargetForHwnd(hwnd, TRUE, &mDcompTarget));
-                    gDx12Context->FlushDebugMessages();
-
-                    CheckD3DResult(mDcompDevice->CreateVisual(&mDcompVisual));
-                    gDx12Context->FlushDebugMessages();
-
-
-                    CheckD3DResult(mDcompVisual->SetContent(swapChain.Get()));
-                    gDx12Context->FlushDebugMessages();
-                    // Add visual to target
-                    CheckD3DResult(mDcompTarget->SetRoot(mDcompVisual.Get()));
-                    gDx12Context->FlushDebugMessages();
-                    // Commit composition
-                    CheckD3DResult(mDcompDevice->Commit());
-                    gDx12Context->FlushDebugMessages();
-                }
+            } else {
+                CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForHwnd(
+                    static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
+                    hwnd,
+                    &swapChainDesc,
+                    nullptr,
+                    nullptr,
+                    &swapChain));
+                gDx12Context->FlushDebugMessages();
             }
+            if (info.alphaMode != SwapChainAlphaMode::None && info.nativeWindow) {
+                CheckD3DResult(DCompositionCreateDevice(
+                    nullptr,
+                    __uuidof(IDCompositionDevice),
+                    reinterpret_cast<void**>(mDcompDevice.GetAddressOf())));
+                gDx12Context->FlushDebugMessages();
 
+                CheckD3DResult(mDcompDevice->CreateTargetForHwnd(hwnd, TRUE, &mDcompTarget));
+                gDx12Context->FlushDebugMessages();
+
+                CheckD3DResult(mDcompDevice->CreateVisual(&mDcompVisual));
+                gDx12Context->FlushDebugMessages();
+
+
+                CheckD3DResult(mDcompVisual->SetContent(swapChain.Get()));
+                gDx12Context->FlushDebugMessages();
+                // Add visual to target
+                CheckD3DResult(mDcompTarget->SetRoot(mDcompVisual.Get()));
+                gDx12Context->FlushDebugMessages();
+                // Commit composition
+                CheckD3DResult(mDcompDevice->Commit());
+                gDx12Context->FlushDebugMessages();
+            }
+            
             CheckD3DResult(swapChain.As(&mSwapChain));
             D3DSetDebugName(mSwapChain, info.name.c_str());
 

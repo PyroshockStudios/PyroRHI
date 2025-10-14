@@ -35,9 +35,6 @@ namespace PyroshockStudios {
 
             const SemaphoreInfo& Info() const ;
 
-            ID3D12Fence* InternalFence() {
-                return mFence.Get();
-            }
             PYRO_FORCEINLINE void Signal(ID3D12CommandQueue* queue) {
                 // increment for each signal. 
                 // This is safe to do since the RHI enforces that Semaphore is 

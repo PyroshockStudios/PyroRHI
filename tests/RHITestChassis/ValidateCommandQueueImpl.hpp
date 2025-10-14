@@ -5,6 +5,14 @@
 using namespace PyroshockStudios;
 using namespace PyroshockStudios::RHI;
 using namespace PyroshockStudios::Types;
+
+
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, QueueValid) {
+    auto queues = mDevice->GetCommandQueues();
+    ASSERT_FALSE(queues.empty());
+    ASSERT_GT(queues[0]->GetTimestampTickPeriodNs(), 0ULL);
+}
+
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, EmptyQueueSubmitDoesNotError) {
     auto queues = mDevice->GetCommandQueues();
     ASSERT_FALSE(queues.empty());
@@ -12,6 +20,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, EmptyQueueSubmitDoesNotError) {
     CommandQueueSubmitInfo submitInfo = {};
     submitInfo.queue = queues[0];
     ASSERT_NE(submitInfo.queue, nullptr);
+    ASSERT_GT(queues[0]->GetTimestampTickPeriodNs(), 0ULL);
 
     mDevice->SubmitQueue(submitInfo);
     mDevice->WaitIdle();
@@ -222,7 +231,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ComputeQueueToGraphicsQueueSyncUAV) {
         EXPECT_NO_THROW(graphicsCommands->AcquireImageOwnership(uavImage, *pComputeQueue));
 
         // No need for an image barrier, since the layout does not change, only a queue ownership ocurred!
-        EXPECT_NO_THROW(graphicsCommands->ClearUnorderedAccessView({ .view = uav, .clearValue = { 1, 0, 1, 1, } }));
+        EXPECT_NO_THROW(graphicsCommands->ClearUnorderedAccessView({ .view = uav, .clearValue = { 1, 0, 1, 1 } }));
 
         graphicsCommands->Complete();
         (*pGraphicsQueue)->SubmitCommandBuffer(graphicsCommands);
@@ -238,4 +247,21 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ComputeQueueToGraphicsQueueSyncUAV) {
 
     mDevice->DestroyUnorderedAccess(uav);
     mDevice->DestroyImage(uavImage);
+}
+
+
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, QueueSubmitAgainIsOkay) {
+    auto queues = mDevice->GetCommandQueues();
+    ASSERT_FALSE(queues.empty());
+    CommandQueueSubmitInfo submitInfo = {};
+    submitInfo.queue = queues[0];
+
+    ICommandBuffer* commandBuffer = submitInfo.queue->GetCommandBuffer({ .name = "test1 cmds" });
+    submitInfo.queue->SubmitCommandBuffer(commandBuffer);
+    mDevice->SubmitQueue(submitInfo);
+    submitInfo.queue->WaitIdle();
+    commandBuffer = submitInfo.queue->GetCommandBuffer({ .name = "test2 cmds" });
+    submitInfo.queue->SubmitCommandBuffer(commandBuffer);
+    mDevice->SubmitQueue(submitInfo);
+    mDevice->WaitIdle();
 }

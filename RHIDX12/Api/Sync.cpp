@@ -57,7 +57,7 @@ namespace PyroshockStudios {
         bool D3DFence::WaitForValue(u64 value, u64 timeoutNs) {
             if (Value() >= value)
                 return true;
-            DWORD timeoutMs = (timeoutNs == UINT64_MAX) ? INFINITE : static_cast<DWORD>(timeoutNs / 1000000ULL);
+            DWORD timeoutMs = (timeoutNs == UINT64_MAX) ? INFINITE : static_cast<DWORD>(timeoutNs / 1000'000ULL);
 
             HRESULT hr = mFence->SetEventOnCompletion(value, mEvent);
             if (FAILED(hr))

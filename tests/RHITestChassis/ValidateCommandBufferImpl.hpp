@@ -4,7 +4,7 @@
 using namespace PyroshockStudios;
 using namespace PyroshockStudios::RHI;
 using namespace PyroshockStudios::Types;
-TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyBufferToBufferSucceeds) {
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTransferCopyBufferToBufferSucceeds) {
     BufferInfo bufferInfo{};
     bufferInfo.size = 2048;
     bufferInfo.usage = BufferUsageFlagBits::TRANSFER_SRC | BufferUsageFlagBits::TRANSFER_DST;
@@ -20,7 +20,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyBufferToBufferSucceeds) {
     copyInfo.dstBuffer = dst;
     copyInfo.srcOffset = 256; // copy from 256 bytes in
     copyInfo.dstOffset = 512; // copy to 512 bytes in
-    copyInfo.size = 512;      // copy 512 bytes — fits easily within 2048
+    copyInfo.size = 512;      // copy 512 bytes ï¿½ fits easily within 2048
 
     EXPECT_NO_FATAL_FAILURE(cb->BufferBarrier({
         .buffer = src,
@@ -47,7 +47,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyBufferToBufferSucceeds) {
     mDevice->DestroyBuffer(dst);
 }
 
-TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyBufferToImageSucceeds) {
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTransferCopyBufferToImageSucceeds) {
     ImageInfo imageInfo{};
     imageInfo.dimensions = ImageDimensions::e3D;
     imageInfo.size = { 16, 16, 4 };
@@ -95,7 +95,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyBufferToImageSucceeds) {
     mDevice->DestroyBuffer(buffer);
     mDevice->DestroyImage(image);
 }
-TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyImageToBufferSucceeds) {
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTransferCopyImageToBufferSucceeds) {
     ImageInfo srcImageInfo{};
     srcImageInfo.dimensions = ImageDimensions::e3D;
     srcImageInfo.size = { 16, 16, 4 };
@@ -148,7 +148,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyImageToBufferSucceeds) {
     mDevice->DestroyBuffer(dstBuffer);
 }
 
-TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyImageToImageSucceeds) {
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTransferCopyImageToImageSucceeds) {
     ImageInfo srcImageInfo{};
     srcImageInfo.size = { 16, 16, 1 };
     srcImageInfo.format = Format::RGBA8Unorm;
@@ -196,7 +196,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferCopyImageToImageSucceeds) {
 }
 
 
-TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferClearUAVBufferSucceeds) {
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTransferClearUAVBufferSucceeds) {
     BufferInfo bufferInfo{};
     bufferInfo.size = 1024;
     bufferInfo.usage = BufferUsageFlagBits::UNORDERED_ACCESS;
@@ -228,7 +228,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferClearUAVBufferSucceeds) {
     mDevice->DestroyBuffer(buffer);
 }
 
-TEST_F(RHI_CONTEXT_FIXTURE_NAME, TransferClearUAVImageSucceeds) {
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTransferClearUAVImageSucceeds) {
     ImageInfo imageInfo{};
     imageInfo.size = { 256, 256, 1 };
     imageInfo.format = Format::RGBA16Unorm;
@@ -344,7 +344,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiCommandBufferSyncSubmit) {
 }
 
 
-TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateBuffer64kbSucceeds) {
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsUpdateBuffer64kbSucceeds) {
     BufferInfo bufferInfo{};
     bufferInfo.size = 65536;
     bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
@@ -372,7 +372,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateBuffer64kbSucceeds) {
 
 
 
-TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateBuffer64kbSucceedsWithOffset) {
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsUpdateBuffer64kbSucceedsWithOffset) {
     BufferInfo bufferInfo{};
     bufferInfo.size = 65536 + 256;
     bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
@@ -398,7 +398,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateBuffer64kbSucceedsWithOffset) {
     mDevice->DestroyBuffer(buffer);
 }
 
-TEST_F(RHI_CONTEXT_FIXTURE_NAME, TimestampQueryPoolResetSetSuccess) {
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTimestampQueryPoolResetSetSuccess) {
     ImageInfo imageInfo{};
     imageInfo.size = { 256, 256, 1 };
     imageInfo.format = Format::RGBA16Unorm;

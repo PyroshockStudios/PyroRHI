@@ -18,6 +18,26 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyBuffer) {
     mDevice->DestroyBuffer(buffer);
     EXPECT_FALSE(mDevice->IsBufferValid(buffer));
 }
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyBufferAndThenCreateAgain) {
+    BufferInfo info = {};
+    info.size = 1024;
+    info.usage = BufferUsageFlagBits::VERTEX_BUFFER; // or however you define usage flags
+    info.name = "TestBuffer";
+
+    Buffer buffer = mDevice->CreateBuffer(info);
+    ASSERT_TRUE(mDevice->IsBufferValid(buffer));
+    EXPECT_EQ(mDevice->GetBufferInfo(buffer), info);
+    mDevice->DestroyBuffer(buffer);
+    EXPECT_FALSE(mDevice->IsBufferValid(buffer));
+
+    info.size = 256;
+    buffer = mDevice->CreateBuffer(info);
+    ASSERT_TRUE(mDevice->IsBufferValid(buffer));
+    EXPECT_EQ(mDevice->GetBufferInfo(buffer), info);
+
+    mDevice->DestroyBuffer(buffer);
+    EXPECT_FALSE(mDevice->IsBufferValid(buffer));
+}
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyVirtualBuffers) {
     MemoryBlockInfo blockInfo = {};
     blockInfo.size = 1048576;

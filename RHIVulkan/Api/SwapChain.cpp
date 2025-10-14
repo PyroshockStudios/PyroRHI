@@ -218,6 +218,7 @@ namespace PyroshockStudios::RHIVulkan {
                 createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR;
             } else {
                 createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+                mInfo.alphaMode = SwapChainAlphaMode::None;
             }
             break;
         case SwapChainAlphaMode::Straight:
@@ -225,6 +226,7 @@ namespace PyroshockStudios::RHIVulkan {
                 createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
             } else {
                 createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+                mInfo.alphaMode = SwapChainAlphaMode::None;
             }
             break;
         default:
@@ -239,7 +241,7 @@ namespace PyroshockStudios::RHIVulkan {
 
         u32 imageCount = 0;
         vkGetSwapchainImagesKHR(mDevice->GetVkDevice(), mSwapChain, &imageCount, nullptr);
-        ASSERT(imageCount == mInfo.bufferCount, "Swap buffer count and image count don't match!");
+        mInfo.bufferCount = imageCount;
         mSwapImages.resize(static_cast<usize>(imageCount));
         mWrappedImages.resize(static_cast<usize>(imageCount));
         vkGetSwapchainImagesKHR(mDevice->GetVkDevice(), mSwapChain, &imageCount, mSwapImages.data());
