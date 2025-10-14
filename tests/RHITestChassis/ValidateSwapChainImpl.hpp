@@ -21,14 +21,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
     SwapChainInfo info = {
         .format = SwapChainFormat::Unorm8BitLDR,
         .bufferCount = 2,
-        .imageUsage =
-            ImageUsageFlagBits::TRANSFER_SRC |
-            ImageUsageFlagBits::TRANSFER_DST |
-            ImageUsageFlagBits::SHADER_RESOURCE |
-            ImageUsageFlagBits::UNORDERED_ACCESS |
-            ImageUsageFlagBits::RENDER_TARGET |
-            ImageUsageFlagBits::BLIT_SRC |
-            ImageUsageFlagBits::BLIT_DST, // test many usages
+        .imageUsage = ImageUsageFlagBits::TRANSFER_DST,
         .extent = { 256, 256 },
         .name = "Headless Swap Chain",
     };

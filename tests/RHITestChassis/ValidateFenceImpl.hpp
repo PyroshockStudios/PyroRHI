@@ -78,19 +78,19 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, AsyncWaitBeforeTimeout)
     // Launch async wait thread with automatic join on destruction
     std::jthread asyncWait([&](std::stop_token st) {
         waitStarted.count_down(); // signal main thread that we’ve started waiting
-        u64 fenceResultVal = 0;
+        bool timeout = true;
 
         EXPECT_NO_FATAL_FAILURE(
-            fenceResultVal = fence->WaitForValue(FenceVal, /*timeoutNs=*/5ULL * 1000'000'000)
+            timeout = fence->WaitForValue(FenceVal, /*timeoutNs=*/5ULL * 1000'000'000)
         );
-
+        ASSERT_FALSE(timeout) << "Fence timed out, even though value was set during timeout range";
         if (st.stop_requested()) {
             GTEST_SKIP() << "Test canceled before WaitForValue() finished.";
             return;
         }
 
         waitFinished = true;
-        EXPECT_EQ(fenceResultVal, FenceVal);
+        EXPECT_EQ(fence->Value(), FenceVal);
     });
 
     // Wait for the async thread to actually start waiting
