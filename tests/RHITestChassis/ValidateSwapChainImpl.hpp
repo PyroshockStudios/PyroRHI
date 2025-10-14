@@ -40,7 +40,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
     ASSERT_EQ(info.imageUsage, swapChain->Info().imageUsage);
     ASSERT_EQ(info.name, swapChain->Info().name);
 
-    ASSERT_EQ(info.name, swapChain->GetSurfaceExtent());
+    ASSERT_EQ(info.extent, swapChain->GetSurfaceExtent());
 
     const SemaphoreSubmitInfo signalPresent{
         .semaphore = waitPresentSemaphore,
