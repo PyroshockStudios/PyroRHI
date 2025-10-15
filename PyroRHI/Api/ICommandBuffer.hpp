@@ -193,6 +193,7 @@ namespace PyroshockStudios {
 
         /**
          * @brief Parameters for blitting (scaling/filtering) one image to another.
+         * @note Despite the srcImageBox and dstImageBox being a Box3D, this function currently REQUIRES the images to be 2D/2DArray
          */
         struct BlitImageToImageInfo {
             /**
@@ -208,17 +209,17 @@ namespace PyroshockStudios {
              */
             ImageArraySlice srcImageSlice = {};
             /**
-             * @brief Source rect region in the image.
+             * @brief Source box region in the image.
              */
-            Rect2D srcImageRect = {};
+            Box3D srcImageBox = {};
             /**
              * @brief Destination image slice to blit into.
              */
             ImageArraySlice dstImageSlice = {};
             /**
-             * @brief Destination rect region in the image.
+             * @brief Destination box region in the image.
              */
-            Rect2D dstImageRect = {};
+            Box3D dstImageBox = {};
             /**
              * @brief Filtering mode applied during blit.
              */

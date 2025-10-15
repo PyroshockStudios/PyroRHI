@@ -352,6 +352,8 @@ namespace PyroshockStudios {
                 return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
             case PrimitiveTopology::TriangleStrip:
                 return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+            case PrimitiveTopology::TriangleFan:
+                return D3D_PRIMITIVE_TOPOLOGY_TRIANGLEFAN;
             case PrimitiveTopology::LineListWithAdjacency:
                 return D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
             case PrimitiveTopology::LineStripWithAdjacency:
@@ -381,6 +383,7 @@ namespace PyroshockStudios {
             case PrimitiveTopology::TriangleStrip:
             case PrimitiveTopology::TriangleListWithAdjacency:
             case PrimitiveTopology::TriangleStripWithAdjacency:
+            case PrimitiveTopology::TriangleFan:
                 return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             case PrimitiveTopology::PatchList:
                 return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;

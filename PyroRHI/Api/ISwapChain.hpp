@@ -65,6 +65,14 @@ namespace PyroshockStudios {
             Straight = 2
         };
 
+        enum struct SwapChainPresentMode : i32 {
+            Tearing = 0,
+            LowLatency = 1,
+            VSync = 2,
+            VSyncAdaptive = 3
+        };
+
+
         /**
          * @brief Parameters for creating a swap chain.
          *
@@ -99,13 +107,7 @@ namespace PyroshockStudios {
             /**
              * @brief Presentation mode, controlling vsync and tearing behavior.
              */
-            PresentMode presentMode = PresentMode::VSync;
-
-            /**
-             * @brief Present operation
-             */
-            // TODO: is this actually necessary?
-            PresentOp presentOperation = PresentOp::Identity;
+            SwapChainPresentMode presentMode = SwapChainPresentMode::VSync;
 
             /**
              * @brief Number of back buffers in the swap chain.
@@ -117,6 +119,7 @@ namespace PyroshockStudios {
 
             /**
              * @brief Intended usage flags for swap chain images.
+             * At least 1 image usage is REQUIRED to be set
              */
             ImageUsageFlags imageUsage = ImageUsageFlagBits::NONE;
 
@@ -155,10 +158,10 @@ namespace PyroshockStudios {
             /**
              * @brief Acquire the next available image for rendering.
              *
-             * @return Image Handle to the next back buffer.
-             * Returns null if acquisition failed (e.g., swap chain needs resize).
+             * @return Image index to the next back buffer.
+             * Returns -1 if acquisition failed (e.g., swap chain needs resize).
              */
-            PYRO_NODISCARD virtual Image AcquireNextImage() = 0;
+            PYRO_NODISCARD virtual i32 AcquireNextImage() = 0;
 
             /** @brief Resize the swap chain to match the current window size. */
             virtual void Resize() = 0;

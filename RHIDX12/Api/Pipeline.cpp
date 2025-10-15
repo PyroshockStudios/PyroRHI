@@ -123,8 +123,6 @@ namespace PyroshockStudios {
             D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
             psoDesc.pRootSignature = rootSig;
 
-
-
             // --- Shader stages ---
             if (stages.vertexShaderInfo) {
                 psoDesc.VS = { stages.vertexShaderInfo->program.data(), stages.vertexShaderInfo->program.size() };

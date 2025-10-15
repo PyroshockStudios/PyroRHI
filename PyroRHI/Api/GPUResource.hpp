@@ -54,7 +54,7 @@ namespace PyroshockStudios {
 
 
         //-------------------------------------------------------------------------------------------------
-        // Device Memory Creation Structure
+        // Virtual Memory Block Creation Structure
         //-------------------------------------------------------------------------------------------------
 
         /**
@@ -193,7 +193,7 @@ namespace PyroshockStudios {
             bool enableAnisotropy = false;                                     /**< Enables anisotropic filtering. */
             u32 maxAnisotropy = 1;                                             /**< Maximum anisotropy if enabled. */
             bool enableCompare = false;                                        /**< Enables depth comparison for shadow mapping. */
-            CompareOp compareOp = CompareOp::Always;                           /**< Comparison operation if enabled. */
+            CompareOp compareOp = CompareOp::Never;                            /**< Comparison operation if enabled. */
             f32 minLod = 0.0f;                                                 /**< Minimum mipmap LOD. */
             f32 maxLod = FLT_MAX;                                              /**< Maximum mipmap LOD. */
             BorderColor borderColor = BorderColor::TransparentBlackFloat;      /**< Border color for texture sampling. */

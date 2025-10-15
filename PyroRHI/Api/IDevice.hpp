@@ -267,6 +267,18 @@ namespace PyroshockStudios {
             PYRO_NODISCARD virtual u8* BufferHostAddress(Buffer buffer) const = 0;
 
             /**
+             * @brief Returns the host-mapped pointer for a buffer, cast to the requested type.
+             */
+            template <typename T>
+            PYRO_NODISCARD PYRO_FORCEINLINE T* BufferHostAddressAs(Buffer buffer) const {
+                return reinterpret_cast<T*>(BufferHostAddress(buffer));
+            }
+            
+            // ---------------------------------------------------------------------
+            // Memory requirements
+            // ---------------------------------------------------------------------
+
+            /**
              * @brief Returns the size requirements (in bytes) for the entire image resource.
              *
              * This is the total memory footprint needed to store the image including all mip levels,
@@ -284,14 +296,6 @@ namespace PyroshockStudios {
              * Row width is the minimal width that needs to be queried **INCLUDING** the format size. For a buffer-image copy, this is the extent of your copy region.
              */
             PYRO_NODISCARD virtual u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const = 0;
-
-            /**
-             * @brief Returns the host-mapped pointer for a buffer, cast to the requested type.
-             */
-            template <typename T>
-            PYRO_NODISCARD PYRO_FORCEINLINE T* BufferHostAddressAs(Buffer buffer) const {
-                return reinterpret_cast<T*>(BufferHostAddress(buffer));
-            }
 
             // ---------------------------------------------------------------------
             // Resource Creation
@@ -443,8 +447,7 @@ namespace PyroshockStudios {
              * @brief Selects the first supported format from a list of candidates.
              */
             PYRO_NODISCARD virtual eastl::optional<Format> PickSupportedFormat(
-                const eastl::span<Format>& candidates,
-                FormatFeatureFlags features) = 0;
+                const eastl::span<Format>& candidates, FormatFeatureFlags features) = 0;
 
             /**
              * @brief Retrieves all available command queues.
@@ -482,12 +485,12 @@ namespace PyroshockStudios {
             /**
              * @brief Returns general device properties.
              */
-            PYRO_NODISCARD virtual const DeviceInfo& GetInfo() = 0;
+            PYRO_NODISCARD virtual const DeviceInfo& Info() = 0;
 
             /**
              * @brief Returns hardware limits and capabilities.
              */
-            PYRO_NODISCARD virtual const DevicePropertiesInfo& GetProperties() = 0;
+            PYRO_NODISCARD virtual const DevicePropertiesInfo& Properties() = 0;
 
             // Convenience create overloads
             PYRO_NODISCARD PYRO_FORCEINLINE MemoryBlock Create(const MemoryBlockInfo& info) { return CreateMemoryBlock(info); }

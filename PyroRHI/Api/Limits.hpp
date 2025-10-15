@@ -29,7 +29,7 @@ namespace PyroshockStudios {
             /// @brief Max push constant offset + size in bytes allowed to be passed per stage.
             constexpr u32 MAX_PUSH_CONSTANT_SIZE = 128;
             /// @brief Max uniform buffer offset + size in bytes bound
-            constexpr u32 MAX_UNIFORM_BUFFER_SIZE = 65535;
+            constexpr u32 MAX_UNIFORM_BUFFER_SIZE = 65536;
             /// @brief Max unorderd access views that can be bound at once
             constexpr u32 MAX_UNORDERED_ACCESS_VIEW_SLOTS = 12;
             /// @brief Max uniform buffer views that can be bound at once

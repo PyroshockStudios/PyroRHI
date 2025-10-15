@@ -172,6 +172,7 @@ namespace PyroshockStudios {
             static constexpr inline FormatFeatureFlags SHADER_RESOURCE = { 0x00000001 };
             static constexpr inline FormatFeatureFlags UNORDERED_ACCESS = { 0x00000002 };
             static constexpr inline FormatFeatureFlags UNORDERED_ACCESS_ATOMIC = { 0x00000004 };
+            // TODO: implement [RW]TextureBuffer in the future
             // static constexpr inline FormatFeatureFlags UNIFORM_TEXEL_BUFFER = { 0x00000008 };
             // static constexpr inline FormatFeatureFlags STORAGE_TEXEL_BUFFER = { 0x00000010 };
             // static constexpr inline FormatFeatureFlags STORAGE_TEXEL_BUFFER_ATOMIC = { 0x00000020 };
@@ -185,7 +186,6 @@ namespace PyroshockStudios {
             static constexpr inline FormatFeatureFlags TRANSFER_SRC = { 0x00004000 };
             static constexpr inline FormatFeatureFlags TRANSFER_DST = { 0x00008000 };
         };
-
 
         enum struct SamplerAddressMode : i32 {
             Repeat = 0,
@@ -256,7 +256,7 @@ namespace PyroshockStudios {
             LineStrip = 2,
             TriangleList = 3,
             TriangleStrip = 4,
-            //    TriangleFan = 5,
+            TriangleFan = 5,
             LineListWithAdjacency = 6,
             LineStripWithAdjacency = 7,
             TriangleListWithAdjacency = 8,
@@ -273,6 +273,7 @@ namespace PyroshockStudios {
         enum struct LineMode : i32 {
             Normal = 0,
             Smooth = 1
+            // TODO: add more line modes: stippled, etc.
         };
 
         enum struct WindingOrder : i32 {
@@ -518,28 +519,7 @@ namespace PyroshockStudios {
             static constexpr inline CommandQueueFlags COMPUTE = { 0x00000002 };
             static constexpr inline CommandQueueFlags TRANSFER = { 0x00000004 };
         };
-
-
-        enum struct PresentMode : i32 {
-            Tearing = 0,
-            LowLatency = 1,
-            VSync = 2,
-            VSyncAdaptive = 3
-        };
-
-        // TODO: is this useful?
-        enum struct PresentOp : i32 {
-            Identity = 0x00000001,
-            Rotate90 = 0x00000002,
-            Rotate180 = 0x00000004,
-            Rotate270 = 0x00000008,
-            HorizontalMirror = 0x00000010,
-            HorizontalMirrorRotate90 = 0x00000020,
-            HorizontalMirrorRotate180 = 0x00000040,
-            HorizontalMirrorRotate270 = 0x00000080,
-            Inherit = 0x00000100
-        };
-
+        
         struct ImageUsageFlagsProperties {
             using Data = u32;
         };
@@ -578,11 +558,8 @@ namespace PyroshockStudios {
             static inline constexpr BufferUsageFlags INDEX_BUFFER = { 0x00000002 };
             static inline constexpr BufferUsageFlags DRAW_INDIRECT = { 0x00000010 };
             static inline constexpr BufferUsageFlags BUFFER_DEVICE_ADDRESS = { 0x00000020 };
-            static inline constexpr BufferUsageFlags HOST_READ = { 0x02000000 };
-            static inline constexpr BufferUsageFlags HOST_WRITE = { 0x04000000 };
             static inline constexpr BufferUsageFlags BYTE_ADDRESS_BUFFER = { 0x08000000 };
         };
-
 
         enum struct MemoryAllocationDomain : i32 {
             DeviceLocal = 0,
@@ -613,6 +590,7 @@ namespace PyroshockStudios {
 
         enum struct ImageLayout : i32 {
             Identity = -1,
+            // FIXME: require UNDEFINED to be treated the same as other layouts
             Undefined = 0,
             UnorderedAccess = 1,
             ReadOnly = 2,
@@ -627,6 +605,7 @@ namespace PyroshockStudios {
 
         enum struct BufferLayout : i32 {
             Identity = -1,
+            // FIXME: require UNDEFINED to be treated the same as other layouts
             Undefined = 0,
             UnorderedAccess = 1,
             ReadOnly = 2,
@@ -639,6 +618,7 @@ namespace PyroshockStudios {
             Linear = 1,
         };
 
+        // TODO: check support on dx12
         enum struct ReductionMode : i32 {
             WeightedAverage = 0,
             Min = 1,
@@ -699,16 +679,16 @@ namespace PyroshockStudios {
         };
 
         struct Extent2D {
-            u32 x = 1;
-            u32 y = 1;
+            u32 width = 1;
+            u32 height = 1;
 
             PYRO_NODISCARD friend auto operator<=>(const Extent2D&, const Extent2D&) = default;
         };
 
         struct Extent3D {
-            u32 x = 1;
-            u32 y = 1;
-            u32 z = 1;
+            u32 width = 1;
+            u32 height = 1;
+            u32 depth = 1;
 
             PYRO_NODISCARD friend auto operator<=>(const Extent3D&, const Extent3D&) = default;
         };
@@ -763,7 +743,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD friend auto operator<=>(const Box3D&, const Box3D&) = default;
         };
-#define PYRO_MAX_DEVICE_SIZE (~(static_cast<DeviceSize>(0)))
+        static constexpr inline DeviceSize PYRO_MAX_DEVICE_SIZE  = ~(static_cast<DeviceSize>(0));
         struct BufferRegion {
             DeviceSize offset = 0;
             DeviceSize size = PYRO_MAX_DEVICE_SIZE;
@@ -818,15 +798,18 @@ namespace PyroshockStudios {
             }
         };
 
+        static constexpr inline u32 PYRO_REMAINING_MIP_LEVELS = ~(0U);
+        static constexpr inline u32 PYRO_REMAINING_ARRAY_LAYERS = ~(0U);
+        
         struct ImageMipArraySlice;
         struct ImageArraySlice;
         struct ImageSlice;
 
         struct ImageMipArraySlice {
-            uint32_t baseMipLevel = 0;
-            uint32_t levelCount = 1;
-            uint32_t baseArrayLayer = 0;
-            uint32_t layerCount = 1;
+            u32 baseMipLevel = 0;
+            u32 levelCount = PYRO_REMAINING_MIP_LEVELS;
+            u32 baseArrayLayer = 0;
+            u32 layerCount = PYRO_REMAINING_ARRAY_LAYERS;
 
             PYRO_NODISCARD friend auto operator<=>(const ImageMipArraySlice&, const ImageMipArraySlice&) = default;
 
@@ -843,10 +826,10 @@ namespace PyroshockStudios {
             PYRO_NODISCARD constexpr ImageMipArraySlice Intersect(const ImageMipArraySlice& slice) const noexcept {
                 if (!Intersects(slice))
                     return { 0, 0, 0, 0 };
-                uint32_t startMip = eastl::max(baseMipLevel, slice.baseMipLevel);
-                uint32_t endMip = eastl::min(baseMipLevel + levelCount, slice.baseMipLevel + slice.levelCount);
-                uint32_t startLayer = eastl::max(baseArrayLayer, slice.baseArrayLayer);
-                uint32_t endLayer = eastl::min(baseArrayLayer + layerCount, slice.baseArrayLayer + slice.layerCount);
+                u32 startMip = eastl::max(baseMipLevel, slice.baseMipLevel);
+                u32 endMip = eastl::min(baseMipLevel + levelCount, slice.baseMipLevel + slice.levelCount);
+                u32 startLayer = eastl::max(baseArrayLayer, slice.baseArrayLayer);
+                u32 endLayer = eastl::min(baseArrayLayer + layerCount, slice.baseArrayLayer + slice.layerCount);
                 return { startMip, endMip - startMip, startLayer, endLayer - startLayer };
             }
 
@@ -863,32 +846,32 @@ namespace PyroshockStudios {
 
                 // Top slice (mips before intersection)
                 if (inter.baseMipLevel > baseMipLevel) {
-                    uint32_t lCount = inter.baseMipLevel - baseMipLevel;
+                    u32 lCount = inter.baseMipLevel - baseMipLevel;
                     if (lCount > 0)
                         result[count++] = { baseMipLevel, lCount, baseArrayLayer, layerCount };
                 }
 
                 // Bottom slice (mips after intersection)
-                uint32_t bottomMipStart = inter.baseMipLevel + inter.levelCount;
-                uint32_t totalMips = baseMipLevel + levelCount;
+                u32 bottomMipStart = inter.baseMipLevel + inter.levelCount;
+                u32 totalMips = baseMipLevel + levelCount;
                 if (bottomMipStart < totalMips) {
-                    uint32_t lCount = totalMips - bottomMipStart;
+                    u32 lCount = totalMips - bottomMipStart;
                     if (lCount > 0)
                         result[count++] = { bottomMipStart, lCount, baseArrayLayer, layerCount };
                 }
 
                 // Left slice (layers before intersection)
                 if (inter.baseArrayLayer > baseArrayLayer) {
-                    uint32_t lCount = inter.baseArrayLayer - baseArrayLayer;
+                    u32 lCount = inter.baseArrayLayer - baseArrayLayer;
                     if (lCount > 0)
                         result[count++] = { inter.baseMipLevel, inter.levelCount, baseArrayLayer, lCount };
                 }
 
                 // Right slice (layers after intersection)
-                uint32_t rightLayerStart = inter.baseArrayLayer + inter.layerCount;
-                uint32_t totalLayers = baseArrayLayer + layerCount;
+                u32 rightLayerStart = inter.baseArrayLayer + inter.layerCount;
+                u32 totalLayers = baseArrayLayer + layerCount;
                 if (rightLayerStart < totalLayers) {
-                    uint32_t lCount = totalLayers - rightLayerStart;
+                    u32 lCount = totalLayers - rightLayerStart;
                     if (lCount > 0)
                         result[count++] = { inter.baseMipLevel, inter.levelCount, rightLayerStart, lCount };
                 }
@@ -896,14 +879,14 @@ namespace PyroshockStudios {
                 return { result, count };
             }
 
-            PYRO_NODISCARD PYRO_FORCEINLINE ImageArraySlice Slice(uint32_t mipLevel = 0) const noexcept;
-            PYRO_NODISCARD PYRO_FORCEINLINE ImageSlice Slice(uint32_t mipLevel = 0, uint32_t arrayLevel = 0) const noexcept;
+            PYRO_NODISCARD PYRO_FORCEINLINE ImageArraySlice Slice(u32 mipLevel = 0) const noexcept;
+            PYRO_NODISCARD PYRO_FORCEINLINE ImageSlice Slice(u32 mipLevel = 0, u32 arrayLevel = 0) const noexcept;
         };
 
         struct ImageArraySlice {
-            uint32_t mipLevel = 0;
-            uint32_t baseArrayLayer = 0;
-            uint32_t layerCount = 1;
+            u32 mipLevel = 0;
+            u32 baseArrayLayer = 0;
+            u32 layerCount = PYRO_REMAINING_ARRAY_LAYERS;
 
             PYRO_NODISCARD friend auto operator<=>(const ImageArraySlice&, const ImageArraySlice&) = default;
 
@@ -911,12 +894,12 @@ namespace PyroshockStudios {
                 return slice.baseMipLevel <= mipLevel && mipLevel < slice.baseMipLevel + slice.levelCount && slice.baseArrayLayer <= baseArrayLayer && (baseArrayLayer + layerCount) <= (slice.baseArrayLayer + slice.layerCount);
             }
 
-            PYRO_NODISCARD PYRO_FORCEINLINE ImageSlice Slice(uint32_t arrayLevel = 0) const noexcept;
+            PYRO_NODISCARD PYRO_FORCEINLINE ImageSlice Slice(u32 arrayLevel = 0) const noexcept;
         };
 
         struct ImageSlice {
-            uint32_t mipLevel = 0;
-            uint32_t arrayLayer = 0;
+            u32 mipLevel = 0;
+            u32 arrayLayer = 0;
 
             PYRO_NODISCARD friend auto operator<=>(const ImageSlice&, const ImageSlice&) = default;
 
@@ -929,13 +912,13 @@ namespace PyroshockStudios {
             }
         };
 
-        PYRO_FORCEINLINE ImageArraySlice ImageMipArraySlice::Slice(uint32_t mipLevel) const noexcept {
+        PYRO_FORCEINLINE ImageArraySlice ImageMipArraySlice::Slice(u32 mipLevel) const noexcept {
             return { baseMipLevel + mipLevel, baseArrayLayer, layerCount };
         }
-        PYRO_FORCEINLINE ImageSlice ImageMipArraySlice::Slice(uint32_t mipLevel, uint32_t arrayLevel) const noexcept {
+        PYRO_FORCEINLINE ImageSlice ImageMipArraySlice::Slice(u32 mipLevel, u32 arrayLevel) const noexcept {
             return { baseMipLevel + mipLevel, baseArrayLayer + arrayLevel };
         }
-        PYRO_FORCEINLINE ImageSlice ImageArraySlice::Slice(uint32_t arrayLevel) const noexcept {
+        PYRO_FORCEINLINE ImageSlice ImageArraySlice::Slice(u32 arrayLevel) const noexcept {
             return { mipLevel, baseArrayLayer + arrayLevel };
         }
 
