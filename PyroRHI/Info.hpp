@@ -73,8 +73,7 @@ namespace PyroshockStudios {
             const char* engineName = "";
             u32 appVersion = {};
             u32 engineVersion = {};
-            RHIOptionData* pOptions = nullptr;
-            u32 optionCount = 0;
+            RHIOptionData options[PYRO_RHI_MAX_OPTIONS] = {};
             ILogStream* pLoggerSink = nullptr; /**< General logging output stream.*/
             ILogStream* pDebugSink = nullptr; /**< Debug output stream. Stuff such as VVL or DX12 Debug output */
         };

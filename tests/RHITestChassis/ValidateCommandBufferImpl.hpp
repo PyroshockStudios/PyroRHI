@@ -64,9 +64,9 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTransferCopyBufferToImageSucceeds) {
     info.rowPitch = 8 * RHIUtil::GetFormatSize(imageInfo.format);
     info.rowPitch = mDevice->ImageSubresourceRowPitch(image, {}, info.rowPitch);
 
-    info.bufferOffset = PYRO_ALIGN(128, mDevice->GetProperties().bufferImageCopyOffsetAlignment);
+    info.bufferOffset = PYRO_ALIGN(128, mDevice->Properties().bufferImageCopyOffsetAlignment);
     BufferInfo bufferInfo{};
-    bufferInfo.size = PYRO_ALIGN(info.rowPitch * info.imageExtent.y * info.imageExtent.z + info.bufferOffset, 256);
+    bufferInfo.size = PYRO_ALIGN(info.rowPitch * info.imageExtent.height * info.imageExtent.depth + info.bufferOffset, 256);
     bufferInfo.usage = BufferUsageFlagBits::TRANSFER_SRC;
     Buffer buffer = mDevice->CreateBuffer(bufferInfo);
     info.buffer = buffer;
@@ -114,8 +114,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTransferCopyImageToBufferSucceeds) {
 
     // Calculate safe buffer size = rowPitch * height * depth + offset margin
     BufferInfo bufferInfo{};
-    const u64 regionBytes = static_cast<u64>(info.rowPitch) * info.imageExtent.y * info.imageExtent.z;
-    info.bufferOffset = PYRO_ALIGN(128, mDevice->GetProperties().bufferImageCopyOffsetAlignment);
+    const u64 regionBytes = static_cast<u64>(info.rowPitch) * info.imageExtent.height * info.imageExtent.depth;
+    info.bufferOffset = PYRO_ALIGN(128, mDevice->Properties().bufferImageCopyOffsetAlignment);
     bufferInfo.size = PYRO_ALIGN(regionBytes + info.bufferOffset, 256); // <-- ensure valid total size
     bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
 
@@ -274,11 +274,11 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiCommandBufferSyncSubmit) {
     CopyBufferToImageInfo info{};
     info.image = image;
     info.imageExtent = { 16, 16, 1 };
-    info.rowPitch = static_cast<u32>(info.imageExtent.x * RHIUtil::GetFormatSize(imageInfo.format));
+    info.rowPitch = static_cast<u32>(info.imageExtent.width * RHIUtil::GetFormatSize(imageInfo.format));
     info.rowPitch = mDevice->ImageSubresourceRowPitch(image, {}, info.rowPitch);
 
     BufferInfo bufferInfo{};
-    bufferInfo.size = static_cast<u64>(info.rowPitch) * info.imageExtent.y * info.imageExtent.z;
+    bufferInfo.size = static_cast<u64>(info.rowPitch) * info.imageExtent.height * info.imageExtent.depth;
     bufferInfo.usage = BufferUsageFlagBits::TRANSFER_SRC;
     Buffer buffer = mDevice->CreateBuffer(bufferInfo);
     info.buffer = buffer;

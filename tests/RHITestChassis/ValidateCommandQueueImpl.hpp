@@ -118,8 +118,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
         BlitImageToImageInfo blitInfo{};
         blitInfo.srcImage = dst;
         blitInfo.dstImage = graphicsDest;
-        blitInfo.srcImageRect = Rect2D::Cut({ imageInfo.size.x, imageInfo.size.y });
-        blitInfo.dstImageRect = Rect2D::Cut({ imageInfo.size.x, imageInfo.size.y });
+        blitInfo.srcImageBox = Box3D::Cut({ imageInfo.size.width, imageInfo.size.height, 1 });
+        blitInfo.dstImageBox = Box3D::Cut({ imageInfo.size.width, imageInfo.size.height, 1 });
 
         EXPECT_NO_THROW(graphicsCommands->ImageBarrier({
             .image = dst,

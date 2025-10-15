@@ -9,7 +9,7 @@ using namespace PyroshockStudios::Types;
 static constexpr u32 SWAP_ACQUIRE_FAIL_LIMIT = 4; // after 4 fails, fail the test
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
-    if (!mDevice->GetProperties().bSupportsHeadlessSwapChainWindow) {
+    if (!mDevice->Properties().bSupportsHeadlessSwapChainWindow) {
         GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
         return;
     }
@@ -48,16 +48,16 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
     presentInfo.queue = queue;
     presentInfo.waitSemaphores = eastl::span(&waitPresentSemaphore, 1);
 
-    Image image = PYRO_NULL_IMAGE;
+    i32 imageIndex = -1;
     u32 failedAcquires = 0;
     do {
-        image = swapChain->AcquireNextImage();
-    } while (image == PYRO_NULL_IMAGE && ++failedAcquires < SWAP_ACQUIRE_FAIL_LIMIT);
-    ASSERT_NE(image, PYRO_NULL_IMAGE) << "Failed to acquire swap image!";
+        imageIndex = swapChain->AcquireNextImage();
+    } while (imageIndex == PYRO_SWAPCHAIN_ACQUIRE_FAIL && ++failedAcquires < SWAP_ACQUIRE_FAIL_LIMIT);
+    ASSERT_NE(imageIndex, PYRO_SWAPCHAIN_ACQUIRE_FAIL) << "Failed to acquire swap image!";
 
     ICommandBuffer* commandBuffer = queue->GetCommandBuffer({});
     commandBuffer->ImageBarrier({
-        .image = image,
+        .image = swapChain->GetBackBuffer(imageIndex),
         .srcAccess = AccessConsts::BOTTOM_OF_PIPE_READ,
         .dstAccess = AccessConsts::TOP_OF_PIPE_READ_WRITE,
         .srcLayout = ImageLayout::Undefined,
@@ -76,7 +76,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
 
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
-    if (!mDevice->GetProperties().bSupportsHeadlessSwapChainWindow) {
+    if (!mDevice->Properties().bSupportsHeadlessSwapChainWindow) {
         GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
         return;
     }
@@ -88,7 +88,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
     ISwapChain* swapChain = mDevice->CreateSwapChain({
         .format = SwapChainFormat::Unorm8BitLDR,
         .alphaMode = SwapChainAlphaMode::Premultiplied,
-        .presentMode = PresentMode::Tearing, // try another present mode
+        .presentMode = SwapChainPresentMode::Tearing, // try another present mode
         .bufferCount = 2,
         .imageUsage = ImageUsageFlagBits::TRANSFER_DST, // we need at least 1 image usage
         .extent = { 256, 256 },
@@ -108,16 +108,16 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
     presentInfo.queue = queue;
     presentInfo.waitSemaphores = eastl::span(&waitPresentSemaphore, 1);
 
-    Image image = PYRO_NULL_IMAGE;
+    i32 imageIndex = -1;
     u32 failedAcquires = 0;
     do {
-        image = swapChain->AcquireNextImage();
-    } while (image == PYRO_NULL_IMAGE && ++failedAcquires < SWAP_ACQUIRE_FAIL_LIMIT);
-    ASSERT_NE(image, PYRO_NULL_IMAGE) << "Failed to acquire swap image!";
+        imageIndex = swapChain->AcquireNextImage();
+    } while (imageIndex == PYRO_SWAPCHAIN_ACQUIRE_FAIL && ++failedAcquires < SWAP_ACQUIRE_FAIL_LIMIT);
+    ASSERT_NE(imageIndex, PYRO_SWAPCHAIN_ACQUIRE_FAIL) << "Failed to acquire swap image!";
 
     ICommandBuffer* commandBuffer = queue->GetCommandBuffer({});
     commandBuffer->ImageBarrier({
-        .image = image,
+        .image = swapChain->GetBackBuffer(imageIndex),
         .srcAccess = AccessConsts::BOTTOM_OF_PIPE_READ,
         .dstAccess = AccessConsts::TOP_OF_PIPE_READ_WRITE,
         .srcLayout = ImageLayout::Undefined,
@@ -138,7 +138,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
     static constexpr i32 NUM_SWAPCHAINS = 8;
 
-    if (!mDevice->GetProperties().bSupportsHeadlessSwapChainWindow) {
+    if (!mDevice->Properties().bSupportsHeadlessSwapChainWindow) {
         GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
         return;
     }
@@ -172,14 +172,14 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
     ICommandBuffer* commandBuffer = queue->GetCommandBuffer({});
 
     for (ISwapChain* swapChain : swapChains) {
-        Image image = PYRO_NULL_IMAGE;
+        i32 imageIndex = -1;
         u32 failedAcquires = 0;
         do {
-            image = swapChain->AcquireNextImage();
-        } while (image == PYRO_NULL_IMAGE && ++failedAcquires < SWAP_ACQUIRE_FAIL_LIMIT);
-        ASSERT_NE(image, PYRO_NULL_IMAGE) << "Failed to acquire swap image!";
+            imageIndex = swapChain->AcquireNextImage();
+        } while (imageIndex == PYRO_SWAPCHAIN_ACQUIRE_FAIL && ++failedAcquires < SWAP_ACQUIRE_FAIL_LIMIT);
+        ASSERT_NE(imageIndex, PYRO_SWAPCHAIN_ACQUIRE_FAIL) << "Failed to acquire swap image!";
         commandBuffer->ImageBarrier({
-            .image = image,
+            .image = swapChain->GetBackBuffer(imageIndex),
             .srcAccess = AccessConsts::BOTTOM_OF_PIPE_READ,
             .dstAccess = AccessConsts::TOP_OF_PIPE_READ_WRITE,
             .srcLayout = ImageLayout::Undefined,

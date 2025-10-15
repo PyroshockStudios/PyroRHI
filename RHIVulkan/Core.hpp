@@ -88,7 +88,6 @@ namespace PyroshockStudios {
         PYRO_FORCEINLINE static constexpr VkPrimitiveTopology ToVkPrimitiveTopology(PrimitiveTopology type) { return static_cast<VkPrimitiveTopology>(type); }
         PYRO_FORCEINLINE static constexpr VkPolygonMode ToVkPolygonMode(PolygonMode type) { return static_cast<VkPolygonMode>(type); }
         PYRO_FORCEINLINE static constexpr VkFrontFace ToVkFrontFaceWinding(WindingOrder type) { return static_cast<VkFrontFace>(type); }
-        PYRO_FORCEINLINE static constexpr VkPresentModeKHR ToVkPresentMode(PresentMode type) { return static_cast<VkPresentModeKHR>(type); }
         PYRO_FORCEINLINE static constexpr VkColorSpaceKHR ToVkColorSpace(ColorSpace type) { return static_cast<VkColorSpaceKHR>(type); }
         PYRO_FORCEINLINE static constexpr VkFilter ToVkFilter(Filter type) { return static_cast<VkFilter>(type); }
         PYRO_FORCEINLINE static constexpr VkSamplerReductionMode ToVkReductionMode(ReductionMode type) { return static_cast<VkSamplerReductionMode>(type); }

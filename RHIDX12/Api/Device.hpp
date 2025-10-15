@@ -21,14 +21,14 @@
 // SOFTWARE.
 
 #pragma once
-#include <EASTL/unique_ptr.h>
-#include <RHIDX12/Api/GPUResource.hpp>
 #include <RHIDX12/Core.hpp>
-#include <RHIDX12/Helper/LinearUploadBuffer.hpp>
+
+#include <D3D12MemAlloc.h>
+#include <EASTL/unique_ptr.h>
 #include <PyroCommon/Util/HashCombine.hpp>
 #include <PyroRHI/Api/IDevice.hpp>
-#include <D3D12MemAlloc.h>
-
+#include <RHIDX12/Api/GPUResource.hpp>
+#include <RHIDX12/Helper/LinearUploadBuffer.hpp>
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
@@ -137,14 +137,14 @@ namespace PyroshockStudios {
             void DestroyFence(IFence*& fence) override;
             void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) override;
 
-            virtual eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) override;
+            virtual eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
             virtual eastl::span<ICommandQueue*> GetCommandQueues() override;
             virtual ICommandQueue* GetPresentQueue() override;
             void WaitIdle() override;
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
             void PresentQueue(const CommandQueuePresentInfo& info) override;
-            const DeviceInfo& GetInfo() override;
-            const DevicePropertiesInfo& GetProperties() override;
+            const DeviceInfo& Info() const override;
+            const DevicePropertiesInfo& Properties() const override;
 
             void ImageAddIfNecessaryBlitSupport(D3DImageResourceData& data);
             const DescriptorTableInfo& GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc);
@@ -173,6 +173,7 @@ namespace PyroshockStudios {
             GPUResourcePool& ResourcePool() {
                 return *mResourcePool;
             }
+
         private:
             void WriteAllSRVDescriptorHeapCopies(ID3D12Resource* pResource,
                 const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GPUResourceId handle);
@@ -183,6 +184,7 @@ namespace PyroshockStudios {
             ComPtr<IDXGIFactory4> mFactory = {};
             ComPtr<ID3D12Device> mDevice = {};
             ComPtr<D3D12MA::Allocator> mAllocator = {};
+
         public:
             ComPtr<ID3D12RootSignature> mRootSignature = {};
 

@@ -37,6 +37,8 @@
 #include <libassert/assert.hpp>
 
 namespace PyroshockStudios::RHIVulkan {
+    PYRO_FORCEINLINE static constexpr VkPresentModeKHR ToVkPresentMode(SwapChainPresentMode type) { return static_cast<VkPresentModeKHR>(type); }
+
     VulkanSwapChain::VulkanSwapChain(VulkanDevice* device, const SwapChainInfo& info) : mInfo(info), mDevice(device) {
         CreateSurface();
         mSupportInfo = device->GetSwapChainSupport(mSurface);
@@ -107,12 +109,12 @@ namespace PyroshockStudios::RHIVulkan {
         vkDestroySurfaceKHR(mDevice->Context()->GetVkInstance(), mSurface, mDevice->Context()->GetVkAllocator());
     }
 
-    Image VulkanSwapChain::GetBackBuffer(u32 imageIndex) {
+    Image VulkanSwapChain::GetBackBuffer(i32 imageIndex) {
         if (imageIndex >= mWrappedImages.size())
             return {};
         return mWrappedImages[imageIndex];
     }
-    Image VulkanSwapChain::AcquireNextImage() {
+    i32 VulkanSwapChain::AcquireNextImage() {
         mImageAcquireIndex = (mImageAcquireIndex + 1) % mInfo.bufferCount;
         VkResult result = vkAcquireNextImageKHR(mDevice->GetVkDevice(),
             mSwapChain,
@@ -120,7 +122,7 @@ namespace PyroshockStudios::RHIVulkan {
             mImageAcquireSemaphores[mImageAcquireIndex],
             VK_NULL_HANDLE,
             &mImageIndex);
-        return result == VK_SUCCESS ? GetBackBuffer(mImageIndex) : PYRO_NULL_IMAGE;
+        return result == VK_SUCCESS ? mImageIndex : PYRO_SWAPCHAIN_ACQUIRE_FAIL;
     }
 
     void VulkanSwapChain::Resize() {
@@ -135,7 +137,7 @@ namespace PyroshockStudios::RHIVulkan {
         CreateSwapChain(oldSwapChain);
         vkDestroySwapchainKHR(mDevice->GetVkDevice(), oldSwapChain, mDevice->Context()->GetVkAllocator());
     }
-    void VulkanSwapChain::SetPresentMode(PresentMode presentMode) {
+    void VulkanSwapChain::SetPresentMode(SwapChainPresentMode presentMode) {
         TrySetPresentMode(presentMode);
     }
     const SwapChainInfo& VulkanSwapChain::Info() const {
@@ -181,7 +183,7 @@ namespace PyroshockStudios::RHIVulkan {
 #error VulkanWindowSurface Not supported!
 #endif
         } else {
-            ASSERT(mDevice->GetProperties().bSupportsHeadlessSwapChainWindow, "Cannot create a VkSurface without VK_EXT_headless_surface support!");
+            ASSERT(mDevice->Properties().bSupportsHeadlessSwapChainWindow, "Cannot create a VkSurface without VK_EXT_headless_surface support!");
             VkHeadlessSurfaceCreateInfoEXT createInfo{ VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT };
             result = vkCreateHeadlessSurfaceEXT(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
         }
@@ -189,16 +191,16 @@ namespace PyroshockStudios::RHIVulkan {
     }
     void VulkanSwapChain::CreateSwapChain(VkSwapchainKHR oldSwapChain) {
         mInfo.bufferCount = eastl::clamp(mInfo.bufferCount, mSupportInfo.capabilities.minImageCount, mSupportInfo.capabilities.maxImageCount);
-        mInfo.extent.x = eastl::clamp(mInfo.extent.x, mSupportInfo.capabilities.minImageExtent.width, mSupportInfo.capabilities.maxImageExtent.width);
-        mInfo.extent.y = eastl::clamp(mInfo.extent.y, mSupportInfo.capabilities.minImageExtent.height, mSupportInfo.capabilities.maxImageExtent.height);
+        mInfo.extent.width = eastl::clamp(mInfo.extent.width, mSupportInfo.capabilities.minImageExtent.width, mSupportInfo.capabilities.maxImageExtent.width);
+        mInfo.extent.height = eastl::clamp(mInfo.extent.height, mSupportInfo.capabilities.minImageExtent.height, mSupportInfo.capabilities.maxImageExtent.height);
 
         VkSwapchainCreateInfoKHR createInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         createInfo.surface = mSurface;
         createInfo.minImageCount = mInfo.bufferCount;
         createInfo.imageExtent = {
-            .width = mInfo.extent.x,
-            .height = mInfo.extent.y
+            .width = mInfo.extent.width,
+            .height = mInfo.extent.height,
         };
         createInfo.imageFormat = ToVkFormat(mFormat);
         createInfo.imageColorSpace = ToVkColorSpace(mColorSpace);
@@ -261,7 +263,7 @@ namespace PyroshockStudios::RHIVulkan {
             ImageUsageFlags usage = ImageUsageFlagBits::RENDER_TARGET | ImageUsageFlagBits::TRANSFER_DST | ImageUsageFlagBits::TRANSFER_SRC;
             ImageInfo const image_info = {
                 .format = mFormat,
-                .size = { mInfo.extent.x, mInfo.extent.y, 1 },
+                .size = { mInfo.extent.width, mInfo.extent.height, 1 },
                 .usage = usage,
                 .name = mInfo.name + " Image #" + eastl::to_string(i),
             };
@@ -307,18 +309,18 @@ namespace PyroshockStudios::RHIVulkan {
         }
     }
 
-    void VulkanSwapChain::TrySetPresentMode(PresentMode presentMode) {
+    void VulkanSwapChain::TrySetPresentMode(SwapChainPresentMode presentMode) {
         auto it = eastl::find(mSupportInfo.presentModes.begin(), mSupportInfo.presentModes.end(), ToVkPresentMode(presentMode));
         if (it != mSupportInfo.presentModes.end()) {
             mPresentMode = presentMode;
         } else {
             // try fallbacks
             switch (presentMode) {
-            case PresentMode::LowLatency:
-                TrySetPresentMode(PresentMode::Tearing);
+            case SwapChainPresentMode::LowLatency:
+                TrySetPresentMode(SwapChainPresentMode::Tearing);
                 break;
             default: // vsync is always supported
-                mPresentMode = PresentMode::VSync;
+                mPresentMode = SwapChainPresentMode::VSync;
                 break;
             }
         }

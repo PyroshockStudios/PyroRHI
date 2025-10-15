@@ -34,8 +34,8 @@ namespace PyroshockStudios {
             // Describe and create the swap chain.
             DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
             swapChainDesc.BufferCount = mInfo.bufferCount;
-            swapChainDesc.Width = mInfo.extent.x;
-            swapChainDesc.Height = mInfo.extent.y;
+            swapChainDesc.Width = mInfo.extent.width;
+            swapChainDesc.Height = mInfo.extent.height;
             switch (mInfo.format) {
             case SwapChainFormat::Unorm8BitLDR:
                 swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -84,15 +84,15 @@ namespace PyroshockStudios {
                 ASSERT(false, "Invalid alpha mode");
             }
             switch (info.presentMode) {
-            case PresentMode::VSync:
-            case PresentMode::VSyncAdaptive:
+            case SwapChainPresentMode::VSync:
+            case SwapChainPresentMode::VSyncAdaptive:
                 mSyncInterval = 1;
                 break;
-            case PresentMode::Tearing:
+            case SwapChainPresentMode::Tearing:
                 swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
                 mSyncInterval = 0;
                 break;
-            case PresentMode::LowLatency:
+            case SwapChainPresentMode::LowLatency:
                 mSyncInterval = 0;
                 break;
             default:
@@ -156,16 +156,16 @@ namespace PyroshockStudios {
             DestroyImages();
         }
 
-        Image D3DSwapChain::GetBackBuffer(u32 imageIndex) {
+        Image D3DSwapChain::GetBackBuffer(i32 imageIndex) {
             return mWrappedBuffers[imageIndex];
         }
 
-        Image D3DSwapChain::AcquireNextImage() {
+        i32 D3DSwapChain::AcquireNextImage() {
             WaitForSingleObjectEx(mSwapWait, INFINITE, TRUE);
             gDx12Context->FlushDebugMessages();
             mImageIndex = mSwapChain->GetCurrentBackBufferIndex();
             gDx12Context->FlushDebugMessages();
-            return mWrappedBuffers[mImageIndex];
+            return mImageIndex;
         }
 
         void D3DSwapChain::Resize() {
@@ -174,21 +174,18 @@ namespace PyroshockStudios {
             HWND window = reinterpret_cast<HWND>(mInfo.nativeWindow);
             RECT area;
             GetClientRect(window, &area);
-            mInfo.extent.x = area.right;
-            mInfo.extent.y = area.bottom;
+            mInfo.extent.width = area.right;
+            mInfo.extent.height = area.bottom;
 
             DXGI_SWAP_CHAIN_DESC1 desc;
             CheckD3DResult(mSwapChain->GetDesc1(&desc));
             auto q = static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue();
-            // IUnknown* queueArray[1] = { q };
-            // UINT nodeMask = 1;
-            // CheckD3DResult(mSwapChain->ResizeBuffers1(desc.BufferCount, mInfo.extent.x, mInfo.extent.y, desc.Format, desc.Flags, &nodeMask, queueArray));
-            mSwapChain->ResizeBuffers(desc.BufferCount, mInfo.extent.x, mInfo.extent.y, desc.Format, desc.Flags);
+            mSwapChain->ResizeBuffers(desc.BufferCount, mInfo.extent.width, mInfo.extent.height, desc.Format, desc.Flags);
             gDx12Context->FlushDebugMessages();
             GetImages();
         }
 
-        void D3DSwapChain::SetPresentMode(PresentMode presentMode) {
+        void D3DSwapChain::SetPresentMode(SwapChainPresentMode presentMode) {
             ASSERT(false, "TODO");
         }
 
@@ -223,7 +220,7 @@ namespace PyroshockStudios {
                 data.info = {
                     .dimensions = ImageDimensions::e2D,
                     .format = mFormat,
-                    .size = { mInfo.extent.x, mInfo.extent.y },
+                    .size = { mInfo.extent.width, mInfo.extent.height },
                     .usage = mInfo.imageUsage,
                     .name = mInfo.name + " DXGI Swap Buffer #" + eastl::to_string(i),
                 };

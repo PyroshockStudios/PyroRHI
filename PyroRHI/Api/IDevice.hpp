@@ -447,7 +447,7 @@ namespace PyroshockStudios {
              * @brief Selects the first supported format from a list of candidates.
              */
             PYRO_NODISCARD virtual eastl::optional<Format> PickSupportedFormat(
-                const eastl::span<Format>& candidates, FormatFeatureFlags features) = 0;
+                const eastl::span<Format>& candidates, FormatFeatureFlags features) const = 0;
 
             /**
              * @brief Retrieves all available command queues.
@@ -485,12 +485,12 @@ namespace PyroshockStudios {
             /**
              * @brief Returns general device properties.
              */
-            PYRO_NODISCARD virtual const DeviceInfo& Info() = 0;
+            PYRO_NODISCARD virtual const DeviceInfo& Info() const = 0;
 
             /**
              * @brief Returns hardware limits and capabilities.
              */
-            PYRO_NODISCARD virtual const DevicePropertiesInfo& Properties() = 0;
+            PYRO_NODISCARD virtual const DevicePropertiesInfo& Properties() const = 0;
 
             // Convenience create overloads
             PYRO_NODISCARD PYRO_FORCEINLINE MemoryBlock Create(const MemoryBlockInfo& info) { return CreateMemoryBlock(info); }

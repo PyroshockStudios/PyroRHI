@@ -32,10 +32,10 @@ namespace PyroshockStudios {
             D3DSwapChain(D3DDevice* device, SwapChainInfo&& info);
             ~D3DSwapChain();
 
-            Image GetBackBuffer(u32 imageIndex) override;
-            Image AcquireNextImage() override;
+            Image GetBackBuffer(i32 imageIndex) override;
+            i32 AcquireNextImage() override;
             void Resize() override;
-            void SetPresentMode(PresentMode presentMode) override;
+            void SetPresentMode(SwapChainPresentMode presentMode) override;
             const SwapChainInfo& Info() const override;
             Extent2D GetSurfaceExtent() const override;
             Format GetFormat() const override;

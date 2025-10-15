@@ -652,7 +652,7 @@ namespace PyroshockStudios {
                 .pNext = nullptr,
                 .flags = 0,
                 .format = ToVkFormat(info.format),
-                .extent = { info.size.x, info.size.y, info.size.z },
+                .extent = { info.size.width, info.size.height, info.size.depth },
                 .mipLevels = info.mipLevelCount,
                 .arrayLayers = info.arrayLayerCount,
                 .samples = static_cast<VkSampleCountFlagBits>(info.sampleCount),
@@ -1220,7 +1220,7 @@ namespace PyroshockStudios {
             return new VulkanTimestampQueryPool(this, info);
         }
 
-        eastl::optional<Format> VulkanDevice::PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) {
+        eastl::optional<Format> VulkanDevice::PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const {
             VkFormatFeatureFlags flags = ToVkFormatFeatureFlags(features);
             for (Format format : candidates) {
                 VkFormatProperties props;
@@ -1382,11 +1382,11 @@ namespace PyroshockStudios {
             CheckAndCleanupGpuResources(mMainQueueZombies, [this](ZombieDeleter& zombie) { zombie.deleter(this, zombie.resource); });
         }
 
-        const DeviceInfo& VulkanDevice::GetInfo() {
+        const DeviceInfo& VulkanDevice::Info() const {
             ASSERT(false, "TODO");
             return mInfo;
         }
-        const DevicePropertiesInfo& VulkanDevice::GetProperties() {
+        const DevicePropertiesInfo& VulkanDevice::Properties() const {
             return mProperties;
         }
 

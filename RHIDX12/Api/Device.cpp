@@ -35,6 +35,7 @@
 
 #include <libassert/assert.hpp>
 
+#include <comdef.h>
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
@@ -333,6 +334,12 @@ namespace PyroshockStudios {
                 delete static_cast<D3DCommandQueue*>(queue);
                 gDx12Context->FlushDebugMessages();
             }
+            HRESULT reason = mDevice->GetDeviceRemovedReason();
+            if (reason != S_OK) {
+                _com_error err = _com_error(reason);
+                LPCTSTR desc = static_cast<LPCTSTR>(err.Description());
+                Logger::Error(gDX12Sink, "DEVICE REMOVED: {} \"{}\"", err.ErrorMessage(), desc ? desc : "");
+            }
         }
         bool D3DDevice::IsMemoryBlockValid(MemoryBlock handle) const {
             return handle != PYRO_NULL_MEMORY_BLOCK;
@@ -592,9 +599,9 @@ namespace PyroshockStudios {
             D3D12_RESOURCE_DESC textureDesc = {};
             textureDesc.MipLevels = info.mipLevelCount;
             textureDesc.Format = ToDXGIFormat(info.format);
-            textureDesc.Width = static_cast<UINT64>(info.size.x);
-            textureDesc.Height = info.size.y;
-            textureDesc.DepthOrArraySize = static_cast<UINT16>(eastl::max(info.size.z, info.arrayLayerCount));
+            textureDesc.Width = static_cast<UINT64>(info.size.width);
+            textureDesc.Height = info.size.height;
+            textureDesc.DepthOrArraySize = static_cast<UINT16>(eastl::max(info.size.depth, info.arrayLayerCount));
             textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
             bool dsv = RHIUtil::FormatIsDepthStencil(info.format);
@@ -1082,7 +1089,7 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             queryPool = nullptr;
         }
-        eastl::optional<Format> D3DDevice::PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) {
+        eastl::optional<Format> D3DDevice::PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const {
             return eastl::optional<Format>();
         }
         eastl::span<ICommandQueue*> D3DDevice::GetCommandQueues() {
@@ -1151,11 +1158,11 @@ namespace PyroshockStudios {
             }
             q->mPendingSwapPresents.clear();
         }
-        const DeviceInfo& D3DDevice::GetInfo() {
+        const DeviceInfo& D3DDevice::Info() const {
             static DeviceInfo x{};
             return x;
         }
-        const DevicePropertiesInfo& D3DDevice::GetProperties() {
+        const DevicePropertiesInfo& D3DDevice::Properties() const {
             return mProperties;
         }
 

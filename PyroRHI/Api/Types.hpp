@@ -519,7 +519,7 @@ namespace PyroshockStudios {
             static constexpr inline CommandQueueFlags COMPUTE = { 0x00000002 };
             static constexpr inline CommandQueueFlags TRANSFER = { 0x00000004 };
         };
-        
+
         struct ImageUsageFlagsProperties {
             using Data = u32;
         };
@@ -714,8 +714,8 @@ namespace PyroshockStudios {
                 return {
                     .x = offset.x,
                     .y = offset.y,
-                    .width = static_cast<i32>(extent.x),
-                    .height = static_cast<i32>(extent.y),
+                    .width = static_cast<i32>(extent.width),
+                    .height = static_cast<i32>(extent.height),
                 };
             }
 
@@ -735,15 +735,15 @@ namespace PyroshockStudios {
                     .x = offset.x,
                     .y = offset.y,
                     .z = offset.z,
-                    .width = static_cast<i32>(extent.x),
-                    .height = static_cast<i32>(extent.y),
-                    .depth = static_cast<i32>(extent.z),
+                    .width = static_cast<i32>(extent.width),
+                    .height = static_cast<i32>(extent.height),
+                    .depth = static_cast<i32>(extent.depth),
                 };
             }
 
             PYRO_NODISCARD friend auto operator<=>(const Box3D&, const Box3D&) = default;
         };
-        static constexpr inline DeviceSize PYRO_MAX_DEVICE_SIZE  = ~(static_cast<DeviceSize>(0));
+        static constexpr inline DeviceSize PYRO_MAX_DEVICE_SIZE = ~(static_cast<DeviceSize>(0));
         struct BufferRegion {
             DeviceSize offset = 0;
             DeviceSize size = PYRO_MAX_DEVICE_SIZE;
@@ -800,7 +800,7 @@ namespace PyroshockStudios {
 
         static constexpr inline u32 PYRO_REMAINING_MIP_LEVELS = ~(0U);
         static constexpr inline u32 PYRO_REMAINING_ARRAY_LAYERS = ~(0U);
-        
+
         struct ImageMipArraySlice;
         struct ImageArraySlice;
         struct ImageSlice;
@@ -922,6 +922,10 @@ namespace PyroshockStudios {
             return { mipLevel, baseArrayLayer + arrayLevel };
         }
 
+#define PYRO_IMAGE_SLICE_RESOLVE_LAYERS(subSlice, fullLayerCount) \
+    ((subSlice.layerCount == PYRO_REMAINING_ARRAY_LAYERS) ? (fullLayerCount - subSlice.baseArrayLayer) : subSlice.layerCount)
+#define PYRO_IMAGE_SLICE_RESOLVE_LEVELS(subSlice, fullLevelCount) \
+    ((subSlice.levelCount == PYRO_REMAINING_MIP_LEVELS) ? (fullLevelCount - subSlice.baseMipLevel) : subSlice.levelCount)
 
         struct DrawArgumentBuffer {
             u32 vertexCount = {};

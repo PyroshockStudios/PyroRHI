@@ -33,11 +33,11 @@ namespace PyroshockStudios {
             VulkanSwapChain(VulkanDevice* device, const SwapChainInfo& info);
             ~VulkanSwapChain();
 
-            Image GetBackBuffer(u32 imageIndex) override;
-            Image AcquireNextImage() override;
+            Image GetBackBuffer(i32 imageIndex) override;
+            i32 AcquireNextImage() override;
 
             void Resize() override;
-            void SetPresentMode(PresentMode presentMode) override;
+            void SetPresentMode(SwapChainPresentMode presentMode) override;
             const SwapChainInfo& Info() const override;
             Extent2D GetSurfaceExtent() const override;
             Format GetFormat() const override;
@@ -60,7 +60,7 @@ namespace PyroshockStudios {
             void CreateSurface();
             void CreateSwapChain(VkSwapchainKHR oldSwapChain);
             void CreateSemaphores();
-            void TrySetPresentMode(PresentMode presentMode);
+            void TrySetPresentMode(SwapChainPresentMode presentMode);
 
             VulkanDevice* mDevice;
 
@@ -78,7 +78,7 @@ namespace PyroshockStudios {
 
             u32 mImageIndex = 0;
 
-            PresentMode mPresentMode = {};
+            SwapChainPresentMode mPresentMode = {};
             Format mFormat = {};
             ColorSpace mColorSpace = {};
         };

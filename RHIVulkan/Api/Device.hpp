@@ -116,7 +116,7 @@ namespace PyroshockStudios {
             virtual void DestroyFence(IFence*& fence) override;
             virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) override;
 
-            eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) override;
+            eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
 
             void WaitIdle() override;
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
@@ -141,8 +141,8 @@ namespace PyroshockStudios {
                 return mPresentQueue;
             }
 
-            const DeviceInfo& GetInfo() override;
-            const DevicePropertiesInfo& GetProperties() override;
+            const DeviceInfo& Info() const override;
+            const DevicePropertiesInfo& Properties() const override;
 
             VulkanContext* Context() {
                 return mContext;
