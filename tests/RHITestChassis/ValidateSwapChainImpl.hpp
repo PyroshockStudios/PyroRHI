@@ -17,8 +17,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapChainCreateDestroyOverload) {
     ICommandQueue* queue = mDevice->GetPresentQueue();
     ASSERT_NE(queue, nullptr);
 
-    Semaphore waitPresentSemaphore = mDevice->CreateSemaphore({ .name = "waitPresentSemaphore" });
-
     SwapChainInfo info = {
         .format = SwapChainFormat::Unorm8BitLDR,
         .bufferCount = 2,

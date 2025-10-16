@@ -467,7 +467,6 @@ namespace PyroshockStudios {
         }
         Buffer D3DDevice::CreateBuffer(const BufferInfo& info) {
             auto [buffer, data] = mResourcePool->AllocBuffer();
-            data.lastValidState = ToD3D12BufferResourceState(info.initialLayout);
             data.info = info;
 
             // Describe the buffer
@@ -591,9 +590,6 @@ namespace PyroshockStudios {
         Image D3DDevice::CreateImage(const ImageInfo& info) {
             auto [image, data] = mResourcePool->AllocImage();
             data.info = info;
-
-            // Track resource states for each subresource
-            data.lastValidStates.resize(info.arrayLayerCount * info.mipLevelCount, D3D12_RESOURCE_STATE_COMMON);
 
             // Describe the texture
             D3D12_RESOURCE_DESC textureDesc = {};

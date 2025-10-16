@@ -581,7 +581,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
         ASSERT_TRUE(mDevice->IsValid(srcImage));
 
         MemoryBlockInfo blockInfo = {};
-        blockInfo.size = 1024;
+        blockInfo.size = 800000;
         blockInfo.bufferUsage = BufferUsageFlagBits::TRANSFER_DST;
         blockInfo.name = "Test Memory Block";
 
@@ -626,8 +626,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
         EXPECT_NO_FATAL_FAILURE(cb->CopyImageToBuffer(info));
 
         cb->Complete();
-        mDevice->GetCommandQueues()[0]->SubmitCommandBuffer(cb);
-        mDevice->SubmitQueue({ .queue = mDevice->GetCommandQueues()[0] });
+        cq->SubmitCommandBuffer(cb);
+        mDevice->SubmitQueue({ .queue = cq });
     }
     mDevice->WaitIdle();
 }
