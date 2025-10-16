@@ -10,3 +10,11 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyTimestampQueryPool) {
     ASSERT_EQ(info, qp->Info());
     mDevice->DestroyTimestampQueryPool(qp);
 }
+
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyTimestampQueryPoolOverload) {
+    TimestampQueryPoolInfo info = { .queryCount = 2, .name = " qp" };
+    ITimestampQueryPool* qp = mDevice->Create(info);
+    ASSERT_NE(qp, nullptr);
+    ASSERT_EQ(info, qp->Info());
+    mDevice->Destroy(qp);
+}

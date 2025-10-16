@@ -18,6 +18,17 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyFence) {
     mDevice->DestroyFence(fence);
 }
 
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyFenceOverload) {
+    FenceInfo fenInfo = {};
+    fenInfo.name = "TestFence";
+    fenInfo.initialValue = 0;
+
+    IFence* fence = mDevice->Create(fenInfo);
+    ASSERT_EQ(fence->Info(), fenInfo);
+    mDevice->Destroy(fence);
+}
+
+
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, FenceSignalSuccess) {
     constexpr u64 FenceVal = 53;
 

@@ -18,6 +18,23 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyBuffer) {
     mDevice->DestroyBuffer(buffer);
     EXPECT_FALSE(mDevice->IsBufferValid(buffer));
 }
+
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyBufferOverload) {
+    BufferInfo info = {};
+    info.size = 1024;
+    info.usage = BufferUsageFlagBits::VERTEX_BUFFER; // or however you define usage flags
+    info.name = "TestBuffer";
+
+    Buffer buffer = mDevice->Create(info);
+    ASSERT_TRUE(mDevice->IsValid(buffer));
+
+    const BufferInfo& queried = mDevice->GetBufferInfo(buffer);
+    EXPECT_EQ(queried, info);
+
+    mDevice->Destroy(buffer);
+    EXPECT_FALSE(mDevice->IsValid(buffer));
+}
+
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyBufferAndThenCreateAgain) {
     BufferInfo info = {};
     info.size = 1024;
@@ -44,7 +61,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyVirtualBuffers) {
     blockInfo.bufferUsage = BufferUsageFlagBits::UNIFORM_BUFFER | BufferUsageFlagBits::SHADER_RESOURCE;
     blockInfo.name = "Test Memory Block";
 
-    MemoryBlock block = mDevice->Create(blockInfo);
+    MemoryBlock block = mDevice->CreateMemoryBlock(blockInfo);
     ASSERT_TRUE(mDevice->IsMemoryBlockValid(block));
 
     eastl::vector<Buffer> buffers = {};
@@ -79,7 +96,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, GracefulVirtualBufferTooFull) {
     blockInfo.bufferUsage = BufferUsageFlagBits::UNIFORM_BUFFER | BufferUsageFlagBits::SHADER_RESOURCE;
     blockInfo.name = "Test Memory Block";
 
-    MemoryBlock block = mDevice->Create(blockInfo);
+    MemoryBlock block = mDevice->CreateMemoryBlock(blockInfo);
     ASSERT_TRUE(mDevice->IsMemoryBlockValid(block));
 
 

@@ -1,5 +1,13 @@
 #include "Helpers/ValidationFixture.hpp"
 #include <PyroRHI/Api/Util.hpp>
+#include <latch>
+#include <thread>
+#include <future>
+using namespace std::chrono_literals;
+
+#ifdef CreateSemaphore
+#undef CreateSemaphore
+#endif
 
 using namespace PyroshockStudios;
 using namespace PyroshockStudios::RHI;
@@ -343,6 +351,111 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiCommandBufferSyncSubmit) {
     mDevice->DestroyImage(image);
 }
 
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiThreadedCommandBufferRecordingSubmitOrder)
+{
+    // --- Resource setup ---
+    ImageInfo imageInfo{};
+    imageInfo.size = {16, 16, 1};
+    imageInfo.format = Format::RGBA8Unorm;
+    imageInfo.usage = ImageUsageFlagBits::TRANSFER_DST | ImageUsageFlagBits::UNORDERED_ACCESS;
+    Image image = mDevice->CreateImage(imageInfo);
+
+    CopyBufferToImageInfo copyInfo{};
+    copyInfo.image = image;
+    copyInfo.imageExtent = {16, 16, 1};
+    copyInfo.rowPitch = static_cast<u32>(copyInfo.imageExtent.width * RHIUtil::GetFormatSize(imageInfo.format));
+    copyInfo.rowPitch = mDevice->ImageSubresourceRowPitch(image, {}, copyInfo.rowPitch);
+
+    BufferInfo bufferInfo{};
+    bufferInfo.size = static_cast<u64>(copyInfo.rowPitch) * copyInfo.imageExtent.height * copyInfo.imageExtent.depth;
+    bufferInfo.usage = BufferUsageFlagBits::TRANSFER_SRC;
+    Buffer buffer = mDevice->CreateBuffer(bufferInfo);
+    copyInfo.buffer = buffer;
+
+    auto uav = mDevice->CreateUnorderedAccess(ImageResourceInfo{.image = image});
+
+    ICommandQueue* queue = mDevice->GetCommandQueues()[0];
+
+    // --- Prepare two command buffers ---
+    auto* cbCopy = queue->GetCommandBuffer({.name = "Parallel Copy CB"});
+    auto* cbClear = queue->GetCommandBuffer({.name = "Parallel Clear CB"});
+
+    // --- Multithreaded recording ---
+    std::latch recordStart(1);
+    std::atomic<bool> copyDone = false;
+    std::atomic<bool> clearDone = false;
+
+    std::jthread copyThread([&](std::stop_token){
+        recordStart.wait();
+
+        EXPECT_NO_FATAL_FAILURE(cbCopy->BufferBarrier({
+            .buffer = buffer,
+            .srcAccess = AccessConsts::NONE,
+            .dstAccess = AccessConsts::TRANSFER_READ,
+            .srcLayout = BufferLayout::Undefined,
+            .dstLayout = BufferLayout::TransferSrc,
+        }));
+        EXPECT_NO_FATAL_FAILURE(cbCopy->ImageBarrier({
+            .image = image,
+            .srcAccess = AccessConsts::NONE,
+            .dstAccess = AccessConsts::TRANSFER_WRITE,
+            .srcLayout = ImageLayout::Undefined,
+            .dstLayout = ImageLayout::TransferDst,
+        }));
+        EXPECT_NO_FATAL_FAILURE(cbCopy->CopyBufferToImage(copyInfo));
+        cbCopy->Complete();
+        copyDone = true;
+    });
+
+    std::jthread clearThread([&](std::stop_token){
+        recordStart.wait();
+
+        ClearUnorderedAccessViewInfo clearInfo{};
+        clearInfo.view = uav;
+        clearInfo.clearValue = {0.25f, 0.5f, 0.75f, 1.0f};
+
+        EXPECT_NO_FATAL_FAILURE(cbClear->ImageBarrier({
+            .image = image,
+            .srcAccess = AccessConsts::TRANSFER_WRITE,
+            .dstAccess = AccessConsts::CLEAR_WRITE,
+            .srcLayout = ImageLayout::TransferDst,
+            .dstLayout = ImageLayout::UnorderedAccess,
+        }));
+        EXPECT_NO_FATAL_FAILURE(cbClear->ClearUnorderedAccessView(clearInfo));
+        cbClear->Complete();
+        clearDone = true;
+    });
+
+    // Start both recording threads simultaneously
+    recordStart.count_down();
+
+    // Wait for both threads to complete recording
+    using namespace std::chrono_literals;
+    const auto start = std::chrono::steady_clock::now();
+    while ((!copyDone || !clearDone) && std::chrono::steady_clock::now() - start < 5s)
+        std::this_thread::sleep_for(10ms);
+
+    ASSERT_TRUE(copyDone && clearDone) << "Command buffer recording did not complete within timeout.";
+    copyThread.request_stop();
+    clearThread.request_stop();
+
+    // --- Sequential submission order check ---
+    // Submit copy first, clear second
+    queue->SubmitCommandBuffer(cbCopy);
+    queue->SubmitCommandBuffer(cbClear);
+
+    // Flush queue (submit all)
+    mDevice->SubmitQueue({.queue = queue});
+
+    // Wait for completion
+    mDevice->WaitIdle();
+
+    // --- Cleanup ---
+    mDevice->DestroyUnorderedAccess(uav);
+    mDevice->DestroyBuffer(buffer);
+    mDevice->DestroyImage(image);
+}
+
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsUpdateBuffer64kbSucceeds) {
     BufferInfo bufferInfo{};
@@ -450,4 +563,71 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTimestampQueryPoolResetSetSuccess) {
     mDevice->DestroyUnorderedAccess(uav);
     mDevice->DestroyImage(image);
     mDevice->DestroyTimestampQueryPool(qp);
+}
+
+
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
+    static constexpr i32 NUM_DESTROY_DEFERRED_CYCLES = 16; 
+
+    ICommandQueue* cq = mDevice->GetCommandQueues()[0];
+
+    for (i32 i = 0; i < NUM_DESTROY_DEFERRED_CYCLES; ++i) {
+        ImageInfo srcImageInfo{};
+        srcImageInfo.dimensions = ImageDimensions::e3D;
+        srcImageInfo.size = { 16, 16, 4 };
+        srcImageInfo.format = Format::RGBA8Unorm;
+        srcImageInfo.usage = ImageUsageFlagBits::TRANSFER_SRC;
+        Image srcImage = mDevice->CreateImage(srcImageInfo);
+        ASSERT_TRUE(mDevice->IsValid(srcImage));
+
+        MemoryBlockInfo blockInfo = {};
+        blockInfo.size = 1024;
+        blockInfo.bufferUsage = BufferUsageFlagBits::TRANSFER_DST;
+        blockInfo.name = "Test Memory Block";
+
+        MemoryBlock block = mDevice->CreateMemoryBlock(blockInfo);
+        ASSERT_TRUE(mDevice->IsValid(block));
+        
+        BufferInfo bufferInfo{};
+        bufferInfo.memoryBlock = block;
+        bufferInfo.size = mDevice->ImageSizeRequirements(srcImage);
+        bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
+        Buffer dstBuffer = mDevice->CreateBuffer(bufferInfo);
+        ASSERT_TRUE(mDevice->IsValid(dstBuffer));
+
+        ICommandBuffer* cb = cq->GetCommandBuffer({.name=  "destroy deferred commands"});
+
+        // It should still be legal to use these resources after destroying! They are still valid in this frame!
+        cb->DestroyDeferred(srcImage);
+        cb->DestroyDeferred(dstBuffer);
+        cb->DestroyDeferred(block);
+
+        EXPECT_NO_FATAL_FAILURE(cb->ImageBarrier({
+            .image = srcImage,
+            .srcAccess = AccessConsts::NONE,
+            .dstAccess = AccessConsts::TRANSFER_READ,
+            .srcLayout = ImageLayout::Undefined,
+            .dstLayout = ImageLayout::TransferSrc,
+        }));
+        EXPECT_NO_FATAL_FAILURE(cb->BufferBarrier({
+            .buffer = dstBuffer,
+            .srcAccess = AccessConsts::NONE,
+            .dstAccess = AccessConsts::TRANSFER_WRITE,
+            .srcLayout = BufferLayout::Undefined,
+            .dstLayout = BufferLayout::TransferDst,
+        }));
+
+        CopyImageToBufferInfo info{};
+        info.image = srcImage;
+        info.imageExtent = srcImageInfo.size;
+        info.rowPitch = bufferInfo.size / srcImageInfo.size.height / srcImageInfo.size.depth;
+        info.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, {}, info.rowPitch);
+        info.buffer = dstBuffer;
+        EXPECT_NO_FATAL_FAILURE(cb->CopyImageToBuffer(info));
+
+        cb->Complete();
+        mDevice->GetCommandQueues()[0]->SubmitCommandBuffer(cb);
+        mDevice->SubmitQueue({ .queue = mDevice->GetCommandQueues()[0] });
+    }
+    mDevice->WaitIdle();
 }

@@ -8,6 +8,38 @@ using namespace PyroshockStudios::Types;
 
 static constexpr u32 SWAP_ACQUIRE_FAIL_LIMIT = 4; // after 4 fails, fail the test
 
+
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapChainCreateDestroyOverload) {
+    if (!mDevice->Properties().bSupportsHeadlessSwapChainWindow) {
+        GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
+        return;
+    }
+    ICommandQueue* queue = mDevice->GetPresentQueue();
+    ASSERT_NE(queue, nullptr);
+
+    Semaphore waitPresentSemaphore = mDevice->CreateSemaphore({ .name = "waitPresentSemaphore" });
+
+    SwapChainInfo info = {
+        .format = SwapChainFormat::Unorm8BitLDR,
+        .bufferCount = 2,
+        .imageUsage = ImageUsageFlagBits::TRANSFER_DST,
+        .extent = { 256, 256 },
+        .name = "Headless Swap Chain",
+    };
+
+    ISwapChain* swapChain = mDevice->Create(info);
+    ASSERT_EQ(info.alphaMode, swapChain->Info().alphaMode);
+    ASSERT_EQ(info.extent, swapChain->Info().extent);
+    ASSERT_EQ(info.format, swapChain->Info().format);
+    ASSERT_EQ(info.imageUsage, swapChain->Info().imageUsage);
+    ASSERT_EQ(info.name, swapChain->Info().name);
+
+    ASSERT_EQ(info.extent, swapChain->GetSurfaceExtent());
+
+    mDevice->Destroy(swapChain);
+}
+
+
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
     if (!mDevice->Properties().bSupportsHeadlessSwapChainWindow) {
         GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
@@ -27,13 +59,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
     };
 
     ISwapChain* swapChain = mDevice->CreateSwapChain(info);
-    ASSERT_EQ(info.alphaMode, swapChain->Info().alphaMode);
-    ASSERT_EQ(info.extent, swapChain->Info().extent);
-    ASSERT_EQ(info.format, swapChain->Info().format);
-    ASSERT_EQ(info.imageUsage, swapChain->Info().imageUsage);
-    ASSERT_EQ(info.name, swapChain->Info().name);
-
-    ASSERT_EQ(info.extent, swapChain->GetSurfaceExtent());
 
     const SemaphoreSubmitInfo signalPresent{
         .semaphore = waitPresentSemaphore,
@@ -70,8 +95,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);
     mDevice->WaitIdle();
-    mDevice->Destroy(waitPresentSemaphore);
-    mDevice->Destroy(swapChain);
+    mDevice->DestroySemaphore(waitPresentSemaphore);
+    mDevice->DestroySwapChain(swapChain);
 }
 
 
@@ -130,8 +155,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);
     mDevice->WaitIdle();
-    mDevice->Destroy(waitPresentSemaphore);
-    mDevice->Destroy(swapChain);
+    mDevice->DestroySemaphore(waitPresentSemaphore);
+    mDevice->DestroySwapChain(swapChain);
 }
 
 
@@ -193,8 +218,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);
     mDevice->WaitIdle();
-    mDevice->Destroy(waitPresentSemaphore);
+    mDevice->DestroySemaphore(waitPresentSemaphore);
     for (ISwapChain* swapChain : swapChains) {
-        mDevice->Destroy(swapChain);
+        mDevice->DestroySwapChain(swapChain);
     }
 }
