@@ -224,7 +224,6 @@ namespace PyroshockStudios {
                     .usage = mInfo.imageUsage,
                     .name = mInfo.name + " DXGI Swap Buffer #" + eastl::to_string(i),
                 };
-                data.lastValidStates.resize(1, D3D12_RESOURCE_STATE_COMMON);
                 D3DSetDebugName(data.resource, data.info.name.c_str());
                 mDevice->ImageAddIfNecessaryBlitSupport(data);
                 mWrappedBuffers[i] = image;

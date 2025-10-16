@@ -969,11 +969,9 @@ namespace PyroshockStudios {
 
         DeviceSize VulkanDevice::ImageSizeRequirements(Image image) const {
             auto& img = Slot(image);
-            if (img.info.memoryBlock) {
-                return img.allocationInfo.Get<VmaVirtualAllocationInfo>().size;
-            } else {
-                return img.allocationInfo.Get<VmaAllocationInfo>().size;
-            }
+            VkMemoryRequirements requirements;
+            vkGetImageMemoryRequirements(mDevice, img.vkImage, &requirements);
+            return requirements.size;
         }
         u32 VulkanDevice::ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const {
             return PYRO_ALIGN(rowWidth, mPhysicalDeviceProperties.limits.optimalBufferCopyRowPitchAlignment);
