@@ -662,6 +662,28 @@ namespace PyroshockStudios {
             PYRO_NODISCARD bool operator!=(const DispatchIndirectInfo&) const = default;
         };
 
+
+        struct BuildBLASInfo {
+            /// @brief Temporary buffer to use. Must be large enough to contain the geometry data. See IDevice::BLASBuildSizeRequirements
+            Buffer scratchBuffer = PYRO_NULL_BUFFER;
+            /// @brief List of geometries to build
+            eastl::span<const BLASGeometryInfo> geometries;
+
+            PYRO_NODISCARD bool operator==(const BuildBLASInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const BuildBLASInfo&) const = default;
+        };
+
+        
+        struct BuildTLASInfo {
+            /// @brief Temporary buffer to use. Must be large enough to contain the instance data. See IDevice::TLASBuildSizeRequirements
+            Buffer scratchBuffer = PYRO_NULL_BUFFER;
+            /// @brief List of instances to build
+            eastl::span<const TLASInstanceInfo> instances;
+
+            PYRO_NODISCARD bool operator==(const BuildTLASInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const BuildTLASInfo&) const = default;
+        };
+
         /**
          * @brief Interface for recording and submitting GPU commands.
          *
@@ -966,6 +988,23 @@ namespace PyroshockStudios {
              * @brief Dispatches compute workloads using indirect parameters from a buffer. *MUST* be called outside of a renderpass
              */
             virtual void DispatchIndirect(const DispatchIndirectInfo& info) = 0;
+
+            
+            // ---------------------------------------------------------------------
+            // Ray tracing and Acceleration structures
+            // ---------------------------------------------------------------------
+
+            /**
+             * @brief Executes a bottom-level acceleration structure build on the GPU. *MUST* be called outside of a renderpass
+             */
+            virtual void BuildBLAS(const BuildBLASInfo& info) = 0;
+
+            /**
+             * @brief Executes a top-level acceleration structure build on the GPU. *MUST* be called outside of a renderpass
+             */
+            virtual void BuildTLAS(const BuildTLASInfo& info) = 0;
+
+            
 
             // ---------------------------------------------------------------------
             // Completion

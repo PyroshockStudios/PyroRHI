@@ -23,6 +23,7 @@
 #pragma once
 #include <PyroCommon/Core.hpp>
 
+#include "AccelerationStructure.hpp"
 #include "GPUResource.hpp"
 #include "ICommandBuffer.hpp"
 #include "ICommandQueue.hpp"
@@ -60,7 +61,8 @@ namespace PyroshockStudios {
             u32 bufferImageRowAlignment = 0;
             u32 bufferImageCopyOffsetAlignment = 0;
             bool bSupportsHeadlessSwapChainWindow = false;
-
+            bool bSupportsRayTracing = false;
+            
             PYRO_NODISCARD bool operator==(const DevicePropertiesInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DevicePropertiesInfo&) const = default;
         };
@@ -249,13 +251,24 @@ namespace PyroshockStudios {
              */
             PYRO_NODISCARD virtual const SemaphoreInfo& GetSemaphoreInfo(Semaphore semaphore) const = 0;
 
+            /**
+             * @brief Retrieves BLAS description.
+             */
+            PYRO_NODISCARD virtual const BLASInfo& GetBLASInfo(BLAS blas) const = 0;
+
+            /**
+             * @brief Retrieves TLAS description.
+             */
+            PYRO_NODISCARD virtual const TLASInfo& GetTLASInfo(TLASId tlas) const = 0;
+
 
             // ---------------------------------------------------------------------
             // Memory Access
             // ---------------------------------------------------------------------
 
             /**
-             * @brief Returns the device (GPU) address of a buffer, if supported.
+             * @brief - REQUIRES BDA SUPPORT -
+             * Returns the device (GPU) address of a buffer, if supported.
              * This address may or may not be a valid address to use inside a shader, usage varies by API.
              */
             PYRO_NODISCARD virtual DeviceAddress BufferDeviceAddress(Buffer buffer) const = 0;
@@ -265,6 +278,18 @@ namespace PyroshockStudios {
              * pointer if the buffer is not host visible.
              */
             PYRO_NODISCARD virtual u8* BufferHostAddress(Buffer buffer) const = 0;
+            
+            /**
+             * @brief Returns the host-mapped pointer for a buffer, cast to the requested type.
+             */
+            template <typename T>
+            PYRO_NODISCARD PYRO_FORCEINLINE T* BufferHostAddressAs(Buffer buffer) const {
+                return reinterpret_cast<T*>(BufferHostAddress(buffer));
+            }
+
+            // ---------------------------------------------------------------------
+            // Resource Queries
+            // ---------------------------------------------------------------------
 
             /**
              * @brief Returns the size requirements (in bytes) for the entire image resource.
@@ -286,12 +311,14 @@ namespace PyroshockStudios {
             PYRO_NODISCARD virtual u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const = 0;
 
             /**
-             * @brief Returns the host-mapped pointer for a buffer, cast to the requested type.
+             * @brief Returns the minimum required size for building a bottom-level acceleration structure  
              */
-            template <typename T>
-            PYRO_NODISCARD PYRO_FORCEINLINE T* BufferHostAddressAs(Buffer buffer) const {
-                return reinterpret_cast<T*>(BufferHostAddress(buffer));
-            }
+            PYRO_NODISCARD virtual DeviceSize BLASBuildSizeRequirements(BLAS blas, eastl::span<const BLASGeometryInfo>, u32 primitiveCount) const = 0;
+            /**
+             * @brief Returns the minimum required size for building a top-level acceleration structure  
+             */
+            PYRO_NODISCARD virtual DeviceSize TLASBuildSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo>, u32 instanceCount) const = 0;
+
 
             // ---------------------------------------------------------------------
             // Resource Creation
@@ -330,7 +357,6 @@ namespace PyroshockStudios {
              * the descriptor heap that can be used to index into a bindless heap in a shader.
              */
             PYRO_NODISCARD virtual SamplerId CreateSampler(const SamplerInfo& info) = 0;
-
             /**
              * @brief Creates a render target view (either a colour target or depth-stencil) with the specified parameters
              */
@@ -359,6 +385,18 @@ namespace PyroshockStudios {
              * @brief Creates a query pool for GPU command timestamps
              */
             PYRO_NODISCARD virtual ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) = 0;
+            
+            /**
+             * @brief - REQUIRES RAY TRACING SUPPORT -
+             * Creates a bottom level acceleration structure to be referenced by a TLAS.
+             */
+            PYRO_NODISCARD virtual BLAS CreateBLAS(const BLASInfo& info) = 0;
+            /**
+             * @brief - REQUIRES RAY TRACING SUPPORT -
+             * Creates a top level acceleration structure with the given parameters. This returns a handle
+             * that is meant to be passed to a shader, to index into a runtime array of TLAS descriptors
+             */
+            PYRO_NODISCARD virtual TLASId CreateTLAS(const TLASInfo& info) = 0;
 
             // ---------------------------------------------------------------------
             // Resource Destruction
@@ -389,7 +427,6 @@ namespace PyroshockStudios {
              * @brief Immediately destroys the sampler, and sets the handle to NULL
              */
             virtual void DestroySampler(SamplerId& sampler) = 0;
-
             /**
              * @brief Immediately destroys the render target, and sets the handle to NULL
              */
@@ -418,6 +455,15 @@ namespace PyroshockStudios {
              * @brief Immediately destroys the query pool, and sets the handle to NULL
              */
             virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) = 0;
+           
+            /**
+             * @brief Immediately destroys the BLAS, and sets the handle to NULL
+             */
+            virtual void DestroyBLAS(BLAS& blas) = 0;
+            /**
+             * @brief Immediately destroys the TLAS, and sets the handle to NULL
+             */
+            virtual void DestroyTLAS(TLASId& tlas) = 0;
 
             // Convenience overloads
             PYRO_FORCEINLINE void Destroy(MemoryBlock& memory) { DestroyMemoryBlock(memory); }
@@ -426,7 +472,6 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE void Destroy(ShaderResourceId& srv) { DestroyShaderResource(srv); }
             PYRO_FORCEINLINE void Destroy(UnorderedAccessId& uav) { DestroyUnorderedAccess(uav); }
             PYRO_FORCEINLINE void Destroy(SamplerId& sampler) { DestroySampler(sampler); }
-
             PYRO_FORCEINLINE void Destroy(RasterPipeline& pipeline) { DestroyRasterPipeline(pipeline); }
             PYRO_FORCEINLINE void Destroy(ComputePipeline& pipeline) { DestroyComputePipeline(pipeline); }
             PYRO_FORCEINLINE void Destroy(ISwapChain*& swapChain) { DestroySwapChain(swapChain); }
@@ -434,6 +479,9 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE void Destroy(Semaphore& semaphore) { DestroySemaphore(semaphore); }
             PYRO_FORCEINLINE void Destroy(IFence*& fence) { DestroyFence(fence); }
             PYRO_FORCEINLINE void Destroy(ITimestampQueryPool*& queryPool) { DestroyTimestampQueryPool(queryPool); }
+           
+            PYRO_FORCEINLINE void Destroy(BLAS& blas) { DestroyBLAS(blas); }
+            PYRO_FORCEINLINE void Destroy(TLASId& tlas) { DestroyTLAS(tlas); }
 
             // ---------------------------------------------------------------------
             // Support Queries
@@ -501,6 +549,8 @@ namespace PyroshockStudios {
             PYRO_NODISCARD PYRO_FORCEINLINE Semaphore Create(const SemaphoreInfo& info) { return CreateSemaphore(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE IFence* Create(const FenceInfo& info) { return CreateFence(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE ITimestampQueryPool* Create(const TimestampQueryPoolInfo& info) { return CreateTimestampQueryPool(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE BLAS Create(const BLASInfo& info) { return CreateBLAS(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE TLASId Create(const TLASInfo& info) { return CreateTLAS(info); }
         };
 
     } // namespace RHI

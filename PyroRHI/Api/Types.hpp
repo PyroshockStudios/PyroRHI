@@ -581,6 +581,8 @@ namespace PyroshockStudios {
             static inline constexpr BufferUsageFlags HOST_READ = { 0x02000000 };
             static inline constexpr BufferUsageFlags HOST_WRITE = { 0x04000000 };
             static inline constexpr BufferUsageFlags BYTE_ADDRESS_BUFFER = { 0x08000000 };
+            static inline constexpr BufferUsageFlags BLAS_GEOMETRY_BUFFER = { 0x10000000 };
+            static inline constexpr BufferUsageFlags TLAS_BLAS_SCRATCH_BUFFER = { 0x10000000 };
         };
 
 
@@ -993,6 +995,7 @@ namespace PyroshockStudios {
         inline LabelColor LabelColor::ORANGE = { 1.0f, 0.5f, 0.0f, 1.0f };
         inline LabelColor LabelColor::YELLOW = { 1.0f, 1.0f, 0.0f, 1.0f };
         inline LabelColor LabelColor::GREEN = { 0.0f, 1.0f, 0.0f, 1.0f };
+        inline LabelColor LabelColor::CYAN = { 0.0f, 1.0f, 1.0f, 1.0f };
         inline LabelColor LabelColor::BLUE = { 0.0f, 0.0f, 1.0f, 1.0f };
         inline LabelColor LabelColor::VIOLET = { 0.5f, 0.0f, 1.0f, 1.0f };
         inline LabelColor LabelColor::MAGENTA = { 1.0f, 0.0f, 1.0f, 1.0f };
@@ -1011,5 +1014,35 @@ namespace PyroshockStudios {
 
         inline LabelColor LabelColor::WHITE = { 1.0f, 1.0f, 1.0f, 1.0f };
         inline LabelColor LabelColor::BLACK = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+        struct Transform {
+            float m00 = 0.0f;
+            float m01 = 0.0f;
+            float m02 = 0.0f;
+            float m03 = 0.0f;
+            float m10 = 0.0f;
+            float m11 = 0.0f;
+            float m12 = 0.0f;
+            float m13 = 0.0f;
+            float m20 = 0.0f;
+            float m21 = 0.0f;
+            float m22 = 0.0f;
+            float m23 = 0.0f;
+            float m30 = 0.0f;
+            float m31 = 0.0f;
+            float m32 = 0.0f;
+            float m33 = 0.0f;
+
+            static Transform IDENTITY;
+            static Transform ZERO;
+        };
+
+        inline Transform Transform::IDENTITY = {
+            1.f, 0.f, 0.f, 0.f, 
+            0.f, 1.f, 0.f, 0.f, 
+            0.f, 0.f, 1.f, 0.f, 
+            0.f, 0.f, 0.f, 1.f, 
+        };
+        inline Transform Transform::ZERO = {};
     } // namespace RHI
 } // namespace PyroshockStudios
