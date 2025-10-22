@@ -151,6 +151,8 @@ namespace PyroshockStudios {
                         physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressMultiDevice = VK_FALSE;
 
                         mVulkanCaps.bVK_EXT_buffer_device_address = true;
+                        mFeatures.bBufferDeviceAddress = true;
+
                         // No need to enable it since it's in vulkan 1.3 core.
                         // Commenting this out fixes an error that both the KHR and EXT versions of this are enabled
                         // extensions.push_back(extension.extensionName);
@@ -351,6 +353,9 @@ namespace PyroshockStudios {
                 mDevice, mContext->GetVkAllocator(), VK_NULL_HANDLE, vkSetDebugUtilsObjectNameEXT);
 
             mMainQueueGpuFence = CreateFence({ .name = "mMainQueueGpuFence" });
+            
+
+            vkGetPhysicalDeviceProperties(mPhysicalDevice, &mPhysicalDeviceProperties);
 
             PopulateDeviceInfo();
             PopulateDeviceProperties();
@@ -760,8 +765,7 @@ namespace PyroshockStudios {
         }
 
         void VulkanDevice::PopulateDeviceInfo() {
-            VkPhysicalDeviceProperties props = {};
-            vkGetPhysicalDeviceProperties(mPhysicalDevice, &props);
+            const VkPhysicalDeviceProperties& props = mPhysicalDeviceProperties;
 
             mInfo.name = props.deviceName;
             mInfo.vendorID = props.vendorID;
@@ -830,8 +834,7 @@ namespace PyroshockStudios {
         }
 
         void VulkanDevice::PopulateDeviceProperties() {
-            VkPhysicalDeviceProperties props = {};
-            vkGetPhysicalDeviceProperties(mPhysicalDevice, &props);
+            const VkPhysicalDeviceProperties& props = mPhysicalDeviceProperties;
 
             VkSampleCountFlags colorTargetSampleCounts = props.limits.framebufferColorSampleCounts;
             VkSampleCountFlags depthSampleCounts = props.limits.framebufferDepthSampleCounts;
@@ -885,8 +888,7 @@ namespace PyroshockStudios {
         void VulkanDevice::PopulateDeviceFeatures() {
             VkPhysicalDeviceFeatures features = {};
             vkGetPhysicalDeviceFeatures(mPhysicalDevice, &features);
-            VkPhysicalDeviceProperties props;
-            vkGetPhysicalDeviceProperties(mPhysicalDevice, &props);
+            const VkPhysicalDeviceProperties& props = mPhysicalDeviceProperties;
 
             mFeatures.bGeometryShaders = features.geometryShader;
             mFeatures.bTesselationShaders = features.tessellationShader;

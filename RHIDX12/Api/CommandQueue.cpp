@@ -42,7 +42,7 @@ namespace PyroshockStudios {
             UINT64 completedVal = mCommandBufferTracker->GetCompletedValue();
             for (i32 i = 0; i < mPooledCommandBuffers.size(); ++i) {
                 auto& [cmb, fenceVal] = mPooledCommandBuffers[i];
-                if (fenceVal > completedVal) {
+                if (completedVal > fenceVal) {
                     commands = cmb;
                     mPooledCommandBuffers.erase(mPooledCommandBuffers.begin() + i);
                     break;
@@ -130,7 +130,7 @@ namespace PyroshockStudios {
             return 1e9 / static_cast<f64>(freq);
         }
         void D3DCommandQueue::SignalCommandBufferFences() {
-            mCommandQueue->Signal(mCommandBufferTracker.Get(), mCurrentCommandBufferFenceValue++);
+            mCommandQueue->Signal(mCommandBufferTracker.Get(), ++mCurrentCommandBufferFenceValue);
         }
     } // namespace RHIDX12
 } // namespace PyroshockStudios

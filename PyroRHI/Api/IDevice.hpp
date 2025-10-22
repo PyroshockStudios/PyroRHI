@@ -110,7 +110,7 @@ namespace PyroshockStudios {
             bool bUint8IndexBuffer = false;
 
             // --- Shader Model / SPIR-V Level ---
-            u32 supportedShaderModel = 0; // e.g., HLSL Shader Model or Vulkan’s SPIR-V version
+            u32 supportedShaderModel = 0; // e.g., HLSL Shader Model or Vulkan’s SPIR-V version, format of 0xMAJORMINOR
 
             // --- Compute and Atomics ---
             bool bInt64ShaderOps = false;
@@ -149,7 +149,7 @@ namespace PyroshockStudios {
             u32 bufferImageRowAlignment = 0;         // D3D12_TEXTURE_DATA_PITCH_ALIGNMENT / VkPhysicalDeviceLimits::optimalBufferCopyRowPitchAlignment
             u32 bufferImageCopyOffsetAlignment = 0;  // D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT / VkPhysicalDeviceLimits::optimalBufferCopyOffsetAlignment
             u32 minUniformBufferOffsetAlignment = 0; // D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT / Vulkan equivalent
-            u32 minStorageBufferOffsetAlignment = 0;
+            u32 minStorageBufferOffsetAlignment = 0; // SRV or UAV buffer
 
             // --- Queue capabilities ---
             u32 graphicsQueueCount = 0;

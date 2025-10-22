@@ -145,6 +145,8 @@ namespace PyroshockStudios {
             void PresentQueue(const CommandQueuePresentInfo& info) override;
             const DeviceInfo& Info() const override;
             const DevicePropertiesInfo& Properties() const override;
+            const DeviceFeaturesInfo& Features() const override;
+            DeviceStatusInfo Status() const override;
 
             void ImageAddIfNecessaryBlitSupport(D3DImageResourceData& data);
             const DescriptorTableInfo& GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc);

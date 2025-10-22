@@ -190,7 +190,7 @@ namespace PyroshockStudios {
             vblockDesc.Size = info.size;
             if (info.strategy == VirtualSuballocationStrategy::AggressiveRing) {
                 D3D12MA::VIRTUAL_BLOCK_DESC vblockDesc = {};
-                vblockDesc.Flags |= D3D12MA::VIRTUAL_BLOCK_FLAG_ALGORITHM_LINEAR;
+                (u32&)vblockDesc.Flags |= D3D12MA::VIRTUAL_BLOCK_FLAG_ALGORITHM_LINEAR;
             }
             D3D12MA::CreateVirtualBlock(&vblockDesc, data.block.GetAddressOf());
             gDx12Context->FlushDebugMessages();
@@ -283,10 +283,10 @@ namespace PyroshockStudios {
                 switch (block.info.strategy) {
                 case VirtualSuballocationStrategy::AggressiveRing:
                 case VirtualSuballocationStrategy::TimeEfficient:
-                    allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_TIME;
+                    (u32&)allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_TIME;
                     break;
                 case VirtualSuballocationStrategy::SpaceEfficient:
-                    allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
+                    (u32&)allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
                     break;
                 default:
                     break;
@@ -390,10 +390,10 @@ namespace PyroshockStudios {
                 switch (block.info.strategy) {
                 case VirtualSuballocationStrategy::AggressiveRing:
                 case VirtualSuballocationStrategy::TimeEfficient:
-                    allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_TIME;
+                    (u32&)allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_TIME;
                     break;
                 case VirtualSuballocationStrategy::SpaceEfficient:
-                    allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
+                    (u32&)allocDesc.Flags |= D3D12MA::VIRTUAL_ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
                     break;
                 default:
                     break;
@@ -888,11 +888,16 @@ namespace PyroshockStudios {
             q->mPendingSwapPresents.clear();
         }
         const DeviceInfo& D3DDevice::Info() const {
-            static DeviceInfo x{};
-            return x;
+            return mInfo;
         }
         const DevicePropertiesInfo& D3DDevice::Properties() const {
             return mProperties;
+        }
+        const DeviceFeaturesInfo& D3DDevice::Features() const {
+            return mFeatures;
+        }
+        DeviceStatusInfo D3DDevice::Status() const {
+            return DeviceStatusInfo{};
         }
 
         // This creates the necessary SRVs/RTVs for image blits
@@ -1484,13 +1489,14 @@ namespace PyroshockStudios {
         void D3DDevice::PopulateDeviceProperties() {
             CD3DX12FeatureSupport support;
             CheckD3DResult(support.Init(mDevice.Get()));
+            mProperties.minStorageBufferOffsetAlignment = D3D12_RAW_UAV_SRV_BYTE_ALIGNMENT;
             mProperties.minUniformBufferOffsetAlignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
             mProperties.bufferImageCopyOffsetAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
             mProperties.bufferImageRowAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
 
             mProperties.bHasDedicatedComputeQueue = true;
             mProperties.bHasDedicatedTransferQueue = true;
-          
+
             mProperties.graphicsQueueCount = 1;
             mProperties.computeQueueCount = 1;
             mProperties.transferQueueCount = 1;
@@ -1498,6 +1504,7 @@ namespace PyroshockStudios {
             mProperties.maxTextureWidth = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
             mProperties.maxTextureHeight = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
             mProperties.maxTextureDepth = D3D12_REQ_TEXTURE3D_U_V_OR_W_DIMENSION;
+            mProperties.maxTextureArrayLayers = std::min(D3D12_REQ_TEXTURE1D_ARRAY_AXIS_DIMENSION, D3D12_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION);
             mProperties.maxSamplerAnisotropy = D3D12_MAX_MAXANISOTROPY;
 
             mProperties.minLineWidth = 1.0f;

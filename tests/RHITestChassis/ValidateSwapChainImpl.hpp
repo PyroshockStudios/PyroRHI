@@ -10,7 +10,7 @@ static constexpr u32 SWAP_ACQUIRE_FAIL_LIMIT = 4; // after 4 fails, fail the tes
 
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapChainCreateDestroyOverload) {
-    if (!mDevice->Properties().bSupportsHeadlessSwapChainWindow) {
+    if (!mDevice->Features().bHeadlessSwapChainWindow) {
         GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
         return;
     }
@@ -39,7 +39,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapChainCreateDestroyOverload) {
 
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
-    if (!mDevice->Properties().bSupportsHeadlessSwapChainWindow) {
+    if (!mDevice->Features().bHeadlessSwapChainWindow) {
         GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
         return;
     }
@@ -99,7 +99,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
 
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
-    if (!mDevice->Properties().bSupportsHeadlessSwapChainWindow) {
+    if (!mDevice->Features().bHeadlessSwapChainWindow) {
         GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
         return;
     }
@@ -161,7 +161,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
     static constexpr i32 NUM_SWAPCHAINS = 8;
 
-    if (!mDevice->Properties().bSupportsHeadlessSwapChainWindow) {
+      if (!mDevice->Features().bHeadlessSwapChainWindow) {
         GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
         return;
     }

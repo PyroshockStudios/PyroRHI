@@ -183,7 +183,7 @@ namespace PyroshockStudios::RHIVulkan {
 #error VulkanWindowSurface Not supported!
 #endif
         } else {
-            ASSERT(mDevice->Properties().bSupportsHeadlessSwapChainWindow, "Cannot create a VkSurface without VK_EXT_headless_surface support!");
+            ASSERT(mDevice->Features().bHeadlessSwapChainWindow, "Cannot create a VkSurface without VK_EXT_headless_surface support!");
             VkHeadlessSurfaceCreateInfoEXT createInfo{ VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT };
             result = vkCreateHeadlessSurfaceEXT(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
         }

@@ -20,7 +20,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, EmptyQueueSubmitDoesNotError) {
     CommandQueueSubmitInfo submitInfo = {};
     submitInfo.queue = queues[0];
     ASSERT_NE(submitInfo.queue, nullptr);
-    ASSERT_GT(queues[0]->GetTimestampTickPeriodNs(), 0ULL);
+    ASSERT_GT(queues[0]->GetTimestampTickPeriodNs(), 0.0);
 
     mDevice->SubmitQueue(submitInfo);
     mDevice->WaitIdle();

@@ -623,7 +623,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
         info.image = srcImage;
         info.imageExtent = srcImageInfo.size;
         info.rowPitch = bufferInfo.size / srcImageInfo.size.height / srcImageInfo.size.depth;
-        info.rowPitch = 0;//  mDevice->ImageSubresourceRowPitch(srcImage, {}, info.rowPitch);
+        info.rowPitch =  mDevice->ImageSubresourceRowPitch(srcImage, {}, info.rowPitch);
         info.buffer = dstBuffer;
         EXPECT_NO_FATAL_FAILURE(cb->CopyImageToBuffer(info));
 
