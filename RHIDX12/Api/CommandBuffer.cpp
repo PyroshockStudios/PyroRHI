@@ -233,12 +233,21 @@ namespace PyroshockStudios {
                     srcImage.info.mipLevelCount, srcImage.info.arrayLayerCount);
                 UINT dstSubresource = D3D12CalcSubresource(info.dstImageSlice.mipLevel, info.dstImageSlice.baseArrayLayer + j, 0,
                     dstImage.info.mipLevelCount, dstImage.info.arrayLayerCount);
+
+                D3D12_DISCARD_REGION region = {};
+                region.FirstSubresource = dstSubresource;
+                region.NumRects = 1;
+                region.NumSubresources = 1;
+                region.pRects = &scissorRect; /* dst rect */
+                mCommandList->DiscardResource(dstImage.resource.Get(), &region);
+
                 ID3D12DescriptorHeap* heaps[] = {
                     srcImage.blitImageSRVHeaps[srcSubresource].mHeap.Get(),
                     info.filter == Filter::Linear
                         ? mDevice->mLinearSamplerDescriptorTable.mHeap.Get()
                         : mDevice->mNearestSamplerDescriptorTable.mHeap.Get(),
                 };
+
                 mCommandList->SetDescriptorHeaps(PYRO_ARRAY_SIZE(heaps), heaps);
                 mCommandList->SetGraphicsRootDescriptorTable(2, info.filter == Filter::Linear
                                                                     ? mDevice->mLinearSamplerDescriptorTable.gpuDescriptor

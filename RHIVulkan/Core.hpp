@@ -65,6 +65,7 @@
 // stupid X11
 #undef None
 #undef Always
+#undef Status
 #endif
 
 namespace PyroshockStudios {

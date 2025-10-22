@@ -62,10 +62,10 @@ namespace PyroshockStudios {
 
             // --- Device class flags ---
             DeviceType deviceType = DeviceType::Unknown; ///< True if the GPU has dedicated VRAM.
-            bool bUnifiedMemory = false;  ///< True on UMA architectures (APUs / integrated GPUs).
-            bool bRemovable = false;      ///< True if the device can be hot-removed (eGPU).
-            bool bPrimaryAdapter = false; ///< True if this is the system’s primary adapter.
-            bool bHeadless = false;       ///< True if the device supports headless rendering only.
+            bool bUnifiedMemory = false;                 ///< True on UMA architectures (APUs / integrated GPUs).
+            bool bRemovable = false;                     ///< True if the device can be hot-removed (eGPU).
+            bool bPrimaryAdapter = false;                ///< True if this is the system's primary adapter.
+            bool bHeadless = false;                      ///< True if the device supports headless rendering only.
 
             // --- Driver and API details ---
             eastl::string driverVersion;     ///< Driver version string (parsed from DXGI or Vulkan driver info).
@@ -77,7 +77,7 @@ namespace PyroshockStudios {
             DeviceSize dedicatedVideoMemory = 0; ///< From DXGI_ADAPTER_DESC or VkPhysicalDeviceMemoryProperties.
             DeviceSize sharedSystemMemory = 0;
             u32 adapterLUIDLow = 0;  ///< Lower 32 bits of the adapter LUID (DX12 only).
-            u32 adapterLUIDHigh = 0; ///< Upper 32 bits of the adapter LUID.
+            u32 adapterLUIDHigh = 0; ///< Upper 32 bits of the adapter LUID. (DX12 only).
 
             PYRO_NODISCARD bool operator==(const DeviceInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DeviceInfo&) const = default;
@@ -101,7 +101,7 @@ namespace PyroshockStudios {
             bool bAccelerationStructureBuild = false;
 
             // --- Resource / Memory ---
-            bool bBufferDeviceAddress = false; // VK_KHR_buffer_device_address / D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT
+            bool bBufferDeviceAddress = false; ///< VK_KHR_buffer_device_address / D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT
 
             // --- Texture Compression ---
             bool bBCnTextureCompression = false;
@@ -110,15 +110,13 @@ namespace PyroshockStudios {
             bool bUint8IndexBuffer = false;
 
             // --- Shader Model / SPIR-V Level ---
-            u32 supportedShaderModel = 0; // e.g., HLSL Shader Model or Vulkan’s SPIR-V version, format of 0xMAJORMINOR
+            u32 supportedShaderModel = 0; ///< e.g., HLSL Shader Model or Vulkan's SPIR-V version, format of 0xMAJOR_MINOR
 
             // --- Compute and Atomics ---
             bool bInt64ShaderOps = false;
-            bool bAtomicFloatOps = false;  // VK_EXT_shader_atomic_float or DX12 SM6.6+
-            bool bWaveOps = false;         // DX12 Wave Intrinsics or Vulkan subgroup ops
-            bool bSubgroupQuadOps = false; // Subgroup operations for advanced wave programming
-            bool bAsyncCompute = false;    // True if the device supports async compute queues
-            bool bAsyncTransfer = false;   // True if the device supports dedicated transfer queues
+            bool bAtomicFloatOps = false;  ///< VK_EXT_shader_atomic_float or DX12 SM6.6+
+            bool bWaveOps = false;         ///< DX12 Wave Intrinsics or Vulkan subgroup ops
+            bool bSubgroupQuadOps = false; ///< Subgroup operations for advanced wave programming
 
             // --- Presentation / Display ---
             bool bHeadlessSwapChainWindow = false;
@@ -126,9 +124,6 @@ namespace PyroshockStudios {
 
             // --- Conservative Rasterization ---
             bool bConservativeRasterization = false; // D3D12 conservative raster / VK_EXT_conservative_rasterization
-
-            // --- Debugging / Validation ---
-            bool bShaderDebugInfo = false;
 
             PYRO_NODISCARD bool operator==(const DeviceFeaturesInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DeviceFeaturesInfo&) const = default;
@@ -146,10 +141,10 @@ namespace PyroshockStudios {
             RasterizationSamples msaaSupportUnorderedAccessView = RasterizationSamples::e1;
 
             // --- Memory / Alignment ---
-            u32 bufferImageRowAlignment = 0;         // D3D12_TEXTURE_DATA_PITCH_ALIGNMENT / VkPhysicalDeviceLimits::optimalBufferCopyRowPitchAlignment
-            u32 bufferImageCopyOffsetAlignment = 0;  // D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT / VkPhysicalDeviceLimits::optimalBufferCopyOffsetAlignment
-            u32 minUniformBufferOffsetAlignment = 0; // D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT / Vulkan equivalent
-            u32 minStorageBufferOffsetAlignment = 0; // SRV or UAV buffer
+            u32 bufferImageRowAlignment = 0;         ///< D3D12_TEXTURE_DATA_PITCH_ALIGNMENT / VkPhysicalDeviceLimits::optimalBufferCopyRowPitchAlignment
+            u32 bufferImageCopyOffsetAlignment = 0;  ///< D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT / VkPhysicalDeviceLimits::optimalBufferCopyOffsetAlignment
+            u32 minUniformBufferOffsetAlignment = 0; ///< D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT / Vulkan equivalent
+            u32 minStorageBufferOffsetAlignment = 0; ///< SRV or UAV buffer
 
             // --- Queue capabilities ---
             u32 graphicsQueueCount = 0;
@@ -202,7 +197,7 @@ namespace PyroshockStudios {
             u64 numQueueSubmits = 0;
 
             // --- Optional GPU memory fragmentation / budget info ---
-            DeviceSize availableVideoMemory = 0;      ///< Remaining VRAM at query time.
+            DeviceSize availableVideoMemory = 0; ///< Remaining VRAM at query time.
 
             PYRO_NODISCARD bool operator==(const DeviceStatusInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DeviceStatusInfo&) const = default;
