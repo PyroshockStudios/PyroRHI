@@ -59,6 +59,21 @@ namespace PyroshockStudios {
             interf->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(strlen(str)), str); \
     } while (false)
 
+        inline eastl::string WideToUTF8(const WCHAR* wideStr) {
+            if (!wideStr)
+                return {};
+
+            int requiredSize = ::WideCharToMultiByte(
+                CP_UTF8, 0, wideStr, -1, nullptr, 0, nullptr, nullptr);
+            if (requiredSize <= 0)
+                return {};
+
+            eastl::string result;
+            result.resize(static_cast<usize>(requiredSize - 1)); // exclude null terminator
+            ::WideCharToMultiByte(
+                CP_UTF8, 0, wideStr, -1, result.data(), requiredSize, nullptr, nullptr);
+            return result;
+        }
 
         void CheckD3DResult(HRESULT result);
 

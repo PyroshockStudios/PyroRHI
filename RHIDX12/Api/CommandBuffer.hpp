@@ -32,6 +32,7 @@ namespace PyroshockStudios {
         class D3DDevice;
         class D3DRasterPipeline;
         class D3DTimestampQueryPool;
+
         class D3DCommandBuffer : public ICommandBuffer, DeleteCopy, DeleteMove {
         public:
             D3DCommandBuffer(D3DDevice* device, ComPtr<ID3D12GraphicsCommandList>&& commandList, ComPtr<ID3D12CommandAllocator>&& allocator);

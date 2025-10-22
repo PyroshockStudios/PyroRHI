@@ -43,16 +43,23 @@ namespace PyroshockStudios {
                 return mCommandQueue.Get();
             }
             void RestoreCommandBuffer(D3DCommandBuffer* cmb) {
-                mPooledCommandBuffers.emplace_back(cmb);
+                mPooledCommandBuffers.emplace_back(cmb, mCurrentCommandBufferFenceValue);
             }
             eastl::vector<D3DCommandBuffer*> mSubmittedCommands = {};
             eastl::vector<ID3D12CommandList*> mPendingCommandListExecutes = {};
             eastl::vector<eastl::pair<IDXGISwapChain3*, UINT>> mPendingSwapPresents = {};
+
+            // Used for tracking which command buffers can be resurrected and when.
+            void SignalCommandBufferFences();
         private:
             D3DDevice* mDevice = nullptr;
             CommandQueueInfo mInfo = {};
             ComPtr<ID3D12CommandQueue> mCommandQueue = {};
-            eastl::vector<D3DCommandBuffer*> mPooledCommandBuffers = {};
+
+            UINT64 mCurrentCommandBufferFenceValue = 0;
+            ComPtr<ID3D12Fence> mCommandBufferTracker = {};
+
+            eastl::vector<eastl::pair<D3DCommandBuffer*, UINT64>> mPooledCommandBuffers = {};
         };
     }
 }

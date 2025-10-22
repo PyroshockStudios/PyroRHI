@@ -180,6 +180,27 @@ namespace PyroshockStudios {
             void DestroyAllUAVDescriptorHeapCopies(UnorderedAccessId handle);
             void CollectGarbage();
 
+        private:
+            void CheckFeatureSupport();
+            void CreateCommandQueues();
+            void InitializeResourcePool();
+            void CreateDescriptorHeaps();
+            void CreateGlobalRootSignature();
+            void CreateDeleterFence();
+            void CreateBlitImageRootSignature();
+            void CreateDefaultSamplerHeaps();
+            void CreateCommandSignatures();
+            void CreateMemoryAllocator();
+
+            void PopulateDeviceInfo();
+            void PopulateDeviceProperties();
+            void PopulateDeviceFeatures();
+
+            void DestroyCommandQueues();
+            void DestroyUploadBuffers();
+            void ReportDeviceRemovalReason();
+
+        private:
             ComPtr<IDXGIAdapter1> mAdapter = {};
             ComPtr<IDXGIFactory4> mFactory = {};
             ComPtr<ID3D12Device> mDevice = {};
@@ -206,7 +227,9 @@ namespace PyroshockStudios {
             UINT64 mNextDeferredDeleterValue = 1;
             eastl::vector<eastl::pair<UINT64 /*fence value*/, ZombieDeleter>> mDeferredDeletes;
 
+            DeviceInfo mInfo{};
             DevicePropertiesInfo mProperties{};
+            DeviceFeaturesInfo mFeatures{};
 
             ComPtr<ID3D12CommandSignature> mIndirectDrawSignature = {};
             ComPtr<ID3D12CommandSignature> mIndirectDrawIndexedSignature = {};

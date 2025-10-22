@@ -577,6 +577,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
         srcImageInfo.size = { 16, 16, 4 };
         srcImageInfo.format = Format::RGBA8Unorm;
         srcImageInfo.usage = ImageUsageFlagBits::TRANSFER_SRC;
+        srcImageInfo.name = "src image in flight #" + eastl::to_string(i);
         Image srcImage = mDevice->CreateImage(srcImageInfo);
         ASSERT_TRUE(mDevice->IsValid(srcImage));
 
@@ -592,6 +593,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
         bufferInfo.memoryBlock = block;
         bufferInfo.size = mDevice->ImageSizeRequirements(srcImage);
         bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
+        bufferInfo.name = "dst buffer in flight #" + eastl::to_string(i);
         Buffer dstBuffer = mDevice->CreateBuffer(bufferInfo);
         ASSERT_TRUE(mDevice->IsValid(dstBuffer));
 
@@ -621,7 +623,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
         info.image = srcImage;
         info.imageExtent = srcImageInfo.size;
         info.rowPitch = bufferInfo.size / srcImageInfo.size.height / srcImageInfo.size.depth;
-        info.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, {}, info.rowPitch);
+        info.rowPitch = 0;//  mDevice->ImageSubresourceRowPitch(srcImage, {}, info.rowPitch);
         info.buffer = dstBuffer;
         EXPECT_NO_FATAL_FAILURE(cb->CopyImageToBuffer(info));
 

@@ -46,277 +46,20 @@ namespace PyroshockStudios {
 
         D3DDevice::D3DDevice(ComPtr<ID3D12Device>&& device, ComPtr<IDXGIFactory4>&& factory, ComPtr<IDXGIAdapter1>&& adapter)
             : mDevice(eastl::move(device)), mFactory(eastl::move(factory)), mAdapter(eastl::move(adapter)) {
-            {
-                Logger::Debug(gDX12Sink, "Checking D3D12_FEATURE_DATA_D3D12_OPTIONS");
-                D3D12_FEATURE_DATA_D3D12_OPTIONS options{};
-                mDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options));
-                if (options.ResourceBindingTier < 2) {
-                    Logger::Fatal(gDX12Sink, "Insufficient resource binding tier! Minimum is resource binding tier 2!");
-                }
-                gDx12Context->FlushDebugMessages();
-            }
-            {
-                Logger::Debug(gDX12Sink, "Checking Shader Model Support");
-                D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{};
-                mDevice->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel));
-                gDx12Context->FlushDebugMessages();
-            }
-            mProperties.bufferImageRowAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
-            mProperties.bufferImageCopyOffsetAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
-            mProperties.bSupportsHeadlessSwapChainWindow = true;
-            {
-                Logger::Debug(gDX12Sink, "Checking MSAA Support");
-                // FIXME better querying?
-                D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msaaLevels{};
-                msaaLevels.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-                // msaaLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_TILED_RESOURCE;
 
-                for (UINT s = 64U; s > 1U; s >>= 1U) {
-                    msaaLevels.SampleCount = s;
-                    mDevice->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msaaLevels, sizeof(msaaLevels));
-                    if (msaaLevels.NumQualityLevels > 0) {
-                        mProperties.maxRenderTargetSamples = static_cast<RasterizationSamples>(s);
-                        mProperties.maxShaderResourceImageSamples = mProperties.maxRenderTargetSamples;
-                        break;
-                    }
-                }
-                gDx12Context->FlushDebugMessages();
-            }
-
-
-            Logger::Debug(gDX12Sink, "Querying Command Queues...");
-            eastl::array<D3D12_COMMAND_QUEUE_DESC, 3> queueDescs = {
-                D3D12_COMMAND_QUEUE_DESC{
-                    .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
-                    .Priority = 0,
-                    .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
-                },
-                D3D12_COMMAND_QUEUE_DESC{
-                    .Type = D3D12_COMMAND_LIST_TYPE_COMPUTE,
-                    .Priority = 0,
-                    .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
-                },
-                D3D12_COMMAND_QUEUE_DESC{
-                    .Type = D3D12_COMMAND_LIST_TYPE_COPY,
-                    .Priority = 0,
-                    .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
-                },
-            };
-            for (auto& queueDesc : queueDescs) {
-                ComPtr<ID3D12CommandQueue> commandQueue;
-                CheckD3DResult(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
-
-                CommandQueueInfo queueDescData;
-                switch (queueDesc.Type) {
-                case D3D12_COMMAND_LIST_TYPE_DIRECT:
-                    queueDescData.flags = CommandQueueFlagBits::GRAPHICS |
-                                          CommandQueueFlagBits::COMPUTE |
-                                          CommandQueueFlagBits::TRANSFER;
-                    queueDescData.bPresentable = true;
-                    queueDescData.name = "Direct Queue";
-                    break;
-
-                case D3D12_COMMAND_LIST_TYPE_COMPUTE:
-                    queueDescData.flags = CommandQueueFlagBits::COMPUTE |
-                                          CommandQueueFlagBits::TRANSFER;
-                    queueDescData.bPresentable = false;
-                    queueDescData.name = "Compute Queue";
-                    break;
-
-                case D3D12_COMMAND_LIST_TYPE_COPY:
-                    queueDescData.flags = CommandQueueFlagBits::TRANSFER;
-                    queueDescData.bPresentable = false;
-                    queueDescData.name = "Copy Queue";
-                    break;
-                }
-                auto* queue = new D3DCommandQueue(
-                    this, eastl::move(queueDescData),
-                    eastl::move(commandQueue));
-                if (queueDesc.Type == D3D12_COMMAND_LIST_TYPE_DIRECT) {
-                    mCommandQueue = queue;
-                }
-                mCommandQueueList.emplace_back(static_cast<ICommandQueue*>(queue));
-                gDx12Context->FlushDebugMessages();
-            }
-            Logger::Trace(gDX12Sink, "Created {} Command Queues", queueDescs.size());
-
-            Logger::Debug(gDX12Sink, "Initialising Resource Pool...");
-            mResourcePool = eastl::make_unique<GPUResourcePool>(this, 2048, 2048, NUM_CRV_SRV_UAV, NUM_CRV_SRV_UAV, NUM_SAMPLERS);
-            gDx12Context->FlushDebugMessages();
-
-            // We need this device visible heap for SRVs and UAVs because of the binding model we are using.
-            Logger::Debug(gDX12Sink, "Creating Base UAV copy descriptor heap...");
-            {
-                D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-                heapDesc.NumDescriptors = NUM_CRV_SRV_UAV + Limits::MAX_UNORDERED_ACCESS_VIEW_SLOTS;
-                heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-                heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mDefaultUAVDescriptorTable.mHeap)));
-                mDefaultUAVDescriptorTable.cpuDescriptor = mDefaultUAVDescriptorTable.mHeap->GetCPUDescriptorHandleForHeapStart();
-                mDefaultUAVDescriptorTable.gpuDescriptor = mDefaultUAVDescriptorTable.mHeap->GetGPUDescriptorHandleForHeapStart();
-                D3DSetDebugName(mDefaultUAVDescriptorTable.mHeap, "Default SRV-UAV Descriptor Heap");
-                gDx12Context->FlushDebugMessages();
-            }
-            // create global root signature
-            Logger::Debug(gDX12Sink, "Creating Global Root Signature...");
-            {
-                CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-                CD3DX12_ROOT_PARAMETER rootparams[18]{};
-                // push constants
-                // 32 * 1 = 32 DWORDS
-                rootparams[0].InitAsConstants(32, 13);
-                // "specialisation constants"
-                // because dx12 doesn't support them, we have to emulate them through these views
-                // 5 * 2 = 10 DWORDS
-                rootparams[1].InitAsConstantBufferView(8);
-                rootparams[2].InitAsConstantBufferView(9);
-                rootparams[3].InitAsConstantBufferView(10);
-                rootparams[4].InitAsConstantBufferView(11);
-                rootparams[5].InitAsConstantBufferView(12);
-                // finally, our uniform buffers
-                // 8 * 2 = 16 DWORDS
-                rootparams[6].InitAsConstantBufferView(0);
-                rootparams[7].InitAsConstantBufferView(1);
-                rootparams[8].InitAsConstantBufferView(2);
-                rootparams[9].InitAsConstantBufferView(3);
-                rootparams[10].InitAsConstantBufferView(4);
-                rootparams[11].InitAsConstantBufferView(5);
-                rootparams[12].InitAsConstantBufferView(6);
-                rootparams[13].InitAsConstantBufferView(7);
-
-                CD3DX12_DESCRIPTOR_RANGE srvDescriptorRange{};
-                CD3DX12_DESCRIPTOR_RANGE samplerDescriptorRange{};
-                CD3DX12_DESCRIPTOR_RANGE uavDescriptorRange{};
-                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, NUM_CRV_SRV_UAV, 0, 1);
-                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, NUM_SAMPLERS, 0, 1);
-                // Offset is NUM_CRV_SRV_UAV because we are copying it to end of an SRV heap.
-                uavDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, Limits::MAX_UNORDERED_ACCESS_VIEW_SLOTS, 0, 1, NUM_CRV_SRV_UAV);
-
-                // another 3 * 1 DWORDS
-                rootparams[14].InitAsDescriptorTable(1, &srvDescriptorRange);
-                rootparams[15].InitAsDescriptorTable(1, &samplerDescriptorRange);
-                rootparams[16].InitAsDescriptorTable(1, &uavDescriptorRange);
-
-                // DrawID constant
-                // 3 * 1 = 3 DWORDS
-                // SV_DrawIndex
-                rootparams[17].InitAsConstants(1, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
-
-                // TOTAL = 62 out of 64 DWORDS
-
-                const D3D12_ROOT_SIGNATURE_FLAGS flags =
-                    D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-                rootSignatureDesc.Init(PYRO_ARRAY_SIZE(rootparams), rootparams, 0, nullptr, flags);
-                ComPtr<ID3DBlob> signature;
-                ComPtr<ID3DBlob> error;
-                HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &signature, &error);
-                if (error && error->GetBufferPointer()) {
-                    OutputDebugStringA((const char*)error->GetBufferPointer());
-                }
-                CheckD3DResult(hr);
-                CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
-                D3DSetDebugName(mRootSignature, "Default Root Signature");
-                gDx12Context->FlushDebugMessages();
-            }
-            Logger::Debug(gDX12Sink, "Creating Deleter Fence...");
-            CheckD3DResult(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mDeferredDeleterFence)));
-            D3DSetDebugName(mDeferredDeleterFence, "Deferred destroy fence");
-            gDx12Context->FlushDebugMessages();
-
-            // create blit image root signature
-            Logger::Debug(gDX12Sink, "Creating Image Blit Root Signature...");
-            {
-                CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-                CD3DX12_ROOT_PARAMETER rootparams[3]{};
-                // Blit coordinates
-                rootparams[0].InitAsConstants(4 * sizeof(eastl::array<f32, 2>) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-                // Blit image srv
-                CD3DX12_DESCRIPTOR_RANGE srvDescriptorRange{};
-                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
-                rootparams[1].InitAsDescriptorTable(1, &srvDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
-                // Blit image sampler
-                CD3DX12_DESCRIPTOR_RANGE samplerDescriptorRange{};
-                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0, 0);
-                rootparams[2].InitAsDescriptorTable(1, &samplerDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
-
-                const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
-                rootSignatureDesc.Init(PYRO_ARRAY_SIZE(rootparams), rootparams, 0, nullptr, flags);
-                ComPtr<ID3DBlob> signature;
-                ComPtr<ID3DBlob> error;
-                HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &signature, &error);
-                if (error && error->GetBufferPointer()) {
-                    OutputDebugStringA((const char*)error->GetBufferPointer());
-                }
-                CheckD3DResult(hr);
-                CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mBlitImageRootSignature)));
-                D3DSetDebugName(mBlitImageRootSignature, "Blit Image Root Signature");
-                gDx12Context->FlushDebugMessages();
-            }
-            // Finally, create the sampler heap objects
-            Logger::Debug(gDX12Sink, "Creating Default Sampler Heap Objects...");
-            {
-                D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-                heapDesc.NumDescriptors = 1;
-                heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
-                heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mNearestSamplerDescriptorTable.mHeap)));
-                mNearestSamplerDescriptorTable.cpuDescriptor = mNearestSamplerDescriptorTable.mHeap->GetCPUDescriptorHandleForHeapStart();
-                mNearestSamplerDescriptorTable.gpuDescriptor = mNearestSamplerDescriptorTable.mHeap->GetGPUDescriptorHandleForHeapStart();
-                D3DSetDebugName(mNearestSamplerDescriptorTable.mHeap, "Blit Image Nearest Sampler Descriptor Heap");
-
-                D3D12_SAMPLER_DESC samplerDesc = {};
-                samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-                samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-                samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-                samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-                samplerDesc.MinLOD = 0.0f;
-                samplerDesc.MaxLOD = FLT_MAX;
-                samplerDesc.MipLODBias = 0.0f;
-                samplerDesc.MaxAnisotropy = 0;
-                samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NONE;
-
-                mDevice->CreateSampler(&samplerDesc, mNearestSamplerDescriptorTable.cpuDescriptor);
-
-                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mLinearSamplerDescriptorTable.mHeap)));
-                mLinearSamplerDescriptorTable.cpuDescriptor = mLinearSamplerDescriptorTable.mHeap->GetCPUDescriptorHandleForHeapStart();
-                mLinearSamplerDescriptorTable.gpuDescriptor = mLinearSamplerDescriptorTable.mHeap->GetGPUDescriptorHandleForHeapStart();
-                D3DSetDebugName(mLinearSamplerDescriptorTable.mHeap, "Blit Image Linear Sampler Descriptor Heap");
-
-                samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-                mDevice->CreateSampler(&samplerDesc, mLinearSamplerDescriptorTable.cpuDescriptor);
-                gDx12Context->FlushDebugMessages();
-            }
-            Logger::Debug(gDX12Sink, "Creating Default Command Signatures...");
-            {
-                D3D12_INDIRECT_ARGUMENT_DESC argDesc;
-                D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
-                cmdSigDesc.NodeMask = 0;
-                cmdSigDesc.NumArgumentDescs = 1;
-                cmdSigDesc.pArgumentDescs = &argDesc;
-
-                argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
-                cmdSigDesc.ByteStride = sizeof(DrawArgumentBuffer);
-                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawSignature)));
-                argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
-                cmdSigDesc.ByteStride = sizeof(DrawIndexedArgumentBuffer);
-                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawIndexedSignature)));
-                argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
-                cmdSigDesc.ByteStride = sizeof(DispatchArgumentBuffer);
-                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDispatchSignature)));
-                gDx12Context->FlushDebugMessages();
-            }
-            Logger::Debug(gDX12Sink, "Creating D3D12MA Allocator...");
-            {
-                D3D12MA::ALLOCATOR_DESC allocatorDesc{};
-                allocatorDesc.Flags = D3D12MA::ALLOCATOR_FLAG_NONE;
-                allocatorDesc.pDevice = mDevice.Get();
-                allocatorDesc.pAllocationCallbacks = nullptr;
-                allocatorDesc.pAdapter = mAdapter.Get();
-                CheckD3DResult(D3D12MA::CreateAllocator(&allocatorDesc, mAllocator.GetAddressOf()));
-                gDx12Context->FlushDebugMessages();
-            }
+            CheckFeatureSupport();
+            CreateCommandQueues();
+            InitializeResourcePool();
+            CreateDescriptorHeaps();
+            CreateGlobalRootSignature();
+            CreateDeleterFence();
+            CreateBlitImageRootSignature();
+            CreateDefaultSamplerHeaps();
+            CreateCommandSignatures();
+            CreateMemoryAllocator();
+            PopulateDeviceInfo();
+            PopulateDeviceFeatures();
+            PopulateDeviceProperties();
         }
         D3DDevice::~D3DDevice() {
             Logger::Debug(gDX12Sink, "Destroying Device...");
@@ -325,21 +68,9 @@ namespace PyroshockStudios {
             CollectGarbage();
             gDx12Context->FlushDebugMessages();
             ASSERT(mDeferredDeletes.empty(), "Command buffers must finish execution before device destruction! Deferred destruction was leaked!");
-            ASSERT(mOccupiedLinearUploadBuffers.empty(), "Command buffers must finish execution before device destruction! Linear upload buffers were leaked!");
-            for (auto [_, buf] : mAvailableLinearUploadBuffers) {
-                delete buf;
-                gDx12Context->FlushDebugMessages();
-            }
-            for (auto* queue : mCommandQueueList) {
-                delete static_cast<D3DCommandQueue*>(queue);
-                gDx12Context->FlushDebugMessages();
-            }
-            HRESULT reason = mDevice->GetDeviceRemovedReason();
-            if (reason != S_OK) {
-                _com_error err = _com_error(reason);
-                LPCTSTR desc = static_cast<LPCTSTR>(err.Description());
-                Logger::Error(gDX12Sink, "DEVICE REMOVED: {} \"{}\"", err.ErrorMessage(), desc ? desc : "");
-            }
+            DestroyCommandQueues();
+            DestroyUploadBuffers();
+            ReportDeviceRemovalReason();
         }
         bool D3DDevice::IsMemoryBlockValid(MemoryBlock handle) const {
             return handle != PYRO_NULL_MEMORY_BLOCK;
@@ -1128,6 +859,8 @@ namespace PyroshockStudios {
                 CheckD3DResult(q->InternalQueue()->Signal(s->InternalFence(), value));
                 gDx12Context->FlushDebugMessages();
             }
+            // Signal fence for the command buffer deleters
+            q->SignalCommandBufferFences();
 
             // pool back the submitted command buffers for later reuse
             // and also add the zombies to the destroy queue
@@ -1421,6 +1154,399 @@ namespace PyroshockStudios {
             }
             for (auto handle : deleteUAVTableCacheHandles) {
                 mUAVDescriptorTableCache.erase(handle);
+            }
+        }
+
+        void D3DDevice::CheckFeatureSupport() {
+            Logger::Debug(gDX12Sink, "Checking D3D12 Feature support");
+            CD3DX12FeatureSupport featureSupport;
+            featureSupport.Init(mDevice.Get());
+            gDx12Context->FlushDebugMessages();
+
+            if (featureSupport.ResourceBindingTier() < 2) {
+                Logger::Fatal(gDX12Sink, "Insufficient resource binding tier! Resource binding tier 2 or higher is required!");
+            }
+            if (featureSupport.HighestShaderModel() < D3D_SHADER_MODEL_5_1) {
+                Logger::Fatal(gDX12Sink, "Insufficient shader model support! Shader model 5.1 or higher is required!");
+            }
+        }
+
+        void D3DDevice::CreateCommandQueues() {
+            Logger::Debug(gDX12Sink, "Querying Command Queues...");
+            eastl::array<D3D12_COMMAND_QUEUE_DESC, 3> queueDescs = {
+                D3D12_COMMAND_QUEUE_DESC{
+                    .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
+                    .Priority = 0,
+                    .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+                },
+                D3D12_COMMAND_QUEUE_DESC{
+                    .Type = D3D12_COMMAND_LIST_TYPE_COMPUTE,
+                    .Priority = 0,
+                    .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+                },
+                D3D12_COMMAND_QUEUE_DESC{
+                    .Type = D3D12_COMMAND_LIST_TYPE_COPY,
+                    .Priority = 0,
+                    .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+                },
+            };
+            for (auto& queueDesc : queueDescs) {
+                ComPtr<ID3D12CommandQueue> commandQueue;
+                CheckD3DResult(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
+
+                CommandQueueInfo queueDescData;
+                switch (queueDesc.Type) {
+                case D3D12_COMMAND_LIST_TYPE_DIRECT:
+                    queueDescData.flags = CommandQueueFlagBits::GRAPHICS |
+                                          CommandQueueFlagBits::COMPUTE |
+                                          CommandQueueFlagBits::TRANSFER;
+                    queueDescData.bPresentable = true;
+                    queueDescData.name = "Direct Queue";
+                    break;
+
+                case D3D12_COMMAND_LIST_TYPE_COMPUTE:
+                    queueDescData.flags = CommandQueueFlagBits::COMPUTE |
+                                          CommandQueueFlagBits::TRANSFER;
+                    queueDescData.bPresentable = false;
+                    queueDescData.name = "Compute Queue";
+                    break;
+
+                case D3D12_COMMAND_LIST_TYPE_COPY:
+                    queueDescData.flags = CommandQueueFlagBits::TRANSFER;
+                    queueDescData.bPresentable = false;
+                    queueDescData.name = "Copy Queue";
+                    break;
+                }
+                auto* queue = new D3DCommandQueue(
+                    this, eastl::move(queueDescData),
+                    eastl::move(commandQueue));
+                if (queueDesc.Type == D3D12_COMMAND_LIST_TYPE_DIRECT) {
+                    mCommandQueue = queue;
+                }
+                mCommandQueueList.emplace_back(static_cast<ICommandQueue*>(queue));
+                gDx12Context->FlushDebugMessages();
+            }
+            Logger::Trace(gDX12Sink, "Created {} Command Queues", queueDescs.size());
+        }
+
+        void D3DDevice::InitializeResourcePool() {
+            Logger::Debug(gDX12Sink, "Initialising Resource Pool...");
+            mResourcePool = eastl::make_unique<GPUResourcePool>(this, 2048, 2048, NUM_CRV_SRV_UAV, NUM_CRV_SRV_UAV, NUM_SAMPLERS);
+            gDx12Context->FlushDebugMessages();
+        }
+
+        void D3DDevice::CreateDescriptorHeaps() { // We need this device visible heap for SRVs and UAVs because of the binding model we are using.
+            Logger::Debug(gDX12Sink, "Creating Base UAV copy descriptor heap...");
+            {
+                D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+                heapDesc.NumDescriptors = NUM_CRV_SRV_UAV + Limits::MAX_UNORDERED_ACCESS_VIEW_SLOTS;
+                heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+                heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mDefaultUAVDescriptorTable.mHeap)));
+                mDefaultUAVDescriptorTable.cpuDescriptor = mDefaultUAVDescriptorTable.mHeap->GetCPUDescriptorHandleForHeapStart();
+                mDefaultUAVDescriptorTable.gpuDescriptor = mDefaultUAVDescriptorTable.mHeap->GetGPUDescriptorHandleForHeapStart();
+                D3DSetDebugName(mDefaultUAVDescriptorTable.mHeap, "Default SRV-UAV Descriptor Heap");
+                gDx12Context->FlushDebugMessages();
+            }
+        }
+
+        void D3DDevice::CreateGlobalRootSignature() { // create global root signature
+            Logger::Debug(gDX12Sink, "Creating Global Root Signature...");
+            {
+                CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+                CD3DX12_ROOT_PARAMETER rootparams[18]{};
+                // push constants
+                // 32 * 1 = 32 DWORDS
+                rootparams[0].InitAsConstants(32, 13);
+                // "specialisation constants"
+                // because dx12 doesn't support them, we have to emulate them through these views
+                // 5 * 2 = 10 DWORDS
+                rootparams[1].InitAsConstantBufferView(8);
+                rootparams[2].InitAsConstantBufferView(9);
+                rootparams[3].InitAsConstantBufferView(10);
+                rootparams[4].InitAsConstantBufferView(11);
+                rootparams[5].InitAsConstantBufferView(12);
+                // finally, our uniform buffers
+                // 8 * 2 = 16 DWORDS
+                rootparams[6].InitAsConstantBufferView(0);
+                rootparams[7].InitAsConstantBufferView(1);
+                rootparams[8].InitAsConstantBufferView(2);
+                rootparams[9].InitAsConstantBufferView(3);
+                rootparams[10].InitAsConstantBufferView(4);
+                rootparams[11].InitAsConstantBufferView(5);
+                rootparams[12].InitAsConstantBufferView(6);
+                rootparams[13].InitAsConstantBufferView(7);
+
+                CD3DX12_DESCRIPTOR_RANGE srvDescriptorRange{};
+                CD3DX12_DESCRIPTOR_RANGE samplerDescriptorRange{};
+                CD3DX12_DESCRIPTOR_RANGE uavDescriptorRange{};
+                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, NUM_CRV_SRV_UAV, 0, 1);
+                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, NUM_SAMPLERS, 0, 1);
+                // Offset is NUM_CRV_SRV_UAV because we are copying it to end of an SRV heap.
+                uavDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, Limits::MAX_UNORDERED_ACCESS_VIEW_SLOTS, 0, 1, NUM_CRV_SRV_UAV);
+
+                // another 3 * 1 DWORDS
+                rootparams[14].InitAsDescriptorTable(1, &srvDescriptorRange);
+                rootparams[15].InitAsDescriptorTable(1, &samplerDescriptorRange);
+                rootparams[16].InitAsDescriptorTable(1, &uavDescriptorRange);
+
+                // DrawID constant
+                // 3 * 1 = 3 DWORDS
+                // SV_DrawIndex
+                rootparams[17].InitAsConstants(1, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
+
+                // TOTAL = 62 out of 64 DWORDS
+
+                const D3D12_ROOT_SIGNATURE_FLAGS flags =
+                    D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+                rootSignatureDesc.Init(PYRO_ARRAY_SIZE(rootparams), rootparams, 0, nullptr, flags);
+                ComPtr<ID3DBlob> signature;
+                ComPtr<ID3DBlob> error;
+                HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &signature, &error);
+                if (error && error->GetBufferPointer()) {
+                    OutputDebugStringA((const char*)error->GetBufferPointer());
+                }
+                CheckD3DResult(hr);
+                CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
+                D3DSetDebugName(mRootSignature, "Default Root Signature");
+                gDx12Context->FlushDebugMessages();
+            }
+        }
+
+        void D3DDevice::CreateDeleterFence() {
+            Logger::Debug(gDX12Sink, "Creating Deleter Fence...");
+            CheckD3DResult(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mDeferredDeleterFence)));
+            D3DSetDebugName(mDeferredDeleterFence, "Deferred destroy fence");
+            gDx12Context->FlushDebugMessages();
+        }
+
+        void D3DDevice::CreateBlitImageRootSignature() {
+            // create blit image root signature
+            Logger::Debug(gDX12Sink, "Creating Image Blit Root Signature...");
+            {
+                CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+                CD3DX12_ROOT_PARAMETER rootparams[3]{};
+                // Blit coordinates
+                rootparams[0].InitAsConstants(4 * sizeof(eastl::array<f32, 2>) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+                // Blit image srv
+                CD3DX12_DESCRIPTOR_RANGE srvDescriptorRange{};
+                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+                rootparams[1].InitAsDescriptorTable(1, &srvDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
+                // Blit image sampler
+                CD3DX12_DESCRIPTOR_RANGE samplerDescriptorRange{};
+                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0, 0);
+                rootparams[2].InitAsDescriptorTable(1, &samplerDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+                const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+                rootSignatureDesc.Init(PYRO_ARRAY_SIZE(rootparams), rootparams, 0, nullptr, flags);
+                ComPtr<ID3DBlob> signature;
+                ComPtr<ID3DBlob> error;
+                HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &signature, &error);
+                if (error && error->GetBufferPointer()) {
+                    OutputDebugStringA((const char*)error->GetBufferPointer());
+                }
+                CheckD3DResult(hr);
+                CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mBlitImageRootSignature)));
+                D3DSetDebugName(mBlitImageRootSignature, "Blit Image Root Signature");
+                gDx12Context->FlushDebugMessages();
+            }
+        }
+
+        void D3DDevice::CreateDefaultSamplerHeaps() { // Finally, create the sampler heap objects
+            Logger::Debug(gDX12Sink, "Creating Default Sampler Heap Objects...");
+            {
+                D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+                heapDesc.NumDescriptors = 1;
+                heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+                heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mNearestSamplerDescriptorTable.mHeap)));
+                mNearestSamplerDescriptorTable.cpuDescriptor = mNearestSamplerDescriptorTable.mHeap->GetCPUDescriptorHandleForHeapStart();
+                mNearestSamplerDescriptorTable.gpuDescriptor = mNearestSamplerDescriptorTable.mHeap->GetGPUDescriptorHandleForHeapStart();
+                D3DSetDebugName(mNearestSamplerDescriptorTable.mHeap, "Blit Image Nearest Sampler Descriptor Heap");
+
+                D3D12_SAMPLER_DESC samplerDesc = {};
+                samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+                samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+                samplerDesc.MinLOD = 0.0f;
+                samplerDesc.MaxLOD = FLT_MAX;
+                samplerDesc.MipLODBias = 0.0f;
+                samplerDesc.MaxAnisotropy = 0;
+                samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NONE;
+
+                mDevice->CreateSampler(&samplerDesc, mNearestSamplerDescriptorTable.cpuDescriptor);
+
+                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mLinearSamplerDescriptorTable.mHeap)));
+                mLinearSamplerDescriptorTable.cpuDescriptor = mLinearSamplerDescriptorTable.mHeap->GetCPUDescriptorHandleForHeapStart();
+                mLinearSamplerDescriptorTable.gpuDescriptor = mLinearSamplerDescriptorTable.mHeap->GetGPUDescriptorHandleForHeapStart();
+                D3DSetDebugName(mLinearSamplerDescriptorTable.mHeap, "Blit Image Linear Sampler Descriptor Heap");
+
+                samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+                mDevice->CreateSampler(&samplerDesc, mLinearSamplerDescriptorTable.cpuDescriptor);
+                gDx12Context->FlushDebugMessages();
+            }
+        }
+
+        void D3DDevice::CreateCommandSignatures() {
+            Logger::Debug(gDX12Sink, "Creating Default Command Signatures...");
+            {
+                D3D12_INDIRECT_ARGUMENT_DESC argDesc;
+                D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc = {};
+                cmdSigDesc.NodeMask = 0;
+                cmdSigDesc.NumArgumentDescs = 1;
+                cmdSigDesc.pArgumentDescs = &argDesc;
+
+                argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+                cmdSigDesc.ByteStride = sizeof(DrawArgumentBuffer);
+                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawSignature)));
+                argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+                cmdSigDesc.ByteStride = sizeof(DrawIndexedArgumentBuffer);
+                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawIndexedSignature)));
+                argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+                cmdSigDesc.ByteStride = sizeof(DispatchArgumentBuffer);
+                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDispatchSignature)));
+                gDx12Context->FlushDebugMessages();
+            }
+        }
+
+        void D3DDevice::CreateMemoryAllocator() {
+            Logger::Debug(gDX12Sink, "Creating D3D12MA Allocator...");
+            {
+                D3D12MA::ALLOCATOR_DESC allocatorDesc{};
+                allocatorDesc.Flags = D3D12MA::ALLOCATOR_FLAG_NONE;
+                allocatorDesc.pDevice = mDevice.Get();
+                allocatorDesc.pAllocationCallbacks = nullptr;
+                allocatorDesc.pAdapter = mAdapter.Get();
+                CheckD3DResult(D3D12MA::CreateAllocator(&allocatorDesc, mAllocator.GetAddressOf()));
+                gDx12Context->FlushDebugMessages();
+            }
+        }
+        void D3DDevice::PopulateDeviceInfo() {
+            DXGI_ADAPTER_DESC1 desc = {};
+            mAdapter->GetDesc1(&desc);
+
+            mInfo.name = WideToUTF8(desc.Description);
+            mInfo.vendorID = desc.VendorId;
+            mInfo.deviceID = desc.DeviceId;
+            mInfo.subsystemID = desc.SubSysId;
+            mInfo.revisionID = desc.Revision;
+
+            mInfo.dedicatedVideoMemory = desc.DedicatedVideoMemory;
+            mInfo.sharedSystemMemory = desc.SharedSystemMemory;
+            if (desc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE) {
+                mInfo.deviceType = DeviceType::CPU;
+            } else {
+                mInfo.deviceType = DeviceType::Unknown;
+            }
+            mInfo.bUnifiedMemory = (desc.DedicatedVideoMemory == 0);
+            mInfo.bRemovable = false;
+            mInfo.bPrimaryAdapter = !!(desc.Flags & DXGI_ADAPTER_FLAG3_ACG_COMPATIBLE);
+
+            mInfo.adapterLUIDLow = desc.AdapterLuid.LowPart;
+            mInfo.adapterLUIDHigh = desc.AdapterLuid.HighPart;
+
+            switch (desc.VendorId) {
+            case 0x10DE:
+                mInfo.vendor = "NVIDIA";
+                break;
+            case 0x1002:
+            case 0x1022:
+                mInfo.vendor = "AMD";
+                break;
+            case 0x8086:
+                mInfo.vendor = "Intel";
+                break;
+            case 0x13B5:
+                mInfo.vendor = "ARM";
+                break;
+            default:
+                mInfo.vendor = "Unknown";
+                break;
+            }
+            // API + driver info
+            mInfo.apiVersion = "D3D12";
+
+            LARGE_INTEGER umdVersion = {};
+            HRESULT hr = mAdapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umdVersion);
+            if (SUCCEEDED(hr)) {
+                u64 q = static_cast<u64>(umdVersion.QuadPart);
+                unsigned major = static_cast<unsigned>((q >> 48) & 0xFFFF);
+                unsigned minor = static_cast<unsigned>((q >> 32) & 0xFFFF);
+                unsigned sub = static_cast<unsigned>((q >> 16) & 0xFFFF);
+                unsigned build = static_cast<unsigned>(q & 0xFFFF);
+
+                mInfo.driverVersion.sprintf("%u.%u.%u.%u", major, minor, sub, build);
+            }
+        }
+        void D3DDevice::PopulateDeviceProperties() {
+            CD3DX12FeatureSupport support;
+            CheckD3DResult(support.Init(mDevice.Get()));
+            mProperties.minUniformBufferOffsetAlignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+            mProperties.bufferImageCopyOffsetAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+            mProperties.bufferImageRowAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
+
+            mProperties.bHasDedicatedComputeQueue = true;
+            mProperties.bHasDedicatedTransferQueue = true;
+          
+            mProperties.graphicsQueueCount = 1;
+            mProperties.computeQueueCount = 1;
+            mProperties.transferQueueCount = 1;
+
+            mProperties.maxTextureWidth = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+            mProperties.maxTextureHeight = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+            mProperties.maxTextureDepth = D3D12_REQ_TEXTURE3D_U_V_OR_W_DIMENSION;
+            mProperties.maxSamplerAnisotropy = D3D12_MAX_MAXANISOTROPY;
+
+            mProperties.minLineWidth = 1.0f;
+            mProperties.maxLineWidth = 1.0f;
+
+            // FIXME: this is probably not a good way to deal with it, but most GPUs supporting dx12 support this mask
+            constexpr RasterizationSamples typicalMSAASupport = static_cast<RasterizationSamples>(15);
+            mProperties.msaaSupportColorTarget = typicalMSAASupport;
+            mProperties.msaaSupportDepthStencilTarget = typicalMSAASupport;
+            mProperties.msaaSupportShaderResourceView = typicalMSAASupport;
+            mProperties.msaaSupportUnorderedAccessView = typicalMSAASupport;
+        }
+        void D3DDevice::PopulateDeviceFeatures() {
+            CD3DX12FeatureSupport support;
+            CheckD3DResult(support.Init(mDevice.Get()));
+
+            mFeatures.bGeometryShaders = true; // Always supported
+            mFeatures.bTesselationShaders = true;
+            mFeatures.bUint8IndexBuffer = false;
+
+            mFeatures.bRayTracingPipelines = support.RaytracingTier() != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+
+            mFeatures.bMeshShaders = support.MeshShaderTier() != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
+            mFeatures.bVariableRateShading = support.VariableShadingRateTier() != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
+            mFeatures.supportedShaderModel = static_cast<u32>(support.HighestShaderModel());
+        }
+
+
+        void D3DDevice::DestroyCommandQueues() {
+            for (auto* queue : mCommandQueueList) {
+                delete static_cast<D3DCommandQueue*>(queue);
+                gDx12Context->FlushDebugMessages();
+            }
+        }
+
+        void D3DDevice::DestroyUploadBuffers() {
+            ASSERT(mOccupiedLinearUploadBuffers.empty(), "Command buffers must finish execution before device destruction! Linear upload buffers were leaked!");
+            for (auto [_, buf] : mAvailableLinearUploadBuffers) {
+                delete buf;
+                gDx12Context->FlushDebugMessages();
+            }
+        }
+
+        void D3DDevice::ReportDeviceRemovalReason() {
+            HRESULT reason = mDevice->GetDeviceRemovedReason();
+            if (reason != S_OK) {
+                _com_error err = _com_error(reason);
+                LPCTSTR desc = static_cast<LPCTSTR>(err.Description());
+                Logger::Error(gDX12Sink, "DEVICE REMOVED: {} \"{}\"", err.ErrorMessage(), desc ? desc : "");
             }
         }
 

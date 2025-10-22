@@ -45,7 +45,8 @@ namespace PyroshockStudios {
 
         VulkanDevice::VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features, bool bHeadlessEnabled)
             : mContext(context), mPhysicalDevice(physicalDevice) {
-            mProperties.bSupportsHeadlessSwapChainWindow = bHeadlessEnabled;
+            mFeatures.bHeadlessSwapChainWindow = bHeadlessEnabled;
+            mInfo.bHeadless = bHeadlessEnabled;
 
             Logger::Trace(gVulkanSink, "Creating Vulkan Device");
 
@@ -351,54 +352,9 @@ namespace PyroshockStudios {
 
             mMainQueueGpuFence = CreateFence({ .name = "mMainQueueGpuFence" });
 
-            VkPhysicalDeviceProperties physicalDeviceProperties = {};
-            vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
-
-            VkSampleCountFlags colorSampleCounts = physicalDeviceProperties.limits.framebufferColorSampleCounts;
-            VkSampleCountFlags depthSampleCounts = physicalDeviceProperties.limits.framebufferDepthSampleCounts;
-            VkSampleCountFlags stencilSampleCounts = physicalDeviceProperties.limits.framebufferStencilSampleCounts;
-            VkSampleCountFlags counts = colorSampleCounts & depthSampleCounts & stencilSampleCounts;
-            VkSampleCountFlags sampledColorSampleCounts = physicalDeviceProperties.limits.sampledImageColorSampleCounts;
-            VkSampleCountFlags sampledDepthSampleCounts = physicalDeviceProperties.limits.sampledImageDepthSampleCounts;
-            VkSampleCountFlags sampledIntegerSampleCounts = physicalDeviceProperties.limits.sampledImageIntegerSampleCounts;
-            VkSampleCountFlags sampledStencilSampleCounts = physicalDeviceProperties.limits.sampledImageStencilSampleCounts;
-            VkSampleCountFlags countsSampled = sampledColorSampleCounts & sampledDepthSampleCounts & sampledIntegerSampleCounts & sampledStencilSampleCounts;
-
-            if (counts & VK_SAMPLE_COUNT_64_BIT) {
-                mProperties.maxRenderTargetSamples = RasterizationSamples::e64;
-            } else if (counts & VK_SAMPLE_COUNT_32_BIT) {
-                mProperties.maxRenderTargetSamples = RasterizationSamples::e32;
-            } else if (counts & VK_SAMPLE_COUNT_16_BIT) {
-                mProperties.maxRenderTargetSamples = RasterizationSamples::e16;
-            } else if (counts & VK_SAMPLE_COUNT_8_BIT) {
-                mProperties.maxRenderTargetSamples = RasterizationSamples::e8;
-            } else if (counts & VK_SAMPLE_COUNT_4_BIT) {
-                mProperties.maxRenderTargetSamples = RasterizationSamples::e4;
-            } else if (counts & VK_SAMPLE_COUNT_2_BIT) {
-                mProperties.maxRenderTargetSamples = RasterizationSamples::e2;
-            } else {
-                mProperties.maxRenderTargetSamples = RasterizationSamples::e1;
-            }
-
-            if (countsSampled & VK_SAMPLE_COUNT_64_BIT) {
-                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e64;
-            } else if (countsSampled & VK_SAMPLE_COUNT_32_BIT) {
-                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e32;
-            } else if (countsSampled & VK_SAMPLE_COUNT_16_BIT) {
-                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e16;
-            } else if (countsSampled & VK_SAMPLE_COUNT_8_BIT) {
-                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e8;
-            } else if (countsSampled & VK_SAMPLE_COUNT_4_BIT) {
-                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e4;
-            } else if (countsSampled & VK_SAMPLE_COUNT_2_BIT) {
-                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e2;
-            } else {
-                mProperties.maxShaderResourceImageSamples = RasterizationSamples::e1;
-            }
-            // while not required, it's more efficient, so we just enforce this to incur less driver overhead
-            mProperties.bufferImageRowAlignment = physicalDeviceProperties.limits.optimalBufferCopyRowPitchAlignment;
-            mProperties.bufferImageCopyOffsetAlignment = physicalDeviceProperties.limits.optimalBufferCopyOffsetAlignment;
-            mPhysicalDeviceProperties = physicalDeviceProperties;
+            PopulateDeviceInfo();
+            PopulateDeviceProperties();
+            PopulateDeviceFeatures();
         }
 
         VulkanDevice::~VulkanDevice() {
@@ -618,7 +574,7 @@ namespace PyroshockStudios {
                     mResourceTable.mBufferSlots.ReturnSlot(id);
                     return PYRO_NULL_BUFFER;
                 }
-                CheckVkResult(vkBindBufferMemory(mDevice, ret.vkBuffer, blockInfo.vmaAllocationInfo.deviceMemory, offset));
+                CheckVkResult(vkBindBufferMemory(mDevice, ret.vkBuffer, blockInfo.vmaAllocationInfo.deviceMemory, offset + blockInfo.vmaAllocationInfo.offset));
                 vmaGetVirtualAllocationInfo(blockInfo.vmaBlock, ret.vmaAllocation.Get<VmaVirtualAllocation>(), &ret.allocationInfo.Get<VmaVirtualAllocationInfo>());
                 ++blockInfo.debugReferences;
             }
@@ -737,7 +693,7 @@ namespace PyroshockStudios {
                     return PYRO_NULL_IMAGE;
                 }
 
-                CheckVkResult(vkBindImageMemory(mDevice, ret.vkImage, blockInfo.vmaAllocationInfo.deviceMemory, offset));
+                CheckVkResult(vkBindImageMemory(mDevice, ret.vkImage, blockInfo.vmaAllocationInfo.deviceMemory, offset + blockInfo.vmaAllocationInfo.offset));
                 vmaGetVirtualAllocationInfo(blockInfo.vmaBlock, ret.vmaAllocation.Get<VmaVirtualAllocation>(), &ret.allocationInfo.Get<VmaVirtualAllocationInfo>());
                 ++blockInfo.debugReferences;
             }
@@ -801,6 +757,179 @@ namespace PyroshockStudios {
                 ret.descriptor.Get<VkDescriptorBufferInfo>().buffer, resourceInfo.region.offset, resourceInfo.region.size, id.index);
 
             return id;
+        }
+
+        void VulkanDevice::PopulateDeviceInfo() {
+            VkPhysicalDeviceProperties props = {};
+            vkGetPhysicalDeviceProperties(mPhysicalDevice, &props);
+
+            mInfo.name = props.deviceName;
+            mInfo.vendorID = props.vendorID;
+            mInfo.deviceID = props.deviceID;
+            mInfo.apiVersion.sprintf("Vulkan %d.%d.%d",
+                VK_API_VERSION_MAJOR(props.apiVersion),
+                VK_API_VERSION_MINOR(props.apiVersion),
+                VK_API_VERSION_PATCH(props.apiVersion));
+
+            switch (props.vendorID) {
+            case 0x10DE:
+                mInfo.vendor = "NVIDIA";
+                break;
+            case 0x1002:
+            case 0x1022:
+                mInfo.vendor = "AMD";
+                break;
+            case 0x8086:
+                mInfo.vendor = "Intel";
+                break;
+            case 0x13B5:
+                mInfo.vendor = "ARM";
+                break;
+            default:
+                mInfo.vendor = "Unknown";
+                break;
+            }
+
+            mInfo.driverVersion.sprintf("0x%X", props.driverVersion);
+
+            VkPhysicalDeviceMemoryProperties memProps = {};
+            vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProps);
+
+            mInfo.bUnifiedMemory = false;
+            for (u32 i = 0; i < memProps.memoryHeapCount; ++i) {
+                if (memProps.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
+                    mInfo.dedicatedVideoMemory += memProps.memoryHeaps[i].size;
+                } else {
+                    mInfo.sharedSystemMemory += memProps.memoryHeaps[i].size;
+                }
+            }
+
+            switch (props.deviceType) {
+            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+                mInfo.deviceType = DeviceType::Integrated;
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+                mInfo.deviceType = DeviceType::Discrete;
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+                mInfo.deviceType = DeviceType::Virtual;
+                mInfo.bRemovable = true;
+                break;
+            case VK_PHYSICAL_DEVICE_TYPE_CPU:
+                mInfo.deviceType = DeviceType::CPU;
+                break;
+            default:
+                mInfo.deviceType = DeviceType::Unknown;
+                break;
+            }
+            mInfo.bHeadless = (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU);
+            u32 count = 1;
+            VkPhysicalDevice physd = VK_NULL_HANDLE;
+            vkEnumeratePhysicalDevices(mContext->GetVkInstance(), &count, &physd);
+            mInfo.bPrimaryAdapter = physd == mPhysicalDevice;
+        }
+
+        void VulkanDevice::PopulateDeviceProperties() {
+            VkPhysicalDeviceProperties props = {};
+            vkGetPhysicalDeviceProperties(mPhysicalDevice, &props);
+
+            VkSampleCountFlags colorTargetSampleCounts = props.limits.framebufferColorSampleCounts;
+            VkSampleCountFlags depthSampleCounts = props.limits.framebufferDepthSampleCounts;
+            VkSampleCountFlags stencilSampleCounts = props.limits.framebufferStencilSampleCounts;
+            VkSampleCountFlags countsDepthStencil = depthSampleCounts & stencilSampleCounts;
+            VkSampleCountFlags sampledColorSampleCounts = props.limits.sampledImageColorSampleCounts;
+            VkSampleCountFlags sampledDepthSampleCounts = props.limits.sampledImageDepthSampleCounts;
+            VkSampleCountFlags sampledIntegerSampleCounts = props.limits.sampledImageIntegerSampleCounts;
+            VkSampleCountFlags sampledStencilSampleCounts = props.limits.sampledImageStencilSampleCounts;
+            VkSampleCountFlags countsSampled = sampledColorSampleCounts & sampledDepthSampleCounts & sampledIntegerSampleCounts & sampledStencilSampleCounts;
+
+            VkSampleCountFlags storageSampleCounts = props.limits.storageImageSampleCounts;
+            mProperties.msaaSupportColorTarget = static_cast<RasterizationSamples>(colorTargetSampleCounts);
+            mProperties.msaaSupportDepthStencilTarget = static_cast<RasterizationSamples>(countsDepthStencil);
+            mProperties.msaaSupportShaderResourceView = static_cast<RasterizationSamples>(countsSampled);
+            mProperties.msaaSupportUnorderedAccessView = static_cast<RasterizationSamples>(storageSampleCounts);
+
+            const auto& limits = props.limits;
+            mProperties.bufferImageRowAlignment = limits.optimalBufferCopyRowPitchAlignment;
+            mProperties.bufferImageCopyOffsetAlignment = limits.optimalBufferCopyOffsetAlignment;
+            mProperties.minUniformBufferOffsetAlignment = limits.minUniformBufferOffsetAlignment;
+            mProperties.minStorageBufferOffsetAlignment = limits.minStorageBufferOffsetAlignment;
+
+            mProperties.maxTextureWidth = limits.maxImageDimension2D;
+            mProperties.maxTextureHeight = limits.maxImageDimension2D;
+            mProperties.maxTextureDepth = limits.maxImageDimension3D;
+            mProperties.maxTextureArrayLayers = limits.maxImageArrayLayers;
+            mProperties.maxSamplerAnisotropy = static_cast<u32>(limits.maxSamplerAnisotropy);
+
+            mProperties.minLineWidth = limits.lineWidthRange[0];
+            mProperties.maxLineWidth = limits.lineWidthRange[1];
+
+            for (ICommandQueue* q : mCommandQueues) {
+                if (q->Info().flags & CommandQueueFlagBits::COMPUTE && !(q->Info().flags & CommandQueueFlagBits::GRAPHICS)) {
+                    mProperties.bHasDedicatedComputeQueue = true;
+                } else if (q->Info().flags & CommandQueueFlagBits::TRANSFER && !(q->Info().flags & CommandQueueFlagBits::GRAPHICS)) {
+                    mProperties.bHasDedicatedTransferQueue = true;
+                }
+                if (q->Info().flags & CommandQueueFlagBits::GRAPHICS) {
+                    ++mProperties.graphicsQueueCount;
+                }
+                if (q->Info().flags & CommandQueueFlagBits::COMPUTE) {
+                    ++mProperties.computeQueueCount;
+                }
+                if (q->Info().flags & CommandQueueFlagBits::TRANSFER) {
+                    ++mProperties.transferQueueCount;
+                }
+            }
+        }
+
+        void VulkanDevice::PopulateDeviceFeatures() {
+            VkPhysicalDeviceFeatures features = {};
+            vkGetPhysicalDeviceFeatures(mPhysicalDevice, &features);
+            VkPhysicalDeviceProperties props;
+            vkGetPhysicalDeviceProperties(mPhysicalDevice, &props);
+
+            mFeatures.bGeometryShaders = features.geometryShader;
+            mFeatures.bTesselationShaders = features.tessellationShader;
+            mFeatures.bInt64ShaderOps = features.shaderInt64;
+            mFeatures.bVariableRateShading = false;
+            // FIXME: this is not a good way to do, do with VkPhysicalDeviceSubgroupProperties
+            mFeatures.bWaveOps = features.shaderInt64;
+
+
+            // props.apiVersion = VK_MAKE_VERSION(major, minor, patch)
+            uint32_t vulkanVersion = props.apiVersion;
+
+            uint32_t major = VK_VERSION_MAJOR(vulkanVersion);
+            uint32_t minor = VK_VERSION_MINOR(vulkanVersion);
+
+
+            static const auto VulkanVersionAtLeast = [](uint32_t majorV, uint32_t minorV, uint32_t major, uint32_t minor) {
+                return (major > majorV) || (major == majorV && minor >= minorV);
+            };
+
+            // Infer SPIR-V version as RHI numeric code
+            if (VulkanVersionAtLeast(1, 4, major, minor)) {
+                mFeatures.supportedShaderModel = 0x16; // SPIR-V 1.6
+            } else if (VulkanVersionAtLeast(1, 3, major, minor)) {
+                mFeatures.supportedShaderModel = 0x15; // SPIR-V 1.5
+            } else if (VulkanVersionAtLeast(1, 1, major, minor)) {
+                // Query optional extension for SPIR-V 1.4
+                uint32_t extCount = 0;
+                vkEnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr, &extCount, nullptr);
+                std::vector<VkExtensionProperties> extensions(extCount);
+                vkEnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr, &extCount, extensions.data());
+
+                bool bSupportsSPIRV14 = false;
+                for (const auto& ext : extensions) {
+                    if (strcmp(ext.extensionName, VK_KHR_SPIRV_1_4_EXTENSION_NAME) == 0) {
+                        bSupportsSPIRV14 = true;
+                        break;
+                    }
+                }
+                mFeatures.supportedShaderModel = bSupportsSPIRV14 ? 0x14 : 0x13; // SPIR-V 1.4 or 1.3
+            } else {
+                mFeatures.supportedShaderModel = 0x10; // SPIR-V 1.0
+            }
         }
 
         GPUResourceId VulkanDevice::CreateImageView(const GPUResourceInfo& info, bool uav) {
@@ -1381,11 +1510,18 @@ namespace PyroshockStudios {
         }
 
         const DeviceInfo& VulkanDevice::Info() const {
-            ASSERT(false, "TODO");
             return mInfo;
         }
         const DevicePropertiesInfo& VulkanDevice::Properties() const {
             return mProperties;
+        }
+
+        const DeviceFeaturesInfo& VulkanDevice::Features() const {
+            return mFeatures;
+        }
+
+        DeviceStatusInfo VulkanDevice::Status() const {
+            return {};
         }
 
         Image VulkanDevice::NewSwapChainImage(VkImage swapchainImage, VkFormat format, u32 index, ImageUsageFlags usage, const ImageInfo& imageInfo) {

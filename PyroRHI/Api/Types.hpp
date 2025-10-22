@@ -308,6 +308,31 @@ namespace PyroshockStudios {
             e64 = 64
         };
 
+        PYRO_NODISCARD PYRO_FORCEINLINE RasterizationSamples operator|(RasterizationSamples lhs, RasterizationSamples rhs) {
+            return static_cast<RasterizationSamples>(
+                static_cast<u32>(lhs) | static_cast<u32>(rhs));
+        }
+        PYRO_NODISCARD PYRO_FORCEINLINE RasterizationSamples operator&(RasterizationSamples lhs, RasterizationSamples rhs) {
+            return static_cast<RasterizationSamples>(
+                static_cast<u32>(lhs) & static_cast<u32>(rhs));
+        }
+        PYRO_NODISCARD PYRO_FORCEINLINE RasterizationSamples operator^(RasterizationSamples lhs, RasterizationSamples rhs) {
+            return static_cast<RasterizationSamples>(
+                static_cast<u32>(lhs) ^ static_cast<u32>(rhs));
+        }
+        PYRO_NODISCARD PYRO_FORCEINLINE RasterizationSamples& operator|=(RasterizationSamples& lhs, RasterizationSamples rhs) {
+            lhs = lhs | rhs;
+            return lhs;
+        }
+        PYRO_NODISCARD PYRO_FORCEINLINE RasterizationSamples& operator&=(RasterizationSamples& lhs, RasterizationSamples rhs) {
+            lhs = lhs & rhs;
+            return lhs;
+        }
+        PYRO_NODISCARD PYRO_FORCEINLINE RasterizationSamples& operator^=(RasterizationSamples& lhs, RasterizationSamples rhs) {
+            lhs = lhs ^ rhs;
+            return lhs;
+        }
+
         struct ColorComponentFlagsProperties {
             using Data = u32;
         };

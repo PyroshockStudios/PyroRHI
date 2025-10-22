@@ -149,6 +149,7 @@ namespace PyroshockStudios::RHIVulkan {
         FlushBarriers();
 
         ImplImageSlot& imageSlot = mDevice->Slot(info.image);
+        ImplBufferSlot& bufferSlot = mDevice->Slot(info.buffer);
 
         const VkBufferImageCopy region = {
             .bufferOffset = info.bufferOffset,
@@ -164,7 +165,7 @@ namespace PyroshockStudios::RHIVulkan {
             .imageExtent = { info.imageExtent.width, info.imageExtent.height, info.imageExtent.depth }
         };
         vkCmdCopyImageToBuffer(mCommandBuffer, imageSlot.vkImage,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mDevice->Slot(info.buffer).vkBuffer, 1, &region);
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, bufferSlot.vkBuffer, 1, &region);
     }
 
     void VulkanCommandBuffer::CopyImageToImage(const CopyImageToImageInfo& info) {

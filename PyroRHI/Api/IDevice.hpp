@@ -38,31 +38,174 @@
 
 namespace PyroshockStudios {
     inline namespace RHI {
-        // TODO: maybe it's better to refactor this and split it into DeviceStatistics or something?
+        enum struct DeviceType : u32 {
+            Unknown = 0,
+            Discrete = 1,
+            Integrated = 2,
+            Virtual = 3,
+            CPU = 4
+        };
+        /**
+         * @brief Contains descriptive, vendor, and classification information about a GPU device.
+         * Filled once at device initialization.
+         */
         struct DeviceInfo {
-            usize numAllocations = {};
-            usize numAllocatedBytes = {};
-            eastl::string name = {};
-            eastl::string vendor = {};
-            u32 driverVersion = {};
+            // --- Generic identifiers ---
+            eastl::string name;   ///< User-friendly GPU name (e.g., "NVIDIA GeForce RTX 4090").
+            eastl::string vendor; ///< Vendor name ("NVIDIA", "AMD", "Intel", etc.).
+
+            // --- Vendor / device identifiers ---
+            u32 vendorID = 0;    ///< PCI vendor ID (e.g., 0x10DE for NVIDIA).
+            u32 deviceID = 0;    ///< PCI device ID (model specific).
+            u32 subsystemID = 0; ///< Optional subsystem ID if available.
+            u32 revisionID = 0;  ///< Hardware revision or stepping.
+
+            // --- Device class flags ---
+            DeviceType deviceType = DeviceType::Unknown; ///< True if the GPU has dedicated VRAM.
+            bool bUnifiedMemory = false;  ///< True on UMA architectures (APUs / integrated GPUs).
+            bool bRemovable = false;      ///< True if the device can be hot-removed (eGPU).
+            bool bPrimaryAdapter = false; ///< True if this is the system’s primary adapter.
+            bool bHeadless = false;       ///< True if the device supports headless rendering only.
+
+            // --- Driver and API details ---
+            eastl::string driverVersion;     ///< Driver version string (parsed from DXGI or Vulkan driver info).
+            eastl::string apiVersion;        ///< Graphics API version (e.g., "D3D12.3" or "Vulkan 1.3.290").
+            eastl::string driverDescription; ///< Optional additional text from the driver or runtime.
+            eastl::string architecture;      ///< e.g. "Ada Lovelace", "RDNA3", "Xe-LPG", etc., if identifiable.
+
+            // --- Hardware limits (optional basic summary) ---
+            DeviceSize dedicatedVideoMemory = 0; ///< From DXGI_ADAPTER_DESC or VkPhysicalDeviceMemoryProperties.
+            DeviceSize sharedSystemMemory = 0;
+            u32 adapterLUIDLow = 0;  ///< Lower 32 bits of the adapter LUID (DX12 only).
+            u32 adapterLUIDHigh = 0; ///< Upper 32 bits of the adapter LUID.
 
             PYRO_NODISCARD bool operator==(const DeviceInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DeviceInfo&) const = default;
         };
 
+
         /**
-         * @brief Describes the properties of the device.
+         * @brief Describes feature support for a given GPU device.
+         * This structure is designed to abstract both D3D12 feature queries and Vulkan feature sets.
+         */
+        struct DeviceFeaturesInfo {
+            // --- Shader Stages ---
+            bool bGeometryShaders = false;
+            bool bTesselationShaders = false;
+            bool bMeshShaders = false;
+            bool bTaskShaders = false;
+
+            // --- Ray Tracing ---
+            bool bRayQueries = false;
+            bool bRayTracingPipelines = false;
+            bool bAccelerationStructureBuild = false;
+
+            // --- Resource / Memory ---
+            bool bBufferDeviceAddress = false; // VK_KHR_buffer_device_address / D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT
+
+            // --- Texture Compression ---
+            bool bBCnTextureCompression = false;
+
+            // --- Index Buffer Formats ---
+            bool bUint8IndexBuffer = false;
+
+            // --- Shader Model / SPIR-V Level ---
+            u32 supportedShaderModel = 0; // e.g., HLSL Shader Model or Vulkan’s SPIR-V version
+
+            // --- Compute and Atomics ---
+            bool bInt64ShaderOps = false;
+            bool bAtomicFloatOps = false;  // VK_EXT_shader_atomic_float or DX12 SM6.6+
+            bool bWaveOps = false;         // DX12 Wave Intrinsics or Vulkan subgroup ops
+            bool bSubgroupQuadOps = false; // Subgroup operations for advanced wave programming
+            bool bAsyncCompute = false;    // True if the device supports async compute queues
+            bool bAsyncTransfer = false;   // True if the device supports dedicated transfer queues
+
+            // --- Presentation / Display ---
+            bool bHeadlessSwapChainWindow = false;
+            bool bVariableRateShading = false;
+
+            // --- Conservative Rasterization ---
+            bool bConservativeRasterization = false; // D3D12 conservative raster / VK_EXT_conservative_rasterization
+
+            // --- Debugging / Validation ---
+            bool bShaderDebugInfo = false;
+
+            PYRO_NODISCARD bool operator==(const DeviceFeaturesInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DeviceFeaturesInfo&) const = default;
+        };
+
+        /**
+         * @brief Describes the static hardware properties and alignment constraints of a GPU device.
+         * These are fixed per physical device and do not change at runtime.
          */
         struct DevicePropertiesInfo {
-            // TODO, refactor this into a bit mask?
-            RasterizationSamples maxRenderTargetSamples = RasterizationSamples::e1;
-            RasterizationSamples maxShaderResourceImageSamples = RasterizationSamples::e1;
-            u32 bufferImageRowAlignment = 0;
-            u32 bufferImageCopyOffsetAlignment = 0;
-            bool bSupportsHeadlessSwapChainWindow = false;
+            // --- MSAA and sample counts ---
+            RasterizationSamples msaaSupportColorTarget = RasterizationSamples::e1;
+            RasterizationSamples msaaSupportDepthStencilTarget = RasterizationSamples::e1;
+            RasterizationSamples msaaSupportShaderResourceView = RasterizationSamples::e1;
+            RasterizationSamples msaaSupportUnorderedAccessView = RasterizationSamples::e1;
+
+            // --- Memory / Alignment ---
+            u32 bufferImageRowAlignment = 0;         // D3D12_TEXTURE_DATA_PITCH_ALIGNMENT / VkPhysicalDeviceLimits::optimalBufferCopyRowPitchAlignment
+            u32 bufferImageCopyOffsetAlignment = 0;  // D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT / VkPhysicalDeviceLimits::optimalBufferCopyOffsetAlignment
+            u32 minUniformBufferOffsetAlignment = 0; // D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT / Vulkan equivalent
+            u32 minStorageBufferOffsetAlignment = 0;
+
+            // --- Queue capabilities ---
+            u32 graphicsQueueCount = 0;
+            u32 computeQueueCount = 0;
+            u32 transferQueueCount = 0;
+            bool bHasDedicatedComputeQueue = false;
+            bool bHasDedicatedTransferQueue = false;
+
+            // --- Resource limits ---
+            u32 maxTextureWidth = 0;
+            u32 maxTextureHeight = 0;
+            u32 maxTextureDepth = 0;
+            u32 maxTextureArrayLayers = 0;
+            u32 maxSamplerAnisotropy = 0;
+
+            f32 minLineWidth = 0.0f;
+            f32 maxLineWidth = 0.0f;
 
             PYRO_NODISCARD bool operator==(const DevicePropertiesInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DevicePropertiesInfo&) const = default;
+        };
+
+        /**
+         * @brief Tracks live GPU and host resource statistics for the device.
+         * Useful for diagnostics, debugging, and memory leak detection.
+         */
+        struct DeviceStatusInfo {
+            // --- Host (CPU) memory usage ---
+            usize numHostAllocations = 0;    ///< Total number of allocations made by CPU-side pools.
+            usize numHostAllocatedBytes = 0; ///< Total bytes allocated in host (system) memory.
+
+            // --- GPU (device) memory usage ---
+            DeviceSize numDeviceMemoryAllocations = 0; ///< Number of GPU memory allocations (heaps / VkDeviceMemory).
+            DeviceSize numDeviceAllocatedBytes = 0;    ///< Approximate total GPU memory allocated.
+
+            // --- Resource creation counters ---
+            u32 numBufferResourcesCreated = 0; ///< Total GPU buffers created.
+            u32 numImageResourcesCreated = 0;  ///< Total GPU images/textures created.
+            u32 numPipelineObjectsCreated = 0; ///< Total graphics/compute pipelines created.
+            u32 numDescriptorHeapsCreated = 0; ///< Descriptor heaps / pools created.
+            u32 numCommandBuffersCreated = 0;  ///< Command buffers or command lists created.
+
+            // --- Active / live resources ---
+            u32 numBuffersAlive = 0;
+            u32 numImagesAlive = 0;
+            u32 numPipelinesAlive = 0;
+            u32 numSamplersAlive = 0;
+
+            // --- Frame statistics ---
+            u64 numQueueSubmits = 0;
+
+            // --- Optional GPU memory fragmentation / budget info ---
+            DeviceSize availableVideoMemory = 0;      ///< Remaining VRAM at query time.
+
+            PYRO_NODISCARD bool operator==(const DeviceStatusInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DeviceStatusInfo&) const = default;
         };
 
         /**
@@ -273,7 +416,7 @@ namespace PyroshockStudios {
             PYRO_NODISCARD PYRO_FORCEINLINE T* BufferHostAddressAs(Buffer buffer) const {
                 return reinterpret_cast<T*>(BufferHostAddress(buffer));
             }
-            
+
             // ---------------------------------------------------------------------
             // Memory requirements
             // ---------------------------------------------------------------------
@@ -486,11 +629,18 @@ namespace PyroshockStudios {
              * @brief Returns general device properties.
              */
             PYRO_NODISCARD virtual const DeviceInfo& Info() const = 0;
-
             /**
              * @brief Returns hardware limits and capabilities.
              */
             PYRO_NODISCARD virtual const DevicePropertiesInfo& Properties() const = 0;
+            /**
+             * @brief Returns hardware features.
+             */
+            PYRO_NODISCARD virtual const DeviceFeaturesInfo& Features() const = 0;
+            /**
+             * @brief Returns the real time hardware status.
+             */
+            PYRO_NODISCARD virtual DeviceStatusInfo Status() const = 0;
 
             // Convenience create overloads
             PYRO_NODISCARD PYRO_FORCEINLINE MemoryBlock Create(const MemoryBlockInfo& info) { return CreateMemoryBlock(info); }
