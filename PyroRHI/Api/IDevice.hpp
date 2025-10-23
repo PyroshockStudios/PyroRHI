@@ -61,7 +61,7 @@ namespace PyroshockStudios {
             u32 revisionID = 0;  ///< Hardware revision or stepping.
 
             // --- Device class flags ---
-            DeviceType deviceType = DeviceType::Unknown; ///< True if the GPU has dedicated VRAM.
+            DeviceType deviceType = DeviceType::Unknown; ///< Device type
             bool bUnifiedMemory = false;                 ///< True on UMA architectures (APUs / integrated GPUs).
             bool bRemovable = false;                     ///< True if the device can be hot-removed (eGPU).
             bool bPrimaryAdapter = false;                ///< True if this is the system's primary adapter.
@@ -81,6 +81,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DeviceInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DeviceInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
 
@@ -127,6 +128,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DeviceFeaturesInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DeviceFeaturesInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -165,6 +167,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DevicePropertiesInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DevicePropertiesInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -201,6 +204,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DeviceStatusInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DeviceStatusInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -212,6 +216,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const SemaphoreSubmitInfo&) const = default;
             PYRO_NODISCARD PYRO_FORCEINLINE bool operator!=(const SemaphoreSubmitInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -223,6 +228,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const FenceSubmitInfo&) const = default;
             PYRO_NODISCARD PYRO_FORCEINLINE bool operator!=(const FenceSubmitInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -262,6 +268,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const CommandQueueSubmitInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const CommandQueueSubmitInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -279,6 +286,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const CommandQueuePresentInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const CommandQueuePresentInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -650,6 +658,5 @@ namespace PyroshockStudios {
             PYRO_NODISCARD PYRO_FORCEINLINE IFence* Create(const FenceInfo& info) { return CreateFence(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE ITimestampQueryPool* Create(const TimestampQueryPoolInfo& info) { return CreateTimestampQueryPool(info); }
         };
-
     } // namespace RHI
 } // namespace PyroshockStudios
