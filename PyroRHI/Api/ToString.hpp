@@ -399,81 +399,69 @@ namespace PyroshockStudios {
             }
         }
 
-        struct DepthStencilClearValue {
-    f32 depth = {};
-    u32 stencil = {};
+        inline eastl::string DepthStencilClearValue::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("DepthStencilClear{ depth=%.3f, stencil=%u }", depth, stencil);
+        }
 
-    PYRO_NODISCARD eastl::string ToString(usize) const {
-        return eastl::string::format("DepthStencilClearValue{ depth=%.3f, stencil=%u }", depth, stencil);
-    }
-};
+        inline eastl::string ColorClearValue::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("ColorClear<Int32>{ %i, %i, %i, %i }", int32[0], int32[1], int32[2], int32[3]);
+        }
 
-union ColorClearValue {
-    eastl::array<f32, 4> float32 = {};
-    eastl::array<i32, 4> int32;
-    eastl::array<u32, 4> uint32;
+        inline eastl::string Offset2D::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("{ %u, %u }", x, y);
+        }
 
-    PYRO_NODISCARD eastl::string ToString(usize) const {
-        return eastl::string::format("ColorClearValue{ %u, %u, %u, %u }", uint32[0], uint32[1], uint32[2], uint32[3]);
-    }
-};
+        inline eastl::string Offset3D::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("{ %u, %u, %u }", x, y, z);
+        }
 
-    eastl::string Offset2D::ToString(usize indentation) const {
-        return eastl::string::format("Offset2D{ x=%d, y=%d }", x, y);
-    }
+        inline eastl::string Extent2D::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("{ %u, %u }", width, height);
+        }
+        inline eastl::string Extent3D::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("{ %u, %u, %u }", width, height, depth);
+        }
 
-    eastl::string Offset3D::ToString(usize indentation) const {
-        return eastl::string::format("Offset3D{ x=%d, y=%d, z=%d }", x, y, z);
-    }
+        inline eastl::string ViewportInfo::ToString(usize indentation) const {
+            inline eastl::string indent(indentation, ' ');
+            return eastl::string().sprintf(
+                "ViewportInfo{\n%s  x=%.3f,\n%s  y=%.3f,\n%s  width=%.3f,\n%s  height=%.3f,\n%s  minDepth=%.3f,\n%s  maxDepth=%.3f\n%s}",
+                indent.c_str(), x,
+                indent.c_str(), y,
+                indent.c_str(), width,
+                indent.c_str(), height,
+                indent.c_str(), minDepth,
+                indent.c_str(), maxDepth,
+                indent.c_str());
+        }
+        inline eastl::string Rect2D::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("Rect2D{ x=%u, y=%u, width=%u, height=%u }", x, y, width, height);
+        }
 
-    PYRO_NODISCARD eastl::string Extent2D::ToString(usize indentation) const {
-        return eastl::string::format("Extent2D{ %u, %u }", width, height);
-    }
-    PYRO_NODISCARD eastl::string Extent3D::ToString(usize indentation) const {
-        return eastl::string::format("{ %u, %u, %u }", width, height, depth);
-    }
+        inline eastl::string Box3D::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("Box3D{ x=%u, y=%u, z=%u, width=%u, height=%u, depth=%u }", x, y, z, width, height, depth);
+        }
 
-    eastl::string ViewportInfo::ToString(usize indentation) const {
-        eastl::string indent(indentation, ' ');
-        return eastl::string().sprintf(
-            "ViewportInfo{\n%s  x=%.3f,\n%s  y=%.3f,\n%s  width=%.3f,\n%s  height=%.3f,\n%s  minDepth=%.3f,\n%s  maxDepth=%.3f\n%s}",
-            indent.c_str(), x,
-            indent.c_str(), y,
-            indent.c_str(), width,
-            indent.c_str(), height,
-            indent.c_str(), minDepth,
-            indent.c_str(), maxDepth,
-            indent.c_str()
-        );
-    }
-    eastl::string Rect2D::ToString(usize indentation) const {
-        return Indent(indentation) + eastl::string().sprintf("Rect2D{ x=%u, y=%u, width=%u, height=%u }", x, y, width, height);
-    }
+        inline eastl::string BufferRegion::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("{ offset=%" PRIu64 ", size=%zu }", offset, size);
+        }
 
-    eastl::string Box3D::ToString(usize indentation) const {
-        return Indent(indentation) + eastl::string().sprintf("Box3D{ x=%u, y=%u, z=%u, width=%u, height=%u, depth=%u }", x, y, z, width, height, depth);
-    }
-
-    eastl::string BufferRegion::ToString(usize indentation) const {
-        return Indent(indentation) + eastl::string().sprintf("{ offset=%"PRIu64", size=%zu }", offset, size);
-    }
-
-    eastl::string ImageMipArraySlice::ToString(usize indentation) const {
-        return Indent(indentation) + eastl::string().sprintf("{ firstMip=%u, mipCount=%u, firstLayer=%u, layerCount=%u }",
-                                     baseMipLevel, levelCount, baseArrayLayer, layerCount);
-    }
-     eastl::string ImageArraySlice::ToString(usize indentation) const {
-        return Indent(indentation) + eastl::string().sprintf("{ mip=%u, firstLayer=%u, layerCount=%u }",
-                                     mipLevel, baseArrayLayer, layerCount);
-    }
-    eastl::string ImageSlice::ToString(usize indentation) const {
-        return Indent(indentation) + eastl::string().sprintf("{ mip=%u, layer=%u }", mipLevel, arrayLayer);
-    }
+        inline eastl::string ImageMipArraySlice::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("{ firstMip=%u, mipCount=%u, firstLayer=%u, layerCount=%u }",
+                                             baseMipLevel, levelCount, baseArrayLayer, layerCount);
+        }
+        inline eastl::string ImageArraySlice::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("{ mip=%u, firstLayer=%u, layerCount=%u }",
+                                             mipLevel, baseArrayLayer, layerCount);
+        }
+        inline eastl::string ImageSlice::ToString(usize indentation) const {
+            return Indent(indentation) + eastl::string().sprintf("{ mip=%u, layer=%u }", mipLevel, arrayLayer);
+        }
 
 
 
 
-        eastl::string DeviceInfo::ToString(usize indentation) const {
+        inline eastl::string DeviceInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
             static const auto deviceTypeToString = [](DeviceType type) {
                 switch (type) {
@@ -492,7 +480,7 @@ union ColorClearValue {
                 }
             };
 
-            eastl::string s;
+            inline eastl::string s;
             s += indent + "DeviceInfo {\n";
             s += indent + "  Name: " + name + "\n";
             s += indent + "  Vendor: " + vendor + "\n";
@@ -516,9 +504,9 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string DeviceFeaturesInfo::ToString(usize indentation) const {
+        inline eastl::string DeviceFeaturesInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
-            eastl::string s;
+            inline eastl::string s;
             s += indent + "DeviceFeaturesInfo {\n";
 #define BOOL_FIELD(name) \
     s += indent + "  " + eastl::string(#name + 1) + ": " + (name ? "true" : "false") + "\n";
@@ -545,9 +533,9 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string DevicePropertiesInfo::ToString(usize indentation) const {
+        inline eastl::string DevicePropertiesInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
-            eastl::string s;
+            inline eastl::string s;
             s += indent + "DevicePropertiesInfo {\n";
             s += indent + "  MSAA ColorTarget: " + eastl::to_string((u32)msaaSupportColorTarget) + "\n";
             s += indent + "  MSAA DepthStencilTarget: " + eastl::to_string((u32)msaaSupportDepthStencilTarget) + "\n";
@@ -571,9 +559,9 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string DeviceStatusInfo::ToString(usize indentation) const {
+        inline eastl::string DeviceStatusInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
-            eastl::string s;
+            inline eastl::string s;
             s += indent + "DeviceStatusInfo {\n";
             s += indent + "  HostAllocations: " + eastl::to_string(numHostAllocations) + " (" + eastl::to_string(numHostAllocatedBytes) + " bytes)\n";
             s += indent + "  DeviceAllocations: " + eastl::to_string(numDeviceMemoryAllocations) + " (" + eastl::to_string(numDeviceAllocatedBytes) + " bytes)\n";
@@ -592,27 +580,27 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string SemaphoreSubmitInfo::ToString(usize indentation) const {
+        inline eastl::string SemaphoreSubmitInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
-            eastl::string s;
+            inline eastl::string s;
             s += indent + "SemaphoreSubmitInfo { Semaphore=";
             s += (ToHex(semaphore));
             s += ", Stage=" + eastl::to_string(static_cast<u32>(stage)) + " }";
             return s;
         }
 
-        eastl::string FenceSubmitInfo::ToString(usize indentation) const {
+        inline eastl::string FenceSubmitInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
-            eastl::string s;
+            inline eastl::string s;
             s += indent + "FenceSubmitInfo { Fence=";
             s += (ToHex(fence));
             s += ", Value=" + eastl::to_string(value) + " }";
             return s;
         }
 
-        eastl::string CommandQueueSubmitInfo::ToString(usize indentation) const {
+        inline eastl::string CommandQueueSubmitInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
-            eastl::string s;
+            inline eastl::string s;
             s += indent + "CommandQueueSubmitInfo {\n";
             s += indent + "  Queue: " + (ToHex(queue)) + "\n";
             s += indent + "  WaitSemaphores: [\n";
@@ -642,9 +630,9 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string CommandQueuePresentInfo::ToString(usize indentation) const {
+        inline eastl::string CommandQueuePresentInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
-            eastl::string s;
+            inline eastl::string s;
             s += indent + "CommandQueuePresentInfo { Queue=";
             s += indent + (ToHex(queue));
             s += ", WaitSemaphores=" + eastl::to_string(waitSemaphores.size()) + " }";
@@ -653,14 +641,14 @@ union ColorClearValue {
 
         // ============================ ToString Implementations ============================
 
-        eastl::string CommandBufferInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string CommandBufferInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "CommandBufferInfo { name: \"" + name + "\" }";
             return s;
         }
 
-        eastl::string CopyBufferToBufferInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string CopyBufferToBufferInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "CopyBufferToBufferInfo {\n";
             s += Indent(indentation + 2) + "srcBuffer: " + ToHex(srcBuffer) + "\n";
             s += Indent(indentation + 2) + "dstBuffer: " + ToHex(dstBuffer) + "\n";
@@ -671,8 +659,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string CopyBufferToImageInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string CopyBufferToImageInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "CopyBufferToImageInfo {\n";
             s += Indent(indentation + 2) + "buffer: " + ToHex(buffer) + "\n";
             s += Indent(indentation + 2) + "bufferOffset: " + bufferOffset + "\n";
@@ -685,8 +673,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string CopyImageToBufferInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string CopyImageToBufferInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "CopyImageToBufferInfo {\n";
             s += Indent(indentation + 2) + "image: " + ToHex(image) + "\n";
             s += Indent(indentation + 2) + "imageSlice: " + imageSlice.ToString() + "\n";
@@ -699,8 +687,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string CopyImageToImageInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string CopyImageToImageInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "CopyImageToImageInfo {\n";
             s += Indent(indentation + 2) + "srcImage: " + ToHex(srcImage) + "\n";
             s += Indent(indentation + 2) + "dstImage: " + ToHex(dstImage) + "\n";
@@ -713,8 +701,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string BlitImageToImageInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string BlitImageToImageInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "BlitImageToImageInfo {\n";
             s += Indent(indentation + 2) + "srcImage: " + ToHex(srcImage) + "\n";
             s += Indent(indentation + 2) + "dstImage: " + ToHex(dstImage) + "\n";
@@ -727,8 +715,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string ClearUnorderedAccessViewInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string ClearUnorderedAccessViewInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "ClearUAVInfo {\n";
             s += Indent(indentation + 2) + "view: " + ToHex(view) + "\n";
             s += Indent(indentation + 2) + "clearValue: " + clearValue.ToString() + "\n";
@@ -736,8 +724,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string UpdateBufferInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string UpdateBufferInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "UpdateBufferInfo {\n";
             s += Indent(indentation + 2) + "buffer: " + ToHex(buffer) + "\n";
             s += Indent(indentation + 2) + "region: " + region.ToString() + "\n";
@@ -746,8 +734,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string BufferMemoryBarrierInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string BufferMemoryBarrierInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "BufferMemoryBarrierInfo {\n";
             s += Indent(indentation + 2) + "buffer: " + ToHex(buffer) + "\n";
             s += Indent(indentation + 2) + "region: " + region.ToString() + "\n";
@@ -759,8 +747,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string ImageMemoryBarrierInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string ImageMemoryBarrierInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "ImageMemoryBarrierInfo {\n";
             s += Indent(indentation + 2) + "image: " + ToHex(image) + "\n";
             s += Indent(indentation + 2) + "imageSlice: " + imageSlice.ToString() + "\n";
@@ -772,8 +760,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string InvalidateTimestampQueryInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string InvalidateTimestampQueryInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "InvalidateTimestampQueryInfo {\n";
             s += Indent(indentation + 2) + "queryPool: " + ToHex(queryPool) + "\n";
             s += Indent(indentation + 2) + "firstQuery: " + eastl::to_string(firstQuery) + "\n";
@@ -782,8 +770,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string WriteTimestampInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string WriteTimestampInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "WriteTimestampInfo {\n";
             s += Indent(indentation + 2) + "queryPool: " + ToHex(queryPool) + "\n";
             s += Indent(indentation + 2) + "stage: " + eastl::to_string(static_cast<u64>(stage)) + "\n";
@@ -792,17 +780,17 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string CommandLabelInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string CommandLabelInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "CommandLabelInfo {\n";
-            s += Indent(indentation + 2) + "labelColor: " + ToHexU32(eastl::bit_cast<u32>(labelColor)) + "\n";
+            s += Indent(indentation + 2) + "labelColor: " + ToHexU32(labelColor.ToU32()) + "\n";
             s += Indent(indentation + 2) + "name: \"" + eastl::string(name) + "\"\n";
             s += Indent(indentation) + "}";
             return s;
         }
 
-        eastl::string AttachmentResolveInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string AttachmentResolveInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "AttachmentResolveInfo {\n";
             s += Indent(indentation + 2) + "mode: ";
             switch (mode) {
@@ -828,8 +816,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string ColorAttachmentInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string ColorAttachmentInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "ColorAttachmentInfo {\n";
             s += Indent(indentation + 2) + "target: " + ToHex(target) + "\n";
             s += Indent(indentation + 2) + "loadOp: " + EnumToString(loadOp) + "\n";
@@ -843,8 +831,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string DepthStencilAttachmentInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string DepthStencilAttachmentInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "DepthStencilAttachmentInfo {\n";
             s += Indent(indentation + 2) + "target: " + ToHex(target) + "\n";
             s += Indent(indentation + 2) + "depthLoadOp: " + EnumToString(depthLoadOp) + "\n";
@@ -856,8 +844,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string RenderPassBeginInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string RenderPassBeginInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "RenderPassBeginInfo {\n";
             s += Indent(indentation + 2) + "colorAttachments: [\n";
             for (auto& ca : colorAttachments)
@@ -872,8 +860,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string PushConstantInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string PushConstantInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "PushConstantInfo {\n";
             s += Indent(indentation + 2) + "data: [";
             const u32* dwords = reinterpret_cast<const u32*>(data);
@@ -889,8 +877,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string SetUniformBufferViewInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string SetUniformBufferViewInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "SetUniformBufferViewInfo {\n";
             s += Indent(indentation + 2) + "slot: " + eastl::to_string(slot) + "\n";
             s += Indent(indentation + 2) + "buffer: " + ToHex(buffer) + "\n";
@@ -900,8 +888,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string SetUnorderedAccessViewInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string SetUnorderedAccessViewInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "SetUnorderedAccessViewInfo {\n";
             s += Indent(indentation + 2) + "slot: " + eastl::to_string(slot) + "\n";
             s += Indent(indentation + 2) + "view: " + ToHex(view) + "\n";
@@ -910,8 +898,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string SetVertexBufferInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string SetVertexBufferInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "SetVertexBufferInfo {\n";
             s += Indent(indentation + 2) + "slot: " + eastl::to_string(slot) + "\n";
             s += Indent(indentation + 2) + "buffer: " + ToHex(buffer) + "\n";
@@ -920,8 +908,8 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string SetIndexBufferInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string SetIndexBufferInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "SetIndexBufferInfo {\n";
             s += Indent(indentation + 2) + "buffer: " + ToHex(buffer) + "\n";
             s += Indent(indentation + 2) + "offset: " + eastl::to_string(offset) + "\n";
@@ -930,39 +918,39 @@ union ColorClearValue {
             return s;
         }
 
-        eastl::string DrawInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string DrawInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "DrawInfo { vertexCount: " + eastl::to_string(vertexCount) + ", instanceCount: " + eastl::to_string(instanceCount) + ", firstVertex: " + eastl::to_string(firstVertex) + ", firstInstance: " + eastl::to_string(firstInstance) + " }";
             return s;
         }
 
-        eastl::string DrawIndexedInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string DrawIndexedInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "DrawIndexedInfo { indexCount: " + eastl::to_string(indexCount) + ", instanceCount: " + eastl::to_string(instanceCount) + ", firstIndex: " + eastl::to_string(firstIndex) + ", vertexOffset: " + eastl::to_string(vertexOffset) + ", firstInstance: " + eastl::to_string(firstInstance) + " }";
             return s;
         }
 
-        eastl::string DrawIndirectInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string DrawIndirectInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "DrawIndirectInfo { indirectBuffer: " + ToHex(indirectBuffer) + ", indirectBufferOffset: " + eastl::to_string(indirectBufferOffset) + ", drawCount: " + eastl::to_string(drawCount) + ", drawCommandStride: " + eastl::to_string(drawCommandStride) + " }";
             return s;
         }
 
-        eastl::string DrawIndexedIndirectInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string DrawIndexedIndirectInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "DrawIndexedIndirectInfo { indirectBuffer: " + ToHex(indirectBuffer) + ", indirectBufferOffset: " + eastl::to_string(indirectBufferOffset) + ", drawCount: " + eastl::to_string(drawCount) + ", drawCommandStride: " + eastl::to_string(drawCommandStride) + " }";
             return s;
         }
 
-        eastl::string DispatchInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string DispatchInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "DispatchInfo { x: " +
                  eastl::to_string(x) + ", y: " + eastl::to_string(y) + ", z: " + eastl::to_string(z) + " }";
             return s;
         }
 
-        eastl::string DispatchIndirectInfo::ToString(usize indentation) const {
-            eastl::string s;
+        inline eastl::string DispatchIndirectInfo::ToString(usize indentation) const {
+            inline eastl::string s;
             s += Indent(indentation) + "DispatchIndirectInfo { indirectBuffer: " + ToHex(indirectBuffer) + ", indirectBufferOffset: " + eastl::to_string(indirectBufferOffset) + " }";
             return s;
         }

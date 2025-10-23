@@ -673,6 +673,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DepthStencilClearValue&) const = default;
             PYRO_NODISCARD bool operator!=(const DepthStencilClearValue&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         union ColorClearValue {
@@ -686,6 +687,7 @@ namespace PyroshockStudios {
             PYRO_NODISCARD bool operator!=(const ColorClearValue& other) const {
                 return !(*this == other);
             }
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct Offset2D {
@@ -693,6 +695,7 @@ namespace PyroshockStudios {
             i32 y = {};
 
             PYRO_NODISCARD friend auto operator<=>(const Offset2D&, const Offset2D&) = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct Offset3D {
@@ -701,6 +704,7 @@ namespace PyroshockStudios {
             i32 z = {};
 
             PYRO_NODISCARD friend auto operator<=>(const Offset3D&, const Offset3D&) = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct Extent2D {
@@ -708,6 +712,7 @@ namespace PyroshockStudios {
             u32 height = 1;
 
             PYRO_NODISCARD friend auto operator<=>(const Extent2D&, const Extent2D&) = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct Extent3D {
@@ -716,6 +721,7 @@ namespace PyroshockStudios {
             u32 depth = 1;
 
             PYRO_NODISCARD friend auto operator<=>(const Extent3D&, const Extent3D&) = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct ViewportInfo {
@@ -727,6 +733,7 @@ namespace PyroshockStudios {
             f32 maxDepth = 1.0f;
 
             PYRO_NODISCARD friend auto operator<=>(const ViewportInfo&, const ViewportInfo&) = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct Rect2D {
@@ -745,6 +752,7 @@ namespace PyroshockStudios {
             }
 
             PYRO_NODISCARD friend auto operator<=>(const Rect2D&, const Rect2D&) = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct Box3D {
@@ -767,6 +775,7 @@ namespace PyroshockStudios {
             }
 
             PYRO_NODISCARD friend auto operator<=>(const Box3D&, const Box3D&) = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
         static constexpr inline DeviceSize PYRO_MAX_DEVICE_SIZE = ~(static_cast<DeviceSize>(0));
         struct BufferRegion {
@@ -821,6 +830,7 @@ namespace PyroshockStudios {
 
                 return { result, count };
             }
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         static constexpr inline u32 PYRO_REMAINING_MIP_LEVELS = ~(0U);
@@ -906,6 +916,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD PYRO_FORCEINLINE ImageArraySlice Slice(u32 mipLevel = 0) const noexcept;
             PYRO_NODISCARD PYRO_FORCEINLINE ImageSlice Slice(u32 mipLevel = 0, u32 arrayLevel = 0) const noexcept;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct ImageArraySlice {
@@ -920,6 +931,7 @@ namespace PyroshockStudios {
             }
 
             PYRO_NODISCARD PYRO_FORCEINLINE ImageSlice Slice(u32 arrayLevel = 0) const noexcept;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct ImageSlice {
@@ -935,6 +947,7 @@ namespace PyroshockStudios {
             PYRO_NODISCARD bool ContainedIn(const ImageMipArraySlice& slice) const noexcept {
                 return slice.baseMipLevel <= mipLevel && mipLevel < slice.baseMipLevel + slice.levelCount && slice.baseArrayLayer <= arrayLayer && arrayLayer < slice.baseArrayLayer + slice.layerCount;
             }
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         PYRO_FORCEINLINE ImageArraySlice ImageMipArraySlice::Slice(u32 mipLevel) const noexcept {
@@ -999,6 +1012,17 @@ namespace PyroshockStudios {
             float a = 1.0f;
 
             PYRO_NODISCARD friend auto operator<=>(const LabelColor&, const LabelColor&) = default;
+
+            PYRO_NODISCARD PYRO_FORCEINLINE u32 ToU32() const {
+                u8 ir = static_cast<u8>(r * 255);
+                u8 ig = static_cast<u8>(g * 255);
+                u8 ib = static_cast<u8>(b * 255);
+                u8 ia = static_cast<u8>(a * 255);
+                return static_cast<u32>(ir) << 24 |
+                       static_cast<u32>(ig) << 16 |
+                       static_cast<u32>(ib) << 8 |
+                       static_cast<u32>(ia) << 0;
+            }
         };
 
         inline LabelColor LabelColor::RED = { 1.0f, 0.0f, 0.0f, 1.0f };
