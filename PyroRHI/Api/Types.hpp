@@ -967,6 +967,7 @@ namespace PyroshockStudios {
             static LabelColor ORANGE;
             static LabelColor YELLOW;
             static LabelColor GREEN;
+            static LabelColor CYAN;
             static LabelColor BLUE;
             static LabelColor VIOLET;
             static LabelColor MAGENTA;

@@ -813,6 +813,14 @@ namespace PyroshockStudios::RHIVulkan {
             info.indirectBufferOffset);
     }
 
+    void VulkanCommandBuffer::BuildBLAS(const BuildBLASInfo& info) {
+
+    }
+
+    void VulkanCommandBuffer::BuildTLAS(const BuildTLASInfo& info) {
+
+    }
+
     void VulkanCommandBuffer::Complete() {
         ASSERT(mCompleted == false, "can only complete uncompleted command list");
         FlushBarriers();

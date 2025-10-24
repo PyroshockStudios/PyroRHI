@@ -388,6 +388,12 @@ namespace PyroshockStudios {
         const SemaphoreInfo& D3DDevice::GetSemaphoreInfo(Semaphore semaphore) const {
             return eastl::bit_cast<D3DSemaphore*>(semaphore)->Info();
         }
+        const BLASInfo& D3DDevice::GetBLASInfo(BLAS blas) const {
+            return {};
+        }
+        const TLASInfo& D3DDevice::GetTLASInfo(TLASId tlas) const {
+            return {};
+        }
 
         DeviceAddress D3DDevice::BufferDeviceAddress(Buffer buffer) const {
             ASSERT(IsValid(buffer));
@@ -415,6 +421,13 @@ namespace PyroshockStudios {
                 &footprint, &numRows, &rowSizesInBytes, &requiredSize);
             gDx12Context->FlushDebugMessages();
             return footprint.Footprint.RowPitch;
+        }
+        DeviceSize D3DDevice::BLASBuildSizeRequirements(BLAS blas, eastl::span<const BLASGeometryInfo>, u32 primitiveCount) const {
+            return {};
+        }
+
+        DeviceSize D3DDevice::TLASBuildSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo>, u32 instanceCount) const {
+            return {};
         }
         MemoryBlock D3DDevice::CreateMemoryBlock(const MemoryBlockInfo& info) {
             auto [memory, data] = mResourcePool->AllocMemoryBlock();
@@ -939,6 +952,12 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             return SamplerId(handle);
         }
+        BLAS D3DDevice::CreateBLAS(const BLASInfo& info) {
+            return {};
+        }
+        TLASId D3DDevice::CreateTLAS(const TLASInfo& info) {
+            return {};
+        }
         RenderTarget D3DDevice::CreateRenderTarget(const RenderTargetInfo& info) {
             RenderTargetInfo i = info;
             const auto& imgInfo = mResourcePool->Get(info.image);
@@ -1043,6 +1062,12 @@ namespace PyroshockStudios {
             mResourcePool->mSamplerHeap.ReleaseSlot(sampler);
             gDx12Context->FlushDebugMessages();
             sampler = PYRO_NULL_SAMPLER;
+        }
+        void D3DDevice::DestroyBLAS(BLAS& blas) {
+
+        }
+        void D3DDevice::DestroyTLAS(TLASId& tlas) {
+
         }
         void D3DDevice::DestroyRenderTarget(RenderTarget& renderTarget) {
             auto* rt = eastl::bit_cast<D3DRenderTarget*>(renderTarget);

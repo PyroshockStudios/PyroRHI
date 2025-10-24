@@ -916,6 +916,14 @@ namespace PyroshockStudios {
             return SamplerId{ id };
         }
 
+        BLAS VulkanDevice::CreateBLAS(const BLASInfo& info) {
+            return {};
+        }
+
+        TLASId VulkanDevice::CreateTLAS(const TLASInfo& info) {
+            return {};
+        }
+
         RenderTarget VulkanDevice::CreateRenderTarget(const RenderTargetInfo& info) {
             return RenderTarget(new VulkanRenderTarget(this, info));
         }
@@ -959,6 +967,14 @@ namespace PyroshockStudios {
             return eastl::bit_cast<VulkanSemaphore*>(semaphore)->Info();
         }
 
+        const BLASInfo& VulkanDevice::GetBLASInfo(BLAS blas) const {
+            return {};
+        }
+
+        const TLASInfo& VulkanDevice::GetTLASInfo(TLASId tlas) const {
+            return {};
+        }
+
         DeviceAddress VulkanDevice::BufferDeviceAddress(Buffer buffer) const {
             return DeviceAddress();
         }
@@ -977,6 +993,14 @@ namespace PyroshockStudios {
         }
         u32 VulkanDevice::ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const {
             return PYRO_ALIGN(rowWidth, mPhysicalDeviceProperties.limits.optimalBufferCopyRowPitchAlignment);
+        }
+
+        DeviceSize VulkanDevice::BLASBuildSizeRequirements(BLAS blas, eastl::span<const BLASGeometryInfo>, u32 primitiveCount) const {
+            return {};
+        }
+
+        DeviceSize VulkanDevice::TLASBuildSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo>, u32 instanceCount) const {
+            return {};
         }
 
         bool VulkanDevice::IsMemoryBlockValid(MemoryBlock memory) const {
@@ -1088,6 +1112,14 @@ namespace PyroshockStudios {
             samplerSlot = {};
             mResourceTable.mSamplerSlots.ReturnSlot(sampler);
             sampler = PYRO_NULL_SAMPLER;
+        }
+
+        void VulkanDevice::DestroyBLAS(BLAS& blas) {
+
+        }
+
+        void VulkanDevice::DestroyTLAS(TLASId& tlas) {
+
         }
 
         void VulkanDevice::DestroySemaphore(Semaphore& semaphore) {

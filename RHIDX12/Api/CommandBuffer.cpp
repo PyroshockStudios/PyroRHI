@@ -916,6 +916,14 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
         }
 
+        void D3DCommandBuffer::BuildBLAS(const BuildBLASInfo& info) {
+
+        }
+
+        void D3DCommandBuffer::BuildTLAS(const BuildTLASInfo& info) {
+
+        }
+        
         void D3DCommandBuffer::Complete() {
             for (auto& [pool, minmax] : mPendingQueryPoolMinMaxResolves) {
                 auto [min, max] = minmax;

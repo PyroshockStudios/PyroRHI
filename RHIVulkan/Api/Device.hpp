@@ -79,6 +79,8 @@ namespace PyroshockStudios {
             const RasterPipelineInfo& GetRasterPipelineInfo(RasterPipeline pipeline) const     override;
             const ComputePipelineInfo& GetComputePipelineInfo(ComputePipeline pipeline) const  override;
             const SemaphoreInfo& GetSemaphoreInfo(Semaphore semaphore) const override;
+            const BLASInfo& GetBLASInfo(BLAS blas) const override;
+            const TLASInfo& GetTLASInfo(TLASId tlas) const override;
 
             DeviceAddress BufferDeviceAddress(Buffer buffer) const override;
             u8* BufferHostAddress(Buffer buffer) const override;
@@ -86,12 +88,17 @@ namespace PyroshockStudios {
             DeviceSize ImageSizeRequirements(Image image) const override;
             u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const override;
 
+            DeviceSize BLASBuildSizeRequirements(BLAS blas, eastl::span<const BLASGeometryInfo>, u32 primitiveCount) const override;
+            DeviceSize TLASBuildSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo>, u32 instanceCount) const override;
+
             MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;
             Image CreateImage(const ImageInfo& info) override;
             ShaderResourceId CreateShaderResource(const GPUResourceInfo& info) override;
             UnorderedAccessId CreateUnorderedAccess(const GPUResourceInfo& info) override;
             SamplerId CreateSampler(const SamplerInfo& info) override;
+            BLAS CreateBLAS(const BLASInfo& info) override;
+            TLASId CreateTLAS(const TLASInfo& info) override;
 
             RenderTarget CreateRenderTarget(const RenderTargetInfo& info) override;
             RasterPipeline CreateRasterPipeline(const RasterPipelineInfo& info, const RasterPipelineShaderStages& rasterShaderStages) override;
@@ -107,6 +114,8 @@ namespace PyroshockStudios {
             virtual void DestroyShaderResource(ShaderResourceId& srv) override;
             virtual void DestroyUnorderedAccess(UnorderedAccessId& uav) override;
             virtual void DestroySampler(SamplerId& sampler) override;
+            virtual void DestroyBLAS(BLAS& blas) override;
+            virtual void DestroyTLAS(TLASId& tlas) override;
 
             virtual void DestroyRenderTarget(RenderTarget& renderTarget) override;
             virtual void DestroyRasterPipeline(RasterPipeline& pipeline) override;

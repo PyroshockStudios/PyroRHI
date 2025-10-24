@@ -35,6 +35,7 @@
 #include <PyroRHI/Api/Pipeline.hpp>
 #include <PyroRHI/Api/RenderTarget.hpp>
 #include <PyroRHI/Api/Types.hpp>
+#include <PyroRHI/Api/AccelerationStructure.hpp>
 
 namespace PyroshockStudios {
     inline namespace RHI {

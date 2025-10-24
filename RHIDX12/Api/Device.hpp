@@ -92,6 +92,7 @@ namespace PyroshockStudios {
             bool IsShaderResourceValid(ShaderResourceId id) const override;
             bool IsUnorderedAccessValid(UnorderedAccessId id) const override;
             bool IsSamplerValid(SamplerId id) const override;
+
             const MemoryBlockInfo& GetMemoryBlockInfo(MemoryBlock memory) const override;
             const BufferInfo& GetBufferInfo(Buffer buffer) const override;
             const ImageInfo& GetImageInfo(Image image) const override;
@@ -102,12 +103,17 @@ namespace PyroshockStudios {
             const RasterPipelineInfo& GetRasterPipelineInfo(RasterPipeline pipeline) const override;
             const ComputePipelineInfo& GetComputePipelineInfo(ComputePipeline pipeline) const override;
             const SemaphoreInfo& GetSemaphoreInfo(Semaphore semaphore) const override;
-
+            const BLASInfo& GetBLASInfo(BLAS blas) const override;
+            const TLASInfo& GetTLASInfo(TLASId tlas) const override;
 
             DeviceAddress BufferDeviceAddress(Buffer buffer) const override;
             u8* BufferHostAddress(Buffer buffer) const override;
+
             DeviceSize ImageSizeRequirements(Image image) const override;
             u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const override;
+
+            DeviceSize BLASBuildSizeRequirements(BLAS blas, eastl::span<const BLASGeometryInfo>, u32 primitiveCount) const override;
+            DeviceSize TLASBuildSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo>, u32 instanceCount) const override;
 
             MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;
@@ -115,6 +121,9 @@ namespace PyroshockStudios {
             ShaderResourceId CreateShaderResource(const GPUResourceInfo& info) override;
             UnorderedAccessId CreateUnorderedAccess(const GPUResourceInfo& info) override;
             SamplerId CreateSampler(const SamplerInfo& info) override;
+            BLAS CreateBLAS(const BLASInfo& info) override;
+            TLASId CreateTLAS(const TLASInfo& info) override;
+
             RenderTarget CreateRenderTarget(const RenderTargetInfo& info) override;
             RasterPipeline CreateRasterPipeline(const RasterPipelineInfo& info, const RasterPipelineShaderStages& rasterShaderStages) override;
             ComputePipeline CreateComputePipeline(const ComputePipelineInfo& info, const ShaderInfo& computeShaderInfo) override;
@@ -129,6 +138,9 @@ namespace PyroshockStudios {
             void DestroyShaderResource(ShaderResourceId& srv) override;
             void DestroyUnorderedAccess(UnorderedAccessId& uav) override;
             void DestroySampler(SamplerId& sampler) override;
+            void DestroyBLAS(BLAS& blas) override;
+            void DestroyTLAS(TLASId& tlas) override;
+
             void DestroyRenderTarget(RenderTarget& renderTarget) override;
             void DestroyRasterPipeline(RasterPipeline& pipeline) override;
             void DestroyComputePipeline(ComputePipeline& pipeline) override;
