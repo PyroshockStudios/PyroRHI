@@ -46,3 +46,7 @@ jobs:
 
       - name: Build (MSVC)
         run: cmake --build build --config ${{ matrix.build_type }} --parallel 4
+
+      - name: Run tests
+        working-directory: build
+        run: ctest --build-config ${{ matrix.build_type }}

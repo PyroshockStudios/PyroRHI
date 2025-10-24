@@ -14,7 +14,7 @@ namespace PyroshockStudios {
             static eastl::string ToHexImpl(u64 ptrHandle) {
                 char buf[32];
                 // 16 digits for 64-bit pointer, zero-padded
-                sprintf(buf, "0x%016llX", ptrHandle);
+                sprintf(buf, "0x%016" PRIX64, ptrHandle);
                 return buf;
             }
 
@@ -31,6 +31,7 @@ namespace PyroshockStudios {
             }
         } // namespace temptemptempinternalthingy
 #define ToHexH64(x) temptemptempinternalthingy::ToHexImpl(eastl::bit_cast<u64>(x))
+//#define ToHexHPtr(x) temptemptempinternalthingy::ToHexImpl(eastl::bit_cast<const void*>(x))
 #define ToHexU32(x) temptemptempinternalthingy::ToHexU32Impl(x)
 #define Indent(x) temptemptempinternalthingy::IndentImpl(x)
 
@@ -207,6 +208,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(BlendFactor, OneMinusSrc1Color)
                 ENUM_TO_STRING_CASE(BlendFactor, Src1Alpha)
                 ENUM_TO_STRING_CASE(BlendFactor, OneMinusSrc1Alpha)
+            default:
+                return "Unknown";
             }
         }
 
@@ -217,6 +220,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(BlendOp, ReverseSubtract)
                 ENUM_TO_STRING_CASE(BlendOp, Min)
                 ENUM_TO_STRING_CASE(BlendOp, Max)
+            default:
+                return "Unknown";
             }
         }
 
@@ -224,6 +229,8 @@ namespace PyroshockStudios {
             switch (value) {
                 ENUM_TO_STRING_CASE(TesselationDomainOrigin, LowerLeft)
                 ENUM_TO_STRING_CASE(TesselationDomainOrigin, UpperLeft)
+            default:
+                return "Unknown";
             }
         }
 
@@ -240,6 +247,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(PrimitiveTopology, TriangleListWithAdjacency)
                 ENUM_TO_STRING_CASE(PrimitiveTopology, TriangleStripWithAdjacency)
                 ENUM_TO_STRING_CASE(PrimitiveTopology, PatchList)
+            default:
+                return "Unknown";
             }
         }
 
@@ -248,6 +257,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(PolygonMode, Triangle)
                 ENUM_TO_STRING_CASE(PolygonMode, Line)
                 ENUM_TO_STRING_CASE(PolygonMode, Point)
+            default:
+                return "Unknown";
             }
         }
 
@@ -255,6 +266,8 @@ namespace PyroshockStudios {
             switch (value) {
                 ENUM_TO_STRING_CASE(LineMode, Normal)
                 ENUM_TO_STRING_CASE(LineMode, Smooth)
+            default:
+                return "Unknown";
             }
         }
 
@@ -262,6 +275,8 @@ namespace PyroshockStudios {
             switch (value) {
                 ENUM_TO_STRING_CASE(WindingOrder, CounterClockwise)
                 ENUM_TO_STRING_CASE(WindingOrder, Clockwise)
+            default:
+                return "Unknown";
             }
         }
 
@@ -270,6 +285,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(FaceCull, None)
                 ENUM_TO_STRING_CASE(FaceCull, Front)
                 ENUM_TO_STRING_CASE(FaceCull, Back)
+            default:
+                return "Unknown";
             }
         }
 
@@ -283,6 +300,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(StencilOp, Invert)
                 ENUM_TO_STRING_CASE(StencilOp, IncrementWrap)
                 ENUM_TO_STRING_CASE(StencilOp, DecrementWrap)
+            default:
+                return "Unknown";
             }
         }
 
@@ -295,6 +314,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(RasterizationSamples, e16)
                 ENUM_TO_STRING_CASE(RasterizationSamples, e32)
                 ENUM_TO_STRING_CASE(RasterizationSamples, e64)
+            default:
+                return "Unknown";
             }
         }
 
@@ -304,6 +325,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(PipelineBindPoint, Graphics)
                 ENUM_TO_STRING_CASE(PipelineBindPoint, Compute)
                 ENUM_TO_STRING_CASE(PipelineBindPoint, RayTracing)
+            default:
+                return "Unknown";
             }
         }
 
@@ -313,6 +336,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(MemoryAllocationDomain, HostStaging)
                 ENUM_TO_STRING_CASE(MemoryAllocationDomain, HostRandomWrite)
                 ENUM_TO_STRING_CASE(MemoryAllocationDomain, HostReadback)
+            default:
+                return "Unknown";
             }
         }
 
@@ -334,6 +359,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(ColorSpace, PassThrough)
                 ENUM_TO_STRING_CASE(ColorSpace, ExtendedSrgbNonlinear)
                 ENUM_TO_STRING_CASE(ColorSpace, DisplayNativeAmd)
+            default:
+                return "Unknown";
             }
         }
 
@@ -350,6 +377,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(ImageLayout, BlitSrc)
                 ENUM_TO_STRING_CASE(ImageLayout, BlitDst)
                 ENUM_TO_STRING_CASE(ImageLayout, PresentSrc)
+            default:
+                return "Unknown";
             }
         }
 
@@ -361,6 +390,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(BufferLayout, ReadOnly)
                 ENUM_TO_STRING_CASE(BufferLayout, TransferSrc)
                 ENUM_TO_STRING_CASE(BufferLayout, TransferDst)
+            default:
+                return "Unknown";
             }
         }
 
@@ -368,6 +399,8 @@ namespace PyroshockStudios {
             switch (value) {
                 ENUM_TO_STRING_CASE(Filter, Nearest)
                 ENUM_TO_STRING_CASE(Filter, Linear)
+            default:
+                return "Unknown";
             }
         }
 
@@ -376,6 +409,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(ReductionMode, WeightedAverage)
                 ENUM_TO_STRING_CASE(ReductionMode, Min)
                 ENUM_TO_STRING_CASE(ReductionMode, Max)
+            default:
+                return "Unknown";
             }
         }
 
@@ -385,6 +420,8 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(IndexType, Uint32)
                 ENUM_TO_STRING_CASE(IndexType, Uint8)
                 ENUM_TO_STRING_CASE(IndexType, None)
+            default:
+                return "Unknown";
             }
         }
 
@@ -393,12 +430,16 @@ namespace PyroshockStudios {
                 ENUM_TO_STRING_CASE(AttachmentLoadOp, Load)
                 ENUM_TO_STRING_CASE(AttachmentLoadOp, Clear)
                 ENUM_TO_STRING_CASE(AttachmentLoadOp, DontCare)
+            default:
+                return "Unknown";
             }
         }
         inline const char* EnumToString(AttachmentStoreOp value) {
             switch (value) {
                 ENUM_TO_STRING_CASE(AttachmentStoreOp, Store)
                 ENUM_TO_STRING_CASE(AttachmentStoreOp, DontCare)
+            default:
+                return "Unknown";
             }
         }
         inline const char* EnumToString(VirtualSuballocationStrategy value) {
@@ -453,14 +494,14 @@ namespace PyroshockStudios {
                 };
 
                 float asFloat;
-                std::memcpy(&asFloat, &raw, sizeof(float));
+                memcpy(&asFloat, &raw, sizeof(float));
 
                 return std::isfinite(asFloat) && std::abs(asFloat) < 1e6f && !IsDenormalized(asFloat) && IsRounded3Decimals(asFloat);
             };
 
             auto formatFloat = [](i32 raw) -> eastl::string {
                 float asFloat;
-                std::memcpy(&asFloat, &raw, sizeof(float));
+                memcpy(&asFloat, &raw, sizeof(float));
                 return eastl::string().sprintf("%.3f", asFloat);
             };
 
@@ -590,7 +631,7 @@ namespace PyroshockStudios {
             eastl::string s;
             s += indent + "DeviceFeaturesInfo {\n";
 #define BOOL_FIELD(name) \
-    s += indent + "  " + eastl::string(#name + 1) + ": " + (name ? "true" : "false") + "\n";
+    s += indent + "  " + eastl::string(&#name[1]) + ": " + (name ? "true" : "false") + "\n";
             BOOL_FIELD(bGeometryShaders);
             BOOL_FIELD(bTesselationShaders);
             BOOL_FIELD(bMeshShaders);

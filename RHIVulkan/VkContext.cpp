@@ -334,6 +334,8 @@ namespace PyroshockStudios::RHIVulkan {
                 case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
                     Logger::Error(vvlSink, data->pMessage);
                     break;
+                default:
+                    break;
                 }
                 return VK_FALSE;
             };

@@ -392,8 +392,11 @@ namespace PyroshockStudios {
             mCommandList->ResourceBarrier(1, &barrier);
             gDx12Context->FlushDebugMessages();
             if (info.srcLayout == BufferLayout::Undefined) {
-                mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
-            }
+                if (info.dstLayout == BufferLayout::UnorderedAccess) {
+                    mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
+                    gDx12Context->FlushDebugMessages();
+                }
+             }
         }
 
         void D3DCommandBuffer::ImageBarrier(const ImageMemoryBarrierInfo& info) {
@@ -471,9 +474,11 @@ namespace PyroshockStudios {
             }
             gDx12Context->FlushDebugMessages();
             if (info.srcLayout == ImageLayout::Undefined) {
-                mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
+                if (info.dstLayout == ImageLayout::UnorderedAccess || info.dstLayout == ImageLayout::RenderTarget || info.dstLayout == ImageLayout::BlitDst) {
+                    mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
+                    gDx12Context->FlushDebugMessages();
+                }
             }
-            gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) {
