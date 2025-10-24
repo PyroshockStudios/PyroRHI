@@ -139,12 +139,23 @@ jobs:
           Write-Host "Generating LCOV coverage from all binaries -> $coverageInfo"
           
           # Export coverage for all binaries
-          & $llvmCovCmd export -instr-profile=$profdata -format=lcov @bins > $coverageInfo
+          & $llvmCovCmd export ("-instr-profile=$profdata") ("-format=lcov") @bins > $coverageInfo
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $coverageInfo)) {
-              Write-Warning "llvm-cov export failed, falling back to text format"
-              & $llvmCovCmd show $bins -instr-profile=$profdata -format=text > $coverageInfo
+            Write-Warning "llvm-cov export failed (maybe older llvm). Falling back to 'llvm-cov show -format=text' (NOT true LCOV)."
+            # remove possibly partial file
+            if (Test-Path $coverageInfo) { Remove-Item $coverageInfo -Force }
+            & $llvmCovCmd show $dllPath ("-instr-profile=$profdata") ("-format=text") > $coverageInfo
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path $coverageInfo)) {
+              Write-Error "Both llvm-cov export and fallback show (text) failed. Inspect llvm-cov output above for details."
+              # print a textual report for debugging
+              & $llvmCovCmd report $dllPath ("-instr-profile=$profdata") 2>&1 | ForEach-Object { Write-Host $_ }
+              Exit 1
+            } else {
+              Write-Warning "Fallback produced a text-format coverage file at $coverageInfo (not LCOV). Consider installing a newer LLVM with 'llvm-cov export'."
+            }
+          } else {
+            Write-Host "Generated LCOV-format coverage.info"
           }
-          Write-Host "Generated LCOV coverage for all binaries"
         
           # Print short textual summary (always useful)
           & $llvmCovCmd report $dllPath ("-instr-profile=$profdata") | ForEach-Object { Write-Host $_ }
