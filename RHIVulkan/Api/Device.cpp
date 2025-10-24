@@ -626,9 +626,9 @@ namespace PyroshockStudios {
             };
 
             VmaAllocationCreateFlags vmaAllocationFlags{};
-            if (info.arrayLayerCount > 1 && info.dimensions == ImageDimensions::e2D) {
-                vkImageCreateInfo.flags |= VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT;
-            }
+            //if (info.arrayLayerCount > 1 && info.dimensions == ImageDimensions::e2D) {
+            //    vkImageCreateInfo.flags |= VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT;
+            //}
             if (info.flags & ImageCreateFlagBits::CUBE) {
                 vkImageCreateInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
             }

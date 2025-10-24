@@ -673,10 +673,18 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
 
         BufferInfo bufferInfo{};
         bufferInfo.memoryBlock = block;
-        bufferInfo.size = mDevice->ImageSizeRequirements(srcImage);
         bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
         bufferInfo.name = "dst buffer in flight #" + eastl::to_string(i);
+
+        CopyImageToBufferInfo info{};
+        info.image = srcImage;
+        info.imageExtent = srcImageInfo.size;
+        info.rowPitch = bufferInfo.size / srcImageInfo.size.height / srcImageInfo.size.depth;
+        info.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, {}, info.rowPitch);
+
+        bufferInfo.size = srcImageInfo.size.height * srcImageInfo.size.depth * info.rowPitch;
         TRACK_RHI_PARAMETER(bufferInfo);
+
         Buffer dstBuffer = mDevice->CreateBuffer(bufferInfo);
         TRACK_RHI_HANDLE(dstBuffer);
         ASSERT_TRUE(mDevice->IsValid(dstBuffer));
@@ -704,11 +712,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
             .dstLayout = BufferLayout::TransferDst,
         }));
 
-        CopyImageToBufferInfo info{};
-        info.image = srcImage;
-        info.imageExtent = srcImageInfo.size;
-        info.rowPitch = bufferInfo.size / srcImageInfo.size.height / srcImageInfo.size.depth;
-        info.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, {}, info.rowPitch);
         info.buffer = dstBuffer;
         TRACK_RHI_PARAMETER(info);
         EXPECT_NO_FATAL_FAILURE(cb->CopyImageToBuffer(info));

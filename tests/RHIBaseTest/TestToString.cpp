@@ -617,10 +617,10 @@ TEST(RHICommonToStringTests, FenceSubmitInfoToString) {
 }
 
 TEST(RHICommonToStringTests, CommandQueueSubmitInfoToString) {
-    ICommandQueue* testQueue = reinterpret_cast<ICommandQueue*>(0xDEADBEEF);
-    Semaphore waitSemaphore1 = reinterpret_cast<Semaphore>(0x11111111);
-    Semaphore signalSemaphore1 = reinterpret_cast<Semaphore>(0x22222222);
-    IFence* signalFence1 = reinterpret_cast<IFence*>(0x33333333);
+    ICommandQueue* testQueue = eastl::bit_cast<ICommandQueue*>(0xDEADBEEFULL);
+    Semaphore waitSemaphore1 = eastl::bit_cast<Semaphore>(0x11111111ULL);
+    Semaphore signalSemaphore1 = eastl::bit_cast<Semaphore>(0x22222222ULL);
+    IFence* signalFence1 = eastl::bit_cast<IFence*>(0x33333333ULL);
 
     CommandQueueSubmitInfo info = {};
     info.queue = testQueue;
