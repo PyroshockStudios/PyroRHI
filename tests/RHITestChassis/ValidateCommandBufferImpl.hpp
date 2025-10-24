@@ -649,6 +649,12 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
     ICommandQueue* cq = mDevice->GetCommandQueues()[0];
     TRACK_RHI_HANDLE(cq);
 
+    eastl::vector<ICommandBuffer*> cbs{};
+    for (i32 i = 0; i < NUM_DESTROY_DEFERRED_CYCLES; ++i) {
+        ICommandBuffer* cb = cq->GetCommandBuffer({ .name = "destroy deferred commands #" + eastl::to_string(i) });
+        TRACK_RHI_HANDLE(cb);
+        cbs.push_back(cb);
+    }
     for (i32 i = 0; i < NUM_DESTROY_DEFERRED_CYCLES; ++i) {
         ImageInfo srcImageInfo{};
         srcImageInfo.dimensions = ImageDimensions::e3D;
@@ -690,8 +696,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
         TRACK_RHI_HANDLE(dstBuffer);
         ASSERT_TRUE(mDevice->IsValid(dstBuffer));
 
-        ICommandBuffer* cb = cq->GetCommandBuffer({ .name = "destroy deferred commands" });
-        TRACK_RHI_HANDLE(cb);
+        auto* cb = cbs[i];
 
         // It should still be legal to use these resources after destroying! They are still valid in this frame!
         cb->DestroyDeferred(srcImage);
@@ -700,14 +705,14 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
 
         EXPECT_NO_FATAL_FAILURE(cb->ImageBarrier({
             .image = srcImage,
-            .srcAccess = AccessConsts::TOP_OF_PIPE_READ_WRITE,
+            .srcAccess = AccessConsts::NONE,
             .dstAccess = AccessConsts::TRANSFER_READ,
             .srcLayout = ImageLayout::Undefined,
             .dstLayout = ImageLayout::TransferSrc,
         }));
         EXPECT_NO_FATAL_FAILURE(cb->BufferBarrier({
             .buffer = dstBuffer,
-            .srcAccess = AccessConsts::TOP_OF_PIPE_READ_WRITE,
+            .srcAccess = AccessConsts::NONE,
             .dstAccess = AccessConsts::TRANSFER_WRITE,
             .srcLayout = BufferLayout::Undefined,
             .dstLayout = BufferLayout::TransferDst,
