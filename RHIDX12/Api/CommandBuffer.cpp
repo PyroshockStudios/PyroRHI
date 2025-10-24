@@ -254,7 +254,7 @@ namespace PyroshockStudios {
                                                                     : mDevice->mNearestSamplerDescriptorTable.gpuDescriptor);
                 mCommandList->SetGraphicsRootDescriptorTable(1, srcImage.blitImageSRVHeaps[srcSubresource].gpuDescriptor);
 
-                ASSERT(dstImage.blitImageRTVs.size() > dstSubresource, "Image must have been created with BLIT DST capability!");
+                ASSERT(dstImage.blitImageRTVs.size() > dstSubresource, "Image must have been created with BLIT DST capability, AND the image slice must not exceed the image!");
                 D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = mDevice->ResourcePool().mRTVHeap.Resolve(dstImage.blitImageRTVs[dstSubresource]);
                 mCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
                 mCommandList->DrawInstanced(4, 1, 0, 0);
@@ -391,6 +391,9 @@ namespace PyroshockStudios {
             }
             mCommandList->ResourceBarrier(1, &barrier);
             gDx12Context->FlushDebugMessages();
+            if (info.srcLayout == BufferLayout::Undefined) {
+                mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
+            }
         }
 
         void D3DCommandBuffer::ImageBarrier(const ImageMemoryBarrierInfo& info) {
@@ -465,6 +468,10 @@ namespace PyroshockStudios {
                         imageInfo.info.mipLevelCount, imageInfo.info.arrayLayerCount);
                     mCommandList->ResourceBarrier(1, &barrier);
                 }
+            }
+            gDx12Context->FlushDebugMessages();
+            if (info.srcLayout == ImageLayout::Undefined) {
+                mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
             }
             gDx12Context->FlushDebugMessages();
         }
@@ -638,6 +645,13 @@ namespace PyroshockStudios {
                         break;
                     }
                     mCommandList->ClearRenderTargetView(renderTargets.back(), clearCol, 1, &renderArea);
+                } else if (colTarg.loadOp == AttachmentLoadOp::DontCare) {
+                    D3D12_DISCARD_REGION region;
+                    region.FirstSubresource = rt->GetSubresource();
+                    region.NumSubresources = 1;
+                    region.NumRects = 1;
+                    region.pRects = &renderArea;
+                    mCommandList->DiscardResource(imageData.resource.Get(), &region);
                 }
                 if (colTarg.resolve.has_value()) {
                     auto dstRt = eastl::bit_cast<D3DRenderTarget*>(colTarg.resolve->target);
@@ -654,7 +668,9 @@ namespace PyroshockStudios {
             }
 
             if (info.depthStencilAttachment.has_value()) {
-                depthStencil = eastl::bit_cast<D3DRenderTarget*>(info.depthStencilAttachment->target)->GetDescriptor();
+                auto* rt = eastl::bit_cast<D3DRenderTarget*>(info.depthStencilAttachment->target);
+                depthStencil = rt->GetDescriptor();
+                auto& imageData = mDevice->ResourcePool().Get(rt->Info().image);
                 D3D12_CLEAR_FLAGS depthStencilClear = {};
                 if (info.depthStencilAttachment->depthLoadOp == AttachmentLoadOp::Clear) {
                     depthStencilClear |= D3D12_CLEAR_FLAG_DEPTH;
@@ -662,9 +678,18 @@ namespace PyroshockStudios {
                 if (info.depthStencilAttachment->stencilLoadOp == AttachmentLoadOp::Clear) {
                     depthStencilClear |= D3D12_CLEAR_FLAG_STENCIL;
                 }
-                mCommandList->ClearDepthStencilView(depthStencil, depthStencilClear,
-                    info.depthStencilAttachment->clearValue.depth, (UINT)info.depthStencilAttachment->clearValue.stencil,
-                    1, &renderArea);
+                if (info.depthStencilAttachment->stencilLoadOp == AttachmentLoadOp::DontCare && info.depthStencilAttachment->depthLoadOp == AttachmentLoadOp::DontCare) {
+                    D3D12_DISCARD_REGION region;
+                    region.FirstSubresource = rt->GetSubresource();
+                    region.NumSubresources = 1;
+                    region.NumRects = 1;
+                    region.pRects = &renderArea;
+                    mCommandList->DiscardResource(imageData.resource.Get(), &region);
+                } else if (depthStencilClear) {
+                    mCommandList->ClearDepthStencilView(depthStencil, depthStencilClear,
+                        info.depthStencilAttachment->clearValue.depth, (UINT)info.depthStencilAttachment->clearValue.stencil,
+                        1, &renderArea);
+                }
             }
             mCommandList->OMSetRenderTargets(static_cast<UINT>(renderTargets.size()), renderTargets.data(), FALSE,
                 info.depthStencilAttachment.has_value() ? &depthStencil : nullptr);

@@ -8,7 +8,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyBuffer) {
     info.size = 1024;
     info.usage = BufferUsageFlagBits::VERTEX_BUFFER; // or however you define usage flags
     info.name = "TestBuffer";
-
+    TRACK_RHI_PARAMETER(info);
     Buffer buffer = mDevice->CreateBuffer(info);
     ASSERT_TRUE(mDevice->IsBufferValid(buffer));
 
@@ -24,6 +24,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyBufferOverload) {
     info.size = 1024;
     info.usage = BufferUsageFlagBits::VERTEX_BUFFER; // or however you define usage flags
     info.name = "TestBuffer";
+    TRACK_RHI_PARAMETER(info);
 
     Buffer buffer = mDevice->Create(info);
     ASSERT_TRUE(mDevice->IsValid(buffer));
@@ -40,6 +41,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyBufferAndThenCreateAgain) {
     info.size = 1024;
     info.usage = BufferUsageFlagBits::VERTEX_BUFFER; // or however you define usage flags
     info.name = "TestBuffer";
+    TRACK_RHI_PARAMETER(info);
 
     Buffer buffer = mDevice->CreateBuffer(info);
     ASSERT_TRUE(mDevice->IsBufferValid(buffer));
@@ -48,6 +50,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyBufferAndThenCreateAgain) {
     EXPECT_FALSE(mDevice->IsBufferValid(buffer));
 
     info.size = 256;
+    TRACK_RHI_PARAMETER(info);
     buffer = mDevice->CreateBuffer(info);
     ASSERT_TRUE(mDevice->IsBufferValid(buffer));
     EXPECT_EQ(mDevice->GetBufferInfo(buffer), info);
@@ -60,9 +63,11 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyVirtualBuffers) {
     blockInfo.size = 1048576;
     blockInfo.bufferUsage = BufferUsageFlagBits::UNIFORM_BUFFER | BufferUsageFlagBits::SHADER_RESOURCE;
     blockInfo.name = "Test Memory Block";
+    TRACK_RHI_PARAMETER(blockInfo);
 
     MemoryBlock block = mDevice->CreateMemoryBlock(blockInfo);
     ASSERT_TRUE(mDevice->IsMemoryBlockValid(block));
+    TRACK_RHI_HANDLE(block);
 
     eastl::vector<Buffer> buffers = {};
 
@@ -73,6 +78,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyVirtualBuffers) {
         info.memoryBlock = block;
         info.name = "TestBuffer";
 
+        TRACK_RHI_PARAMETER(info);
         Buffer buffer = mDevice->CreateBuffer(info);
         ASSERT_TRUE(mDevice->IsBufferValid(buffer));
 
@@ -96,19 +102,23 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, GracefulVirtualBufferTooFull) {
     blockInfo.bufferUsage = BufferUsageFlagBits::UNIFORM_BUFFER | BufferUsageFlagBits::SHADER_RESOURCE;
     blockInfo.name = "Test Memory Block";
 
+    TRACK_RHI_PARAMETER(blockInfo);
     MemoryBlock block = mDevice->CreateMemoryBlock(blockInfo);
     ASSERT_TRUE(mDevice->IsMemoryBlockValid(block));
 
+    TRACK_RHI_HANDLE(block);
 
     BufferInfo info = {};
     info.size = 1024;
     info.usage = BufferUsageFlagBits::SHADER_RESOURCE;
     info.memoryBlock = block;
     info.name = "TestBuffer1";
+    TRACK_RHI_PARAMETER(info);
     Buffer buffer1 = mDevice->CreateBuffer(info);
     ASSERT_TRUE(mDevice->IsBufferValid(buffer1));
 
     info.name = "TestBuffer2";
+    TRACK_RHI_PARAMETER(info);
 
     Buffer buffer2 = PYRO_NULL_BUFFER;
     EXPECT_NO_THROW(buffer2 = mDevice->CreateBuffer(info));

@@ -34,9 +34,8 @@ set_target_properties(RHIValidationTestDX12 PROPERTIES MSVC_RUNTIME_LIBRARY "Mul
 
 gtest_discover_tests(RHIValidationTestDX12)
 
-add_dependencies(RHIValidationTestDX12 RHIDX12)
-
 target_link_libraries(RHIValidationTestDX12
+  RHIDX12
   RHITestChassis
   GTest::gmock
   GTest::gtest_main

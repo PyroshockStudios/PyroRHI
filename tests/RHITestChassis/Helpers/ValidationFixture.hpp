@@ -22,6 +22,7 @@
 
 #include <PyroCommon/Logger.hpp>
 #include <PyroRHI/Api/IDevice.hpp>
+#include <PyroRHI/Api/ToString.hpp>
 #include <PyroRHI/Context.hpp>
 #include <PyroRHI/Exports.hpp>
 #include <filesystem>
@@ -50,14 +51,26 @@ using namespace PyroshockStudios;
 using namespace PyroshockStudios::RHI;
 using namespace PyroshockStudios::Types;
 
+struct UsedMemberInfo {
+    const char* dataName;
+    eastl::string stringified;
+};
+
+#define TRACK_RHI_PARAMETER(infoStruct) mUsedData.emplace_back(#infoStruct, infoStruct.ToString())
+#define TRACK_RHI_HANDLE(handle) mUsedData.emplace_back(#handle, eastl::string().sprintf("0x%016llX", eastl::bit_cast<u64>(handle)))
+
 class RHI_CONTEXT_FIXTURE_NAME : public ::testing::Test, public ILogStream {
     struct SecondaryLogStream : public ILogStream {
         void Log(LogSeverity severity, const char* message) override {
             if (severity == LogSeverity::Error) {
+                if (pFailed)
+                    *pFailed = true;
                 ADD_FAILURE() << "[" RHI_TEST_CHASSIS_API_LOG_NAME "] "
                                  "Implementation Error : "
                               << message;
             } else if (severity == LogSeverity::Fatal) {
+                if (pFailed)
+                    *pFailed = true;
                 GTEST_FAIL() << "[" RHI_TEST_CHASSIS_API_LOG_NAME "] "
                                 "FATAL IMPLEMENTATION ERROR : "
                              << message;
@@ -72,9 +85,12 @@ class RHI_CONTEXT_FIXTURE_NAME : public ::testing::Test, public ILogStream {
         const char* Name() const override {
             return RHI_TEST_CHASSIS_API_LOG_NAME;
         }
+        SecondaryLogStream(bool* p) : pFailed(p) {}
+        bool* pFailed = nullptr;
     };
     void Log(LogSeverity severity, const char* message) override {
         if (severity >= LogSeverity::Error) {
+            bFailed = true;
             ADD_FAILURE() << "[" RHI_TEST_CHASSIS_API_VALIDATOR_NAME "] Validation Error: " << message;
         } else {
             std::cout << "[" RHI_TEST_CHASSIS_API_VALIDATOR_NAME "] " << message << "\n";
@@ -88,19 +104,23 @@ class RHI_CONTEXT_FIXTURE_NAME : public ::testing::Test, public ILogStream {
         return "VVL";
     }
 
+    bool bFailed = false;
+
 protected:
     LibraryHandle mLibrary = nullptr;
     RHIInfo mInfo = {};
     RHIContextApiInfo mApi = {};
     RHICreateInfo mCreateInfo = {};
     ILogStream* mLogger = {};
-    SecondaryLogStream mLogStream2 = {};
+    SecondaryLogStream mLogStream2 = { &bFailed };
     IDevice* mDevice = {};
 
     // Function pointers from the dynamically loaded RHI
     PFN_GetCustomRHIInfo fpGetInfo = nullptr;
     PFN_CreateRHIContext fpCreateContext = nullptr;
     PFN_DestroyRHIContext fpDestroyContext = nullptr;
+
+    eastl::vector<UsedMemberInfo> mUsedData;
 
     void SetUp() override {
 #ifdef PYRO_PLATFORM_WINDOWS
@@ -171,6 +191,14 @@ protected:
     }
 
     void TearDown() override {
+        if (bFailed) {
+            GTEST_LOG_(INFO) << "[" RHI_TEST_CHASSIS_API_LOG_NAME "] HAS FAILED! Used parameters:\n";
+            for (auto& d : mUsedData) {
+                GTEST_LOG_(INFO) << "  - " << d.dataName << ":\n"
+                          << d.stringified.c_str();
+            }
+            GTEST_LOG_(INFO) << "\n";
+        }
         // Do not wait idle, some tests also have an extra check where device idle shouldn't be necessary!
         // mDevice->WaitIdle();
         mDevice = nullptr;

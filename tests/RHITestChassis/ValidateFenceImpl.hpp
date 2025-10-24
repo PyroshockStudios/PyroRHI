@@ -12,7 +12,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyFence) {
     FenceInfo fenInfo = {};
     fenInfo.name = "TestFence";
     fenInfo.initialValue = 0;
-
+    TRACK_RHI_PARAMETER(fenInfo);
     IFence* fence = mDevice->CreateFence(fenInfo);
     ASSERT_EQ(fence->Info(), fenInfo);
     mDevice->DestroyFence(fence);
@@ -22,6 +22,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyFenceOverload) {
     FenceInfo fenInfo = {};
     fenInfo.name = "TestFence";
     fenInfo.initialValue = 0;
+    TRACK_RHI_PARAMETER(fenInfo);
 
     IFence* fence = mDevice->Create(fenInfo);
     ASSERT_EQ(fence->Info(), fenInfo);
@@ -35,15 +36,19 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, FenceSignalSuccess) {
     FenceInfo fenInfo = {};
     fenInfo.name = "TestFence";
     fenInfo.initialValue = 0;
+    TRACK_RHI_PARAMETER(fenInfo);
 
     IFence* fence = mDevice->CreateFence(fenInfo);
     ASSERT_EQ(fence->Value(), 0);
+    TRACK_RHI_HANDLE(fence);
 
     FenceSubmitInfo fenceSubmit{ .fence = fence, .value = FenceVal };
+    TRACK_RHI_PARAMETER(fenceSubmit);
 
     CommandQueueSubmitInfo submitInfo = {};
     submitInfo.queue = mDevice->GetCommandQueues()[0];
     submitInfo.signalFences = eastl::span(&fenceSubmit, 1);
+    TRACK_RHI_PARAMETER(submitInfo);
     mDevice->SubmitQueue(submitInfo);
 
     bool bSuccess = false;
@@ -62,6 +67,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, FenceHostSignalSuccess) {
     FenceInfo fenInfo = {};
     fenInfo.name = "TestFence";
     fenInfo.initialValue = 0;
+    TRACK_RHI_PARAMETER(fenInfo);
 
     IFence* fence = mDevice->CreateFence(fenInfo);
     ASSERT_EQ(fence->Value(), 0);
@@ -79,9 +85,11 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, AsyncWaitBeforeTimeout)
     FenceInfo fenceInfo = {};
     fenceInfo.name = "TestFence";
     fenceInfo.initialValue = 0;
+    TRACK_RHI_PARAMETER(fenceInfo);
 
     IFence* fence = mDevice->CreateFence(fenceInfo);
     ASSERT_EQ(fence->Value(), 0);
+    TRACK_RHI_HANDLE(fence);
 
     std::latch waitStarted(1);
     std::atomic<bool> waitFinished = false;
@@ -136,8 +144,10 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, AsyncWaitAfterTimeout) {
     FenceInfo fenInfo = {};
     fenInfo.name = "TestFence";
     fenInfo.initialValue = 0;
+    TRACK_RHI_PARAMETER(fenInfo);
 
     IFence* fence = mDevice->CreateFence(fenInfo);
+    TRACK_RHI_HANDLE(fence);
     ASSERT_EQ(fence->Value(), 0);
 
     bool result;

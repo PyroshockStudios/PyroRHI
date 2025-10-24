@@ -22,6 +22,7 @@ set_target_properties(gmock PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CO
 set_target_properties(gmock_main PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
 add_subdirectory(RHITestChassis)
+add_subdirectory(RHIBaseTest)
 
 if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS)
     add_subdirectory(VulkanVVLTest)

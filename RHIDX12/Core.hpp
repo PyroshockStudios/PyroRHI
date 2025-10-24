@@ -179,7 +179,7 @@ namespace PyroshockStudios {
             case Format::D16Unorm:
                 return DXGI_FORMAT_D16_UNORM;
             case Format::D16UnormS8Uint:
-                return DXGI_FORMAT_D24_UNORM_S8_UINT; // No DXGI_FORMAT for D16S8
+                return DXGI_FORMAT_UNKNOWN; // No DXGI_FORMAT for D16S8
             case Format::D24UnormS8Uint:
                 return DXGI_FORMAT_D24_UNORM_S8_UINT;
             case Format::D32Sfloat:
@@ -187,7 +187,7 @@ namespace PyroshockStudios {
             case Format::D32SfloatS8Uint:
                 return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
             case Format::S8Uint:
-                return DXGI_FORMAT_D24_UNORM_S8_UINT; // No DXGI_FORMAT for S8 only
+                return DXGI_FORMAT_UNKNOWN; // No DXGI_FORMAT for S8 only
             case Format::BC1RGBUnormBlock:
             case Format::BC1RGBAUnormBlock:
                 return DXGI_FORMAT_BC1_UNORM;

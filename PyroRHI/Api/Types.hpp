@@ -41,14 +41,9 @@ namespace PyroshockStudios {
         enum struct Format : i32 {
             Inherit = -1,
             Undefined = 0,
-            // RG4Unorm = 1,
-            // RGBA4Unorm = 2,
             BGRA4Unorm = 3,
-            // RGB565Unorm = 4,
             BGR565Unorm = 5,
-            // RGB5A1Unorm = 6,
             BGR5A1Unorm = 7,
-            // A1RGB5Unorm = 8,
             R8Unorm = 9,
             R8Snorm = 10,
             R8Uint = 13,
@@ -79,19 +74,10 @@ namespace PyroshockStudios {
             BGRA8Uint = 48,
             BGRA8Sint = 49,
             BGRA8Srgb = 50,
-            // ABGR8Unorm = 51,
-            // ABGR8Snorm = 52,
-            // ABGR8Uint = 55,
-            // ABGR8Sint = 56,
-            // ABGR8Srgb = 57,
             A2RGB10Unorm = 58,
             A2RGB10Snorm = 59,
             A2RGB10Uint = 62,
             A2RGB10Sint = 63,
-            // A2BGR10Unorm = 64,
-            // A2BGR10Snorm = 65,
-            // A2BGR10Uint = 68,
-            // A2BGR10Sint = 69,
             R16Unorm = 70,
             R16Snorm = 71,
             R16Uint = 74,
@@ -124,18 +110,6 @@ namespace PyroshockStudios {
             RGBA32Uint = 107,
             RGBA32Sint = 108,
             RGBA32Sfloat = 109,
-            // R64Uint = 110,
-            // R64Sint = 111,
-            // R64Sfloat = 112,
-            // RG64Uint = 113,
-            // RG64Sint = 114,
-            // RG64Sfloat = 115,
-            // RGB64Uint = 116,
-            // RGB64Sint = 117,
-            // RGB64Sfloat = 118,
-            // RGBA64Uint = 119,
-            // RGBA64Sint = 120,
-            // RGBA64Sfloat = 121,
             B10GR11Ufloat = 122,
             E5BGR9Ufloat = 123,
             D16Unorm = 124,
@@ -161,8 +135,6 @@ namespace PyroshockStudios {
             BC6HSfloatBlock = 144,
             BC7UnormBlock = 145,
             BC7SrgbBlock = 146,
-            // ARGB4Unorm = 1000340000,
-            // ABGR4Unorm = 1000340001
         };
         struct FormatFeatureFlagsProperties {
             using Data = u32;
@@ -438,6 +410,8 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE constexpr operator bool() const {
                 return stages && type;
             }
+
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         namespace AccessConsts {
