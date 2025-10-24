@@ -28,7 +28,7 @@ jobs:
           submodules: recursive
 
       - name: Install Vulkan Mesa Drivers
-        run: sudo apt install mesa-vulkan-drivers libvulkan1 vulkan-tools wget tar
+        run: sudo apt install mesa-vulkan-drivers libvulkan1
         
       - name: Download and extract Vulkan SDK
         env:
