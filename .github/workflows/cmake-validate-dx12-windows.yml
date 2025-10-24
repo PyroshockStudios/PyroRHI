@@ -144,11 +144,11 @@ jobs:
             Write-Warning "llvm-cov export failed (maybe older llvm). Falling back to 'llvm-cov show -format=text' (NOT true LCOV)."
             # remove possibly partial file
             if (Test-Path $coverageInfo) { Remove-Item $coverageInfo -Force }
-            & $llvmCovCmd show $dllPath ("-instr-profile=$profdata") ("-format=text") > $coverageInfo
+            & $llvmCovCmd show @bins ("-instr-profile=$profdata") ("-format=text") > $coverageInfo
             if ($LASTEXITCODE -ne 0 -or -not (Test-Path $coverageInfo)) {
               Write-Error "Both llvm-cov export and fallback show (text) failed. Inspect llvm-cov output above for details."
               # print a textual report for debugging
-              & $llvmCovCmd report $dllPath ("-instr-profile=$profdata") 2>&1 | ForEach-Object { Write-Host $_ }
+              & $llvmCovCmd report @bins ("-instr-profile=$profdata") 2>&1 | ForEach-Object { Write-Host $_ }
               Exit 1
             } else {
               Write-Warning "Fallback produced a text-format coverage file at $coverageInfo (not LCOV). Consider installing a newer LLVM with 'llvm-cov export'."
@@ -158,12 +158,12 @@ jobs:
           }
         
           # Print short textual summary (always useful)
-          & $llvmCovCmd report $dllPath ("-instr-profile=$profdata") | ForEach-Object { Write-Host $_ }
+          & $llvmCovCmd report @bins ("-instr-profile=$profdata") | ForEach-Object { Write-Host $_ }
         
           # Generate HTML using show (still correct)
           $htmlDir = Join-Path (Get-Location) "coverage_html"
           Write-Host "Generating HTML -> $htmlDir"
-          & $llvmCovCmd show $dllPath ("-instr-profile=$profdata") ("-format=html") ("-output-dir=$htmlDir")
+          & $llvmCovCmd show @bins ("-instr-profile=$profdata") ("-format=html") ("-output-dir=$htmlDir")
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $htmlDir)) {
             Write-Error "llvm-cov html generation failed."
             Exit 1
