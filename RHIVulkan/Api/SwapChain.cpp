@@ -223,9 +223,9 @@ namespace PyroshockStudios::RHIVulkan {
                 mInfo.alphaMode = SwapChainAlphaMode::None;
             }
             break;
-        case SwapChainAlphaMode::Straight:
-            if (mSupportInfo.capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR) {
-                createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+        case SwapChainAlphaMode::Postmultiplied:
+            if (mSupportInfo.capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR) {
+                createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR;
             } else {
                 createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
                 mInfo.alphaMode = SwapChainAlphaMode::None;

@@ -77,7 +77,7 @@ namespace PyroshockStudios {
             case SwapChainAlphaMode::Premultiplied:
                 swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
                 break;
-            case SwapChainAlphaMode::Straight:
+            case SwapChainAlphaMode::Postmultiplied:
                 swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_STRAIGHT;
                 break;
             default:

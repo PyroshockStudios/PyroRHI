@@ -61,8 +61,8 @@ namespace PyroshockStudios {
             /** Premultiplied alpha; the color channels are already multiplied by the alpha value. */
             Premultiplied = 1,
 
-            /** Straight alpha; color channels are not pre-multiplied and will be multiplied during composition. */
-            Straight = 2
+            /** Postmultiplied alpha; color channels are not pre-multiplied and will be multiplied during composition. */
+            Postmultiplied = 2
         };
 
         enum struct SwapChainPresentMode : i32 {
