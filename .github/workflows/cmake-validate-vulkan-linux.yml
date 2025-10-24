@@ -27,6 +27,27 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Download and extract Vulkan SDK
+        env:
+          VULKAN_SDK_VERSION: 1.4.321.1
+        run: |
+          curl -LO https://sdk.lunarg.com/sdk/download/${VULKAN_SDK_VERSION}/linux/vulkan-sdk-linux-x86_64-${VULKAN_SDK_VERSION}.tar.xz
+          tar -xf vulkan-sdk-linux-x86_64-${VULKAN_SDK_VERSION}.tar.xz -C $HOME
+          
+          SDK_PATH="$HOME/${VULKAN_SDK_VERSION}/x86_64"
+          
+          echo "VULKAN_SDK=${SDK_PATH}" >> $GITHUB_ENV
+          echo "PATH=${SDK_PATH}/bin:$PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=${SDK_PATH}/lib:${SDK_PATH}/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "VK_ICD_FILENAMES=${SDK_PATH}/etc/vulkan/icd.d/nvidia_icd.json:${SDK_PATH}/etc/vulkan/icd.d/intel_icd.json:${SDK_PATH}/etc/vulkan/icd.d/amd_icd.json" >> $GITHUB_ENV
+          echo "VK_LAYER_PATH=${SDK_PATH}/etc/vulkan/explicit_layer.d" >> $GITHUB_ENV
+
+      - name: Verify Vulkan setup
+        run: |
+          echo "VULKAN_SDK=$VULKAN_SDK"
+          vulkaninfo | grep VK_LAYER_KHRONOS_validation || echo "Validation layer not found!"
+
+          
       - name: Install Dependencies
         run: |
           sudo apt update
@@ -34,20 +55,6 @@ jobs:
             lcov \
             libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libxkbcommon-dev 
 
-      - name: Download and extract Vulkan SDK
-        env:
-          VULKAN_SDK_VERSION: 1.4.321.1
-        run: |
-          curl -LO https://sdk.lunarg.com/sdk/download/${VULKAN_SDK_VERSION}/linux/vulkan-sdk-linux-x86_64-${VULKAN_SDK_VERSION}.tar.xz
-          tar -xf vulkan-sdk-linux-x86_64-${VULKAN_SDK_VERSION}.tar.xz -C $HOME
-          echo "VULKAN_SDK=$HOME/${VULKAN_SDK_VERSION}/x86_64" >> $GITHUB_ENV
-          echo "source $HOME/${VULKAN_SDK_VERSION}/x86_64/setup-env.sh" >> $GITHUB_ENV
-
-      - name: Source Vulkan SDK environment
-        run: |
-          source $VULKAN_SDK/setup-env.sh
-          vulkaninfo | grep VK_LAYER_KHRONOS_validation || echo "Validation layer not found!"
-          
       - name: Install Vulkan Mesa Drivers
         run: sudo apt install mesa-vulkan-drivers
         
