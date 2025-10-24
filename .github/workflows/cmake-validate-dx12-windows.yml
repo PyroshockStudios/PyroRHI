@@ -139,7 +139,7 @@ jobs:
           Write-Host "Generating LCOV coverage from all binaries -> $coverageInfo"
           
           # Export coverage for all binaries
-          & $llvmCovCmd export -instr-profile=$profdata -format=lcov $bins > $coverageInfo
+          & $llvmCovCmd export -instr-profile=$profdata -format=lcov @bins > $coverageInfo
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $coverageInfo)) {
               Write-Warning "llvm-cov export failed, falling back to text format"
               & $llvmCovCmd show $bins -instr-profile=$profdata -format=text > $coverageInfo
