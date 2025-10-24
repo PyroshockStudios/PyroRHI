@@ -299,6 +299,10 @@ namespace PyroshockStudios::RHIVulkan {
             .size = trueSize,
         };
 
+        if (info.srcAccess == AccessConsts::NONE) {
+            barrier.srcStageMask |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+        }
+
         mBufferBarriers.push_back(barrier);
     }
 
@@ -324,6 +328,10 @@ namespace PyroshockStudios::RHIVulkan {
                 .layerCount = PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, imageSlot.info.arrayLayerCount),
             },
         };
+
+        if (info.srcAccess == AccessConsts::NONE && info.srcLayout == ImageLayout::Undefined) {
+            barrier.srcStageMask |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+        }
 
         mImageBarriers.push_back(barrier);
     }

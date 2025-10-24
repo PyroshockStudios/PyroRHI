@@ -617,10 +617,10 @@ TEST(RHICommonToStringTests, FenceSubmitInfoToString) {
 }
 
 TEST(RHICommonToStringTests, CommandQueueSubmitInfoToString) {
-    ICommandQueue* testQueue = eastl::bit_cast<ICommandQueue*>(0xDEADBEEFULL);
-    Semaphore waitSemaphore1 = eastl::bit_cast<Semaphore>(0x11111111ULL);
-    Semaphore signalSemaphore1 = eastl::bit_cast<Semaphore>(0x22222222ULL);
-    IFence* signalFence1 = eastl::bit_cast<IFence*>(0x33333333ULL);
+    ICommandQueue* testQueue = reinterpret_cast<ICommandQueue*>(0xDEADBEEF00000000ULL); // Ensure it's 64-bit for consistency
+    Semaphore waitSemaphore1 = reinterpret_cast<Semaphore>(0x11111111ULL);            // Explicitly construct Semaphore with u64
+    Semaphore signalSemaphore1 = reinterpret_cast<Semaphore>(0x22222222ULL);
+    IFence* signalFence1 = reinterpret_cast<IFence*>(0x3333333300000000ULL); // Ensure 64-bit
 
     CommandQueueSubmitInfo info = {};
     info.queue = testQueue;
