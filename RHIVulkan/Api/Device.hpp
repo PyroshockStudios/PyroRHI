@@ -84,7 +84,7 @@ namespace PyroshockStudios {
             u8* BufferHostAddress(Buffer buffer) const override;
 
             DeviceSize ImageSizeRequirements(Image image) const override;
-            u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const override;
+            u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const override;
 
             MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;

@@ -36,6 +36,7 @@ gtest_discover_tests(RHIValidationTestDX12)
 
 target_link_libraries(RHIValidationTestDX12
   RHIDX12
+  DirectX-Headers DirectX-Guids D3D12MemoryAllocator
   RHITestChassis
   GTest::gmock
   GTest::gtest_main

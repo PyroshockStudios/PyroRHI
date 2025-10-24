@@ -142,7 +142,7 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             return resourceAllocInfo.SizeInBytes;
         }
-        u32 D3DDevice::ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const {
+        u32 D3DDevice::ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const {
             auto& img = mResourcePool->Get(image);
             UINT dstSubresource = D3D12CalcSubresource(slice.mipLevel, slice.arrayLayer, 0, img.info.mipLevelCount, img.info.arrayLayerCount);
             D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};

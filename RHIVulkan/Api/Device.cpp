@@ -1104,7 +1104,7 @@ namespace PyroshockStudios {
             vkGetImageMemoryRequirements(mDevice, img.vkImage, &requirements);
             return requirements.size;
         }
-        u32 VulkanDevice::ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const {
+        u32 VulkanDevice::ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const {
             return PYRO_ALIGN(rowWidth, mPhysicalDeviceProperties.limits.optimalBufferCopyRowPitchAlignment);
         }
 

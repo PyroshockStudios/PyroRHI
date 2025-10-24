@@ -441,7 +441,7 @@ namespace PyroshockStudios {
              *
              * Row width is the minimal width that needs to be queried **INCLUDING** the format size. For a buffer-image copy, this is the extent of your copy region.
              */
-            PYRO_NODISCARD virtual u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const = 0;
+            PYRO_NODISCARD virtual u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice = {}) const = 0;
 
             // ---------------------------------------------------------------------
             // Resource Creation

@@ -80,7 +80,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTransferCopyBufferToImageSucceeds) {
     info.imageExtent = { 8, 4, 2 }; // copy smaller region (half width)
     info.imageOffset = { 4, 4, 1 }; // offset to middle of image
     info.rowPitch = 8 * RHIUtil::GetFormatSize(imageInfo.format);
-    info.rowPitch = mDevice->ImageSubresourceRowPitch(image, {}, info.rowPitch);
+    info.rowPitch = mDevice->ImageSubresourceRowPitch(image, info.rowPitch);
 
     info.bufferOffset = PYRO_ALIGN(128, mDevice->Properties().bufferImageCopyOffsetAlignment);
     BufferInfo bufferInfo{};
@@ -137,7 +137,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTransferCopyImageToBufferSucceeds) {
     info.imageExtent = { 8, 4, 2 }; // smaller region
     info.imageOffset = { 2, 3, 1 }; // subregion of the image
     info.rowPitch = 8 * RHIUtil::GetFormatSize(srcImageInfo.format);
-    info.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, {}, info.rowPitch);
+    info.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, info.rowPitch);
 
     // Calculate safe buffer size = rowPitch * height * depth + offset margin
     BufferInfo bufferInfo{};
@@ -327,7 +327,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiCommandBufferSyncSubmit) {
     info.image = image;
     info.imageExtent = { 16, 16, 1 };
     info.rowPitch = static_cast<u32>(info.imageExtent.width * RHIUtil::GetFormatSize(imageInfo.format));
-    info.rowPitch = mDevice->ImageSubresourceRowPitch(image, {}, info.rowPitch);
+    info.rowPitch = mDevice->ImageSubresourceRowPitch(image, info.rowPitch);
 
     BufferInfo bufferInfo{};
     bufferInfo.size = static_cast<u64>(info.rowPitch) * info.imageExtent.height * info.imageExtent.depth;
@@ -418,7 +418,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiThreadedCommandBufferRecordingSubmitOrder)
     copyInfo.image = image;
     copyInfo.imageExtent = { 16, 16, 1 };
     copyInfo.rowPitch = static_cast<u32>(copyInfo.imageExtent.width * RHIUtil::GetFormatSize(imageInfo.format));
-    copyInfo.rowPitch = mDevice->ImageSubresourceRowPitch(image, {}, copyInfo.rowPitch);
+    copyInfo.rowPitch = mDevice->ImageSubresourceRowPitch(image, copyInfo.rowPitch);
 
     BufferInfo bufferInfo{};
     bufferInfo.size = static_cast<u64>(copyInfo.rowPitch) * copyInfo.imageExtent.height * copyInfo.imageExtent.depth;
@@ -679,8 +679,9 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
         CopyImageToBufferInfo info{};
         info.image = srcImage;
         info.imageExtent = srcImageInfo.size;
+        bufferInfo.size = mDevice->ImageSizeRequirements(srcImage);
         info.rowPitch = bufferInfo.size / srcImageInfo.size.height / srcImageInfo.size.depth;
-        info.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, {}, info.rowPitch);
+        info.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, info.rowPitch);
 
         bufferInfo.size = srcImageInfo.size.height * srcImageInfo.size.depth * info.rowPitch;
         TRACK_RHI_PARAMETER(bufferInfo);

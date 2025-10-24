@@ -189,9 +189,9 @@ protected:
         mDevice = mApi.loadedContext->CreateDevice();
         ASSERT_NE(mDevice, nullptr) << "Failed to create " RHI_TEST_CHASSIS_API_LOG_NAME " Device";
 
-        mUsedData.emplace_back("Device Info", mDevice->Info());
-        mUsedData.emplace_back("Device Properties", mDevice->Properties());
-        mUsedData.emplace_back("Device Features", mDevice->Features());
+        mUsedData.emplace_back("Device Info", mDevice->Info().ToString());
+        mUsedData.emplace_back("Device Properties", mDevice->Properties().ToString());
+        mUsedData.emplace_back("Device Features", mDevice->Features().ToString());
     }
 
     void TearDown() override {
