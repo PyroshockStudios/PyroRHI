@@ -700,14 +700,14 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
 
         EXPECT_NO_FATAL_FAILURE(cb->ImageBarrier({
             .image = srcImage,
-            .srcAccess = AccessConsts::NONE,
+            .srcAccess = AccessConsts::TOP_OF_PIPE_READ_WRITE,
             .dstAccess = AccessConsts::TRANSFER_READ,
             .srcLayout = ImageLayout::Undefined,
             .dstLayout = ImageLayout::TransferSrc,
         }));
         EXPECT_NO_FATAL_FAILURE(cb->BufferBarrier({
             .buffer = dstBuffer,
-            .srcAccess = AccessConsts::NONE,
+            .srcAccess = AccessConsts::TOP_OF_PIPE_READ_WRITE,
             .dstAccess = AccessConsts::TRANSFER_WRITE,
             .srcLayout = BufferLayout::Undefined,
             .dstLayout = BufferLayout::TransferDst,

@@ -624,10 +624,14 @@ TEST(RHICommonToStringTests, CommandQueueSubmitInfoToString) {
 
     CommandQueueSubmitInfo info = {};
     info.queue = testQueue;
-    info.waitSemaphores = eastl::array<SemaphoreSubmitInfo, 1>({ waitSemaphore1, PipelineStageFlagBits::TOP_OF_PIPE });
-    info.signalSemaphores = eastl::array<SemaphoreSubmitInfo, 1>({ signalSemaphore1, PipelineStageFlagBits::BOTTOM_OF_PIPE });
-    info.signalPresentReadySemaphores = eastl::array<SemaphoreSubmitInfo, 1>({ waitSemaphore1, PipelineStageFlagBits::ALL_GRAPHICS }); // Using a wait semaphore here just for test
-    info.signalFences = eastl::array<FenceSubmitInfo, 1>({ signalFence1, 3 });
+    auto array1 = eastl::array<SemaphoreSubmitInfo, 1>({ waitSemaphore1, PipelineStageFlagBits::TOP_OF_PIPE });
+    auto array2 = eastl::array<SemaphoreSubmitInfo, 1>({ signalSemaphore1, PipelineStageFlagBits::BOTTOM_OF_PIPE });
+    auto array3 = eastl::array<SemaphoreSubmitInfo, 1>({ waitSemaphore1, PipelineStageFlagBits::ALL_GRAPHICS }); // Using a wait semaphore here just for test
+    auto array4 = eastl::array<FenceSubmitInfo, 1>({ signalFence1, 3 });
+    info.waitSemaphores = array1;
+    info.signalSemaphores = array2;
+    info.signalPresentReadySemaphores = array3;
+    info.signalFences = array4;
 
     eastl::string expected =
         "CommandQueueSubmitInfo {\n"
