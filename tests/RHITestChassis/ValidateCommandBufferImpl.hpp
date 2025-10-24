@@ -702,7 +702,10 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
         cb->DestroyDeferred(srcImage);
         cb->DestroyDeferred(dstBuffer);
         cb->DestroyDeferred(block);
-
+        eastl::string framename1 = "Record frame #" + eastl::to_string(i);
+        eastl::string framename = "Transition Resources " + eastl::to_string(i);
+        cb->BeginLabel({ .name = framename1 });
+        cb->BeginLabel({ .name = framename });
         EXPECT_NO_FATAL_FAILURE(cb->ImageBarrier({
             .image = srcImage,
             .srcAccess = AccessConsts::NONE,
@@ -717,10 +720,11 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
             .srcLayout = BufferLayout::Undefined,
             .dstLayout = BufferLayout::TransferDst,
         }));
-
+        cb->EndLabel();
         info.buffer = dstBuffer;
         TRACK_RHI_PARAMETER(info);
         EXPECT_NO_FATAL_FAILURE(cb->CopyImageToBuffer(info));
+        cb->EndLabel();
 
         cb->Complete();
         cq->SubmitCommandBuffer(cb);
