@@ -27,23 +27,35 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Vulkan Mesa Drivers
+        run: sudo apt install mesa-vulkan-drivers libvulkan1
+        
+      - name: Download and extract Vulkan SDK
+        env:
+          VULKAN_SDK_VERSION: 1.4.321.1
+        run: |
+          curl -LO https://sdk.lunarg.com/sdk/download/${VULKAN_SDK_VERSION}/linux/vulkan-sdk-linux-x86_64-${VULKAN_SDK_VERSION}.tar.xz
+          tar -xf vulkan-sdk-linux-x86_64-${VULKAN_SDK_VERSION}.tar.xz -C $HOME
+          
+          SDK_PATH="$HOME/${VULKAN_SDK_VERSION}/x86_64"
+          
+          echo "VULKAN_SDK=${SDK_PATH}" >> $GITHUB_ENV
+          echo "PATH=${SDK_PATH}/bin:$PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=${SDK_PATH}/lib:${SDK_PATH}/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "VK_LAYER_PATH=${SDK_PATH}/etc/vulkan/explicit_layer.d" >> $GITHUB_ENV
+
+      - name: Verify Vulkan setup
+        run: |
+          echo "VULKAN_SDK=$VULKAN_SDK"
+          vulkaninfo | grep VK_LAYER_KHRONOS_validation || echo "Validation layer not found!"
+
+          
       - name: Install Dependencies
         run: |
           sudo apt update
           sudo apt install -y \
             lcov \
             libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev libxkbcommon-dev 
-
-      - name: Prepare Vulkan SDK
-        uses: humbletim/setup-vulkan-sdk@v1.2.1
-        with:
-            vulkan-query-version: latest
-            vulkan-components: Vulkan-Headers, Vulkan-Loader
-            vulkan-use-cache: true
-      - name: Install Vulkan Validation Layers
-        run: sudo apt-get update && sudo apt-get install -y vulkan-validationlayers
-      - name: Install Vulkan Mesa Drivers
-        run: sudo apt install mesa-vulkan-drivers
         
       - name: Configure CMake (Linux + Coverage)
         run: >
@@ -54,6 +66,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DPYRO_COMMON_BUILD_TESTS=OFF
           -DPYRO_COMMON_SHARED_LIBRARY=OFF
+          -DPYRO_RHI_BUILD_TESTS=ON
           -DPYRO_RHI_BUILD_VULKAN=ON
           -DPYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS=ON
           -DPYRO_RHI_BUILD_DX12=OFF

@@ -40,7 +40,8 @@ namespace PyroshockStudios {
             eastl::string name = {};
 
             PYRO_NODISCARD  bool operator==(const FenceInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const FenceInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const FenceInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**

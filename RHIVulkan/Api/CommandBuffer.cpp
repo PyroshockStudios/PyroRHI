@@ -130,15 +130,15 @@ namespace PyroshockStudios::RHIVulkan {
         const VkBufferImageCopy region = {
             .bufferOffset = info.bufferOffset,
             .bufferRowLength = info.rowPitch == 0 ? 0 : (info.rowPitch / RHIUtil::GetFormatSize(imageSlot.info.format)),
-            .bufferImageHeight = info.imageExtent.y,
+            .bufferImageHeight = info.imageExtent.height,
             .imageSubresource = {
                 .aspectMask = imageSlot.aspectFlags,
                 .mipLevel = info.imageSlice.mipLevel,
                 .baseArrayLayer = info.imageSlice.baseArrayLayer,
-                .layerCount = info.imageSlice.layerCount,
+                .layerCount = PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, imageSlot.info.arrayLayerCount),
             },
             .imageOffset = { (int32_t)info.imageOffset.x, (int32_t)info.imageOffset.y, (int32_t)info.imageOffset.z },
-            .imageExtent = { info.imageExtent.x, info.imageExtent.y, info.imageExtent.z }
+            .imageExtent = { info.imageExtent.width, info.imageExtent.height, info.imageExtent.depth }
         };
         vkCmdCopyBufferToImage(mCommandBuffer, mDevice->Slot(info.buffer).vkBuffer,
             imageSlot.vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
@@ -149,22 +149,23 @@ namespace PyroshockStudios::RHIVulkan {
         FlushBarriers();
 
         ImplImageSlot& imageSlot = mDevice->Slot(info.image);
+        ImplBufferSlot& bufferSlot = mDevice->Slot(info.buffer);
 
         const VkBufferImageCopy region = {
             .bufferOffset = info.bufferOffset,
             .bufferRowLength = info.rowPitch / RHIUtil::GetFormatSize(imageSlot.info.format),
-            .bufferImageHeight = info.imageExtent.y,
+            .bufferImageHeight = info.imageExtent.height,
             .imageSubresource = {
                 .aspectMask = imageSlot.aspectFlags,
                 .mipLevel = info.imageSlice.mipLevel,
                 .baseArrayLayer = info.imageSlice.baseArrayLayer,
-                .layerCount = info.imageSlice.layerCount,
+                .layerCount = PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, imageSlot.info.arrayLayerCount),
             },
             .imageOffset = { (int32_t)info.imageOffset.x, (int32_t)info.imageOffset.y, (int32_t)info.imageOffset.z },
-            .imageExtent = { info.imageExtent.x, info.imageExtent.y, info.imageExtent.z }
+            .imageExtent = { info.imageExtent.width, info.imageExtent.height, info.imageExtent.depth }
         };
         vkCmdCopyImageToBuffer(mCommandBuffer, imageSlot.vkImage,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mDevice->Slot(info.buffer).vkBuffer, 1, &region);
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, bufferSlot.vkBuffer, 1, &region);
     }
 
     void VulkanCommandBuffer::CopyImageToImage(const CopyImageToImageInfo& info) {
@@ -179,17 +180,17 @@ namespace PyroshockStudios::RHIVulkan {
                 .aspectMask = srcImageSlot.aspectFlags,
                 .mipLevel = info.srcImageSlice.mipLevel,
                 .baseArrayLayer = info.srcImageSlice.baseArrayLayer,
-                .layerCount = info.srcImageSlice.layerCount,
+                .layerCount = PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.srcImageSlice, srcImageSlot.info.arrayLayerCount),
             },
             .srcOffset = { info.srcOffset.x, (int32_t)info.srcOffset.y, (int32_t)info.srcOffset.z },
             .dstSubresource = {
                 .aspectMask = dstImageSlot.aspectFlags,
                 .mipLevel = info.dstImageSlice.mipLevel,
                 .baseArrayLayer = info.dstImageSlice.baseArrayLayer,
-                .layerCount = info.dstImageSlice.layerCount,
+                .layerCount = PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.dstImageSlice, dstImageSlot.info.arrayLayerCount),
             },
             .dstOffset = { (int32_t)info.dstOffset.x, (int32_t)info.dstOffset.y, (int32_t)info.dstOffset.z },
-            .extent = { info.extent.x, info.extent.y, info.extent.z }
+            .extent = { info.extent.width, info.extent.height, info.extent.depth }
         };
         vkCmdCopyImage(mCommandBuffer,
             srcImageSlot.vkImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -208,21 +209,21 @@ namespace PyroshockStudios::RHIVulkan {
                 .aspectMask = srcImageSlot.aspectFlags,
                 .mipLevel = info.srcImageSlice.mipLevel,
                 .baseArrayLayer = info.srcImageSlice.baseArrayLayer,
-                .layerCount = info.srcImageSlice.layerCount,
+                .layerCount = PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.srcImageSlice, srcImageSlot.info.arrayLayerCount),
             },
             .srcOffsets = {
-                { info.srcImageRect.x, info.srcImageRect.y, 0 },
-                { info.srcImageRect.x + info.srcImageRect.width, info.srcImageRect.y + info.srcImageRect.height, 1 },
+                { info.srcImageBox.x, info.srcImageBox.y, info.srcImageBox.z },
+                { info.srcImageBox.x + info.srcImageBox.width, info.srcImageBox.y + info.srcImageBox.height, info.srcImageBox.z + info.srcImageBox.depth },
             },
             .dstSubresource = {
                 .aspectMask = dstImageSlot.aspectFlags,
                 .mipLevel = info.dstImageSlice.mipLevel,
                 .baseArrayLayer = info.dstImageSlice.baseArrayLayer,
-                .layerCount = info.dstImageSlice.layerCount,
+                .layerCount = PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.dstImageSlice, dstImageSlot.info.arrayLayerCount),
             },
             .dstOffsets = {
-                { info.dstImageRect.x, info.dstImageRect.y, 0 },
-                { info.dstImageRect.x + info.dstImageRect.width, info.dstImageRect.y + info.dstImageRect.height, 1 },
+                { info.dstImageBox.x, info.dstImageBox.y, info.dstImageBox.z },
+                { info.dstImageBox.x + info.dstImageBox.width, info.dstImageBox.y + info.dstImageBox.height, info.dstImageBox.z + info.dstImageBox.depth },
             },
         };
 
@@ -298,6 +299,10 @@ namespace PyroshockStudios::RHIVulkan {
             .size = trueSize,
         };
 
+        if (info.srcAccess == AccessConsts::NONE) {
+            barrier.srcStageMask |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+        }
+
         mBufferBarriers.push_back(barrier);
     }
 
@@ -318,11 +323,15 @@ namespace PyroshockStudios::RHIVulkan {
             .subresourceRange = {
                 .aspectMask = imageSlot.aspectFlags,
                 .baseMipLevel = info.imageSlice.baseMipLevel,
-                .levelCount = info.imageSlice.levelCount,
+                .levelCount = PYRO_IMAGE_SLICE_RESOLVE_LEVELS(info.imageSlice, imageSlot.info.mipLevelCount),
                 .baseArrayLayer = info.imageSlice.baseArrayLayer,
-                .layerCount = info.imageSlice.layerCount,
+                .layerCount = PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, imageSlot.info.arrayLayerCount),
             },
         };
+
+        if (info.srcAccess == AccessConsts::NONE && info.srcLayout == ImageLayout::Undefined) {
+            barrier.srcStageMask |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+        }
 
         mImageBarriers.push_back(barrier);
     }

@@ -49,30 +49,32 @@ namespace PyroshockStudios::RHIDX12 {
 
         UINT dxgiFactoryFlags = 0;
         if (args.bDebug) {
-            ComPtr<ID3D12Debug> debugController;
-            if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
-                debugController->EnableDebugLayer();
+            Logger::Trace(gDX12Sink, "Requesting Debug Layer");
+            if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&mDebugController)))) {
+                mDebugController->EnableDebugLayer();
 
                 // Enable additional debug layers.
                 dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+                Logger::Info(gDX12Sink, "Enabled Debug Layer");
+            } else {
+                Logger::Warn(gDX12Sink, "Failed to enable Debug Layer, skipping ID3D12Debug...");
             }
         }
 
-        ComPtr<IDXGIFactory4> factory;
-        CheckD3DResult(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
-        D3DSetDebugName(factory, "DXGI Factory 4");
+        CheckD3DResult(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&mFactory)));
+        D3DSetDebugName(mFactory, "DXGI Factory 4");
 
         ComPtr<IDXGIAdapter1> adapter;
 
         if (args.bWarpDriver) {
-            factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter));
+            mFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter));
             if (!adapter) {
                 Logger::Fatal(gDX12Sink, "Failed to get the DX12 WARP device!");
                 return;
             }
             D3DSetDebugName(adapter, "Warp Adaptor");
         } else {
-            GetHardwareAdapter(factory.Get(), &adapter);
+            GetHardwareAdapter(mFactory.Get(), &adapter);
             D3DSetDebugName(adapter, "Hardware Adaptor");
         }
 
@@ -101,7 +103,8 @@ namespace PyroshockStudios::RHIDX12 {
                 mInfoQueue->AddStorageFilterEntries(&filter);
             }
         }
-        mDevice = new D3DDevice(eastl::move(device), eastl::move(factory), eastl::move(adapter));
+        ComPtr<IDXGIFactory4> factoryCopy = mFactory;
+        mDevice = new D3DDevice(eastl::move(device), eastl::move(factoryCopy), eastl::move(adapter));
     }
     D3DContext::~D3DContext() {
         if (mPixRuntimeDll) {

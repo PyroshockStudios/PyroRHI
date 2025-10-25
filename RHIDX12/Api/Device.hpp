@@ -21,14 +21,14 @@
 // SOFTWARE.
 
 #pragma once
-#include <EASTL/unique_ptr.h>
-#include <RHIDX12/Api/GPUResource.hpp>
 #include <RHIDX12/Core.hpp>
-#include <RHIDX12/Helper/LinearUploadBuffer.hpp>
+
+#include <D3D12MemAlloc.h>
+#include <EASTL/unique_ptr.h>
 #include <PyroCommon/Util/HashCombine.hpp>
 #include <PyroRHI/Api/IDevice.hpp>
-#include <D3D12MemAlloc.h>
-
+#include <RHIDX12/Api/GPUResource.hpp>
+#include <RHIDX12/Helper/LinearUploadBuffer.hpp>
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
@@ -107,7 +107,7 @@ namespace PyroshockStudios {
             DeviceAddress BufferDeviceAddress(Buffer buffer) const override;
             u8* BufferHostAddress(Buffer buffer) const override;
             DeviceSize ImageSizeRequirements(Image image) const override;
-            u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const override;
+            u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const override;
 
             MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;
@@ -137,14 +137,16 @@ namespace PyroshockStudios {
             void DestroyFence(IFence*& fence) override;
             void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) override;
 
-            virtual eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) override;
+            virtual eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
             virtual eastl::span<ICommandQueue*> GetCommandQueues() override;
             virtual ICommandQueue* GetPresentQueue() override;
             void WaitIdle() override;
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
             void PresentQueue(const CommandQueuePresentInfo& info) override;
-            const DeviceInfo& GetInfo() override;
-            const DevicePropertiesInfo& GetProperties() override;
+            const DeviceInfo& Info() const override;
+            const DevicePropertiesInfo& Properties() const override;
+            const DeviceFeaturesInfo& Features() const override;
+            DeviceStatusInfo Status() const override;
 
             void ImageAddIfNecessaryBlitSupport(D3DImageResourceData& data);
             const DescriptorTableInfo& GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc);
@@ -173,16 +175,39 @@ namespace PyroshockStudios {
             GPUResourcePool& ResourcePool() {
                 return *mResourcePool;
             }
+
         private:
             void WriteAllSRVDescriptorHeapCopies(ID3D12Resource* pResource,
                 const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GPUResourceId handle);
             void DestroyAllUAVDescriptorHeapCopies(UnorderedAccessId handle);
             void CollectGarbage();
 
+        private:
+            void CheckFeatureSupport();
+            void CreateCommandQueues();
+            void InitializeResourcePool();
+            void CreateDescriptorHeaps();
+            void CreateGlobalRootSignature();
+            void CreateDeleterFence();
+            void CreateBlitImageRootSignature();
+            void CreateDefaultSamplerHeaps();
+            void CreateCommandSignatures();
+            void CreateMemoryAllocator();
+
+            void PopulateDeviceInfo();
+            void PopulateDeviceProperties();
+            void PopulateDeviceFeatures();
+
+            void DestroyCommandQueues();
+            void DestroyUploadBuffers();
+            void ReportDeviceRemovalReason();
+
+        private:
             ComPtr<IDXGIAdapter1> mAdapter = {};
             ComPtr<IDXGIFactory4> mFactory = {};
             ComPtr<ID3D12Device> mDevice = {};
             ComPtr<D3D12MA::Allocator> mAllocator = {};
+
         public:
             ComPtr<ID3D12RootSignature> mRootSignature = {};
 
@@ -204,7 +229,9 @@ namespace PyroshockStudios {
             UINT64 mNextDeferredDeleterValue = 1;
             eastl::vector<eastl::pair<UINT64 /*fence value*/, ZombieDeleter>> mDeferredDeletes;
 
+            DeviceInfo mInfo{};
             DevicePropertiesInfo mProperties{};
+            DeviceFeaturesInfo mFeatures{};
 
             ComPtr<ID3D12CommandSignature> mIndirectDrawSignature = {};
             ComPtr<ID3D12CommandSignature> mIndirectDrawIndexedSignature = {};

@@ -51,7 +51,7 @@ namespace PyroshockStudios {
             const auto& src = mDevice->ResourcePool().Get(info.buffer);
             const auto& dst = mDevice->ResourcePool().Get(info.image);
 
-            for (UINT j = 0; j < info.imageSlice.layerCount; ++j) {
+            for (UINT j = 0; j < PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, dst.info.arrayLayerCount); ++j) {
                 UINT dstSubresource = D3D12CalcSubresource(info.imageSlice.mipLevel, info.imageSlice.baseArrayLayer + j, 0, dst.info.mipLevelCount, dst.info.arrayLayerCount);
                 D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
                 UINT numRows = {};
@@ -61,9 +61,9 @@ namespace PyroshockStudios {
                     &footprint, &numRows, &rowSizesInBytes, &requiredSize);
                 ASSERT(PYRO_VERIFY_ALIGNMENT(info.rowPitch, rowSizesInBytes), "Row Pitch MUST be aligned to device requirements!");
                 footprint.Footprint.RowPitch = info.rowPitch;
-                footprint.Footprint.Width = info.imageExtent.x;
-                footprint.Footprint.Height = info.imageExtent.y;
-                footprint.Footprint.Depth = info.imageExtent.z;
+                footprint.Footprint.Width = info.imageExtent.width;
+                footprint.Footprint.Height = info.imageExtent.height;
+                footprint.Footprint.Depth = info.imageExtent.depth;
                 CD3DX12_TEXTURE_COPY_LOCATION Dst(dst.resource.Get(), dstSubresource);
                 CD3DX12_TEXTURE_COPY_LOCATION Src(src.resource.Get(), footprint);
                 mCommandList->CopyTextureRegion(&Dst, info.imageOffset.x, info.imageOffset.y, info.imageOffset.z, &Src, nullptr);
@@ -75,7 +75,7 @@ namespace PyroshockStudios {
             const auto& src = mDevice->ResourcePool().Get(info.image);
             const auto& dst = mDevice->ResourcePool().Get(info.buffer);
 
-            for (UINT j = 0; j < info.imageSlice.layerCount; ++j) {
+            for (UINT j = 0; j < PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, src.info.arrayLayerCount); ++j) {
                 UINT srcSubresource = D3D12CalcSubresource(
                     info.imageSlice.mipLevel,
                     info.imageSlice.baseArrayLayer + j,
@@ -103,10 +103,11 @@ namespace PyroshockStudios {
                     "Row Pitch MUST be aligned to device requirements!");
 
                 // Update the footprint to reflect the desired copy region
+                footprint.Offset = info.bufferOffset;
                 footprint.Footprint.RowPitch = info.rowPitch;
-                footprint.Footprint.Width = info.imageExtent.x;
-                footprint.Footprint.Height = info.imageExtent.y;
-                footprint.Footprint.Depth = info.imageExtent.z;
+                footprint.Footprint.Width = info.imageExtent.width;
+                footprint.Footprint.Height = info.imageExtent.height;
+                footprint.Footprint.Depth = info.imageExtent.depth;
 
                 // Destination is the buffer footprint, source is the image
                 CD3DX12_TEXTURE_COPY_LOCATION Dst(dst.resource.Get(), footprint);
@@ -116,16 +117,15 @@ namespace PyroshockStudios {
                     info.imageOffset.x,
                     info.imageOffset.y,
                     info.imageOffset.z,
-                    info.imageOffset.x + info.imageExtent.x,
-                    info.imageOffset.y + info.imageExtent.y,
-                    info.imageOffset.z + info.imageExtent.z);
+                    info.imageOffset.x + info.imageExtent.width,
+                    info.imageOffset.y + info.imageExtent.height,
+                    info.imageOffset.z + info.imageExtent.depth);
                 // Copy from the specified offset within the image
                 mCommandList->CopyTextureRegion(
                     &Dst,
-                    0, 0, 0, // destination coords in buffer
+                    0, 0, 0,
                     &Src,
-                    reinterpret_cast<const D3D12_BOX*>(
-                        &srcBox));
+                    reinterpret_cast<const D3D12_BOX*>(&srcBox));
             }
 
             gDx12Context->FlushDebugMessages();
@@ -135,7 +135,7 @@ namespace PyroshockStudios {
         void D3DCommandBuffer::CopyImageToImage(const CopyImageToImageInfo& info) {
             const auto& src = mDevice->ResourcePool().Get(info.srcImage);
             const auto& dst = mDevice->ResourcePool().Get(info.dstImage);
-            for (UINT j = 0; j < info.srcImageSlice.layerCount; ++j) {
+            for (UINT j = 0; j < PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.srcImageSlice, src.info.arrayLayerCount); ++j) {
                 UINT srcSubresource = D3D12CalcSubresource(info.srcImageSlice.mipLevel, info.srcImageSlice.baseArrayLayer + j, 0, src.info.mipLevelCount, src.info.arrayLayerCount);
                 UINT dstSubresource = D3D12CalcSubresource(info.dstImageSlice.mipLevel, info.dstImageSlice.baseArrayLayer + j, 0, dst.info.mipLevelCount, dst.info.arrayLayerCount);
                 auto srcCpy = CD3DX12_TEXTURE_COPY_LOCATION(src.resource.Get(), srcSubresource);
@@ -157,18 +157,18 @@ namespace PyroshockStudios {
             D3D12_VIEWPORT viewport{};
             viewport.TopLeftX = 0.0f;
             viewport.TopLeftY = 0.0f;
-            viewport.Width = static_cast<float>(dstImage.info.size.x);
-            viewport.Height = static_cast<float>(dstImage.info.size.y);
+            viewport.Width = static_cast<float>(dstImage.info.size.width);
+            viewport.Height = static_cast<float>(dstImage.info.size.height);
             viewport.MinDepth = 0.0f;
             viewport.MaxDepth = 1.0f;
             mCommandList->RSSetViewports(1, &viewport);
 
             D3D12_RECT scissorRect{};
-            scissorRect.left = info.dstImageRect.x;
+            scissorRect.left = info.dstImageBox.x;
             // origin is top left in the rect... go figure lol
-            scissorRect.top = static_cast<i32>(dstImage.info.size.y) - info.dstImageRect.height - info.dstImageRect.y;
-            scissorRect.right = info.dstImageRect.x + info.dstImageRect.width;
-            scissorRect.bottom = static_cast<i32>(dstImage.info.size.y) - info.dstImageRect.y;
+            scissorRect.top = static_cast<i32>(dstImage.info.size.height) - info.dstImageBox.height - info.dstImageBox.y;
+            scissorRect.right = info.dstImageBox.x + info.dstImageBox.width;
+            scissorRect.bottom = static_cast<i32>(dstImage.info.size.height) - info.dstImageBox.y;
             if (scissorRect.left > scissorRect.right) {
                 eastl::swap(scissorRect.left, scissorRect.right);
             }
@@ -186,14 +186,14 @@ namespace PyroshockStudios {
             } pushConstants;
 
             // Compute src UVs from pixel rect -> [0,1] space
-            float srcW = static_cast<float>(srcImage.info.size.x);
-            float srcH = static_cast<float>(srcImage.info.size.y);
+            float srcW = static_cast<float>(srcImage.info.size.width);
+            float srcH = static_cast<float>(srcImage.info.size.height);
 
-            float srcX0 = static_cast<float>(info.srcImageRect.x);
+            float srcX0 = static_cast<float>(info.srcImageBox.x);
             // NOTE: UV sampling is vulkan coordinate style, so origin is TOP LEFT!
-            float srcY0 = static_cast<float>(info.srcImageRect.y + info.srcImageRect.height);
-            float srcX1 = static_cast<float>(info.srcImageRect.x + info.srcImageRect.width);
-            float srcY1 = static_cast<float>(info.srcImageRect.y);
+            float srcY0 = static_cast<float>(info.srcImageBox.y + info.srcImageBox.height);
+            float srcX1 = static_cast<float>(info.srcImageBox.x + info.srcImageBox.width);
+            float srcY1 = static_cast<float>(info.srcImageBox.y);
 
             float u0 = srcX0 / srcW;
             float v0 = srcY0 / srcH;
@@ -204,8 +204,8 @@ namespace PyroshockStudios {
             pushConstants.srcUpper = DirectX::XMFLOAT2(u1, v1);
 
             // Convert dst pixel rect to NDC [-1,1].
-            float fbWidth = static_cast<float>(dstImage.info.size.x);
-            float fbHeight = static_cast<float>(dstImage.info.size.y);
+            float fbWidth = static_cast<float>(dstImage.info.size.width);
+            float fbHeight = static_cast<float>(dstImage.info.size.height);
 
             float dstX0 = static_cast<float>(scissorRect.left);
             float dstY0 = fbHeight - static_cast<float>(scissorRect.bottom);
@@ -228,24 +228,33 @@ namespace PyroshockStudios {
             mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
             bBlitImageState = true;
 
-            for (UINT j = 0; j < info.srcImageSlice.layerCount; ++j) {
+            for (UINT j = 0; j < PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.srcImageSlice, srcImage.info.arrayLayerCount); ++j) {
                 UINT srcSubresource = D3D12CalcSubresource(info.srcImageSlice.mipLevel, info.srcImageSlice.baseArrayLayer + j, 0,
                     srcImage.info.mipLevelCount, srcImage.info.arrayLayerCount);
                 UINT dstSubresource = D3D12CalcSubresource(info.dstImageSlice.mipLevel, info.dstImageSlice.baseArrayLayer + j, 0,
                     dstImage.info.mipLevelCount, dstImage.info.arrayLayerCount);
+
+                D3D12_DISCARD_REGION region = {};
+                region.FirstSubresource = dstSubresource;
+                region.NumRects = 1;
+                region.NumSubresources = 1;
+                region.pRects = &scissorRect; /* dst rect */
+                mCommandList->DiscardResource(dstImage.resource.Get(), &region);
+
                 ID3D12DescriptorHeap* heaps[] = {
                     srcImage.blitImageSRVHeaps[srcSubresource].mHeap.Get(),
                     info.filter == Filter::Linear
                         ? mDevice->mLinearSamplerDescriptorTable.mHeap.Get()
                         : mDevice->mNearestSamplerDescriptorTable.mHeap.Get(),
                 };
+
                 mCommandList->SetDescriptorHeaps(PYRO_ARRAY_SIZE(heaps), heaps);
                 mCommandList->SetGraphicsRootDescriptorTable(2, info.filter == Filter::Linear
                                                                     ? mDevice->mLinearSamplerDescriptorTable.gpuDescriptor
                                                                     : mDevice->mNearestSamplerDescriptorTable.gpuDescriptor);
                 mCommandList->SetGraphicsRootDescriptorTable(1, srcImage.blitImageSRVHeaps[srcSubresource].gpuDescriptor);
 
-                ASSERT(dstImage.blitImageRTVs.size() > dstSubresource, "Image must have been created with BLIT DST capability!");
+                ASSERT(dstImage.blitImageRTVs.size() > dstSubresource, "Image must have been created with BLIT DST capability, AND the image slice must not exceed the image!");
                 D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = mDevice->ResourcePool().mRTVHeap.Resolve(dstImage.blitImageRTVs[dstSubresource]);
                 mCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
                 mCommandList->DrawInstanced(4, 1, 0, 0);
@@ -370,7 +379,7 @@ namespace PyroshockStudios {
             barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             barrier.Transition.pResource = bufferInfo.resource.Get();
-            barrier.Transition.StateBefore = info.srcLayout == BufferLayout::Undefined ? bufferInfo.lastValidState : ToD3D12BufferResourceState(info.srcLayout);
+            barrier.Transition.StateBefore = ToD3D12BufferResourceState(info.srcLayout);
             barrier.Transition.StateAfter = ToD3D12BufferResourceState(info.dstLayout);
             barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
             if (barrier.Transition.StateAfter == barrier.Transition.StateBefore) {
@@ -381,10 +390,13 @@ namespace PyroshockStudios {
                 return;
             }
             mCommandList->ResourceBarrier(1, &barrier);
-            // FIXME: we need to keep 1 state per queue/command list, since this can be recorded on seperate threads, or submitted
-            // in a different order!!!
-            bufferInfo.lastValidState = barrier.Transition.StateAfter;
             gDx12Context->FlushDebugMessages();
+            if (info.srcLayout == BufferLayout::Undefined) {
+                if (info.dstLayout == BufferLayout::UnorderedAccess) {
+                    mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
+                    gDx12Context->FlushDebugMessages();
+                }
+             }
         }
 
         void D3DCommandBuffer::ImageBarrier(const ImageMemoryBarrierInfo& info) {
@@ -439,7 +451,7 @@ namespace PyroshockStudios {
             if (bDepthStencil && info.srcLayout == ImageLayout::RenderTargetReadOnly) {
                 barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_READ;
             } else {
-                barrier.Transition.StateBefore = info.srcLayout == ImageLayout::Undefined ? imageInfo.lastValidStates[barrier.Transition.Subresource] : (ToD3D12ImageResourceState(info.srcLayout) & validMask);
+                barrier.Transition.StateBefore = ToD3D12ImageResourceState(info.srcLayout) & validMask;
             }
             if (bDepthStencil && info.dstLayout == ImageLayout::RenderTargetReadOnly) {
                 barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_READ;
@@ -453,17 +465,20 @@ namespace PyroshockStudios {
                 }
                 return;
             }
-            for (UINT i = 0; i < info.imageSlice.levelCount; ++i) {
-                for (UINT j = 0; j < info.imageSlice.layerCount; ++j) {
+            for (UINT i = 0; i < PYRO_IMAGE_SLICE_RESOLVE_LEVELS(info.imageSlice, imageInfo.info.mipLevelCount); ++i) {
+                for (UINT j = 0; j < PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, imageInfo.info.arrayLayerCount); ++j) {
                     barrier.Transition.Subresource = D3D12CalcSubresource(info.imageSlice.baseMipLevel + i, info.imageSlice.baseArrayLayer + j, 0,
                         imageInfo.info.mipLevelCount, imageInfo.info.arrayLayerCount);
                     mCommandList->ResourceBarrier(1, &barrier);
-                    // FIXME: we need to keep 1 state per queue/command list, since this can be recorded on seperate threads, or submitted
-                    // in a different order!!!
-                    imageInfo.lastValidStates[barrier.Transition.Subresource] = barrier.Transition.StateAfter;
                 }
             }
             gDx12Context->FlushDebugMessages();
+            if (info.srcLayout == ImageLayout::Undefined) {
+                if (info.dstLayout == ImageLayout::UnorderedAccess || info.dstLayout == ImageLayout::RenderTarget || info.dstLayout == ImageLayout::BlitDst) {
+                    mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
+                    gDx12Context->FlushDebugMessages();
+                }
+            }
         }
 
         void D3DCommandBuffer::TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) {
@@ -473,19 +488,9 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) {
-            // auto& bufferInfo = mDevice->ResourcePool().Get(buffer);
-            // if (bufferInfo.lastValidState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-            //     D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(bufferInfo.resource.Get());
-            //     mCommandList->ResourceBarrier(1, &uavBarrier);
-            // }
         }
 
         void D3DCommandBuffer::AcquireImageOwnership(Image image, ICommandQueue* srcQueue) {
-            // auto& imageInfo = mDevice->ResourcePool().Get(image);
-            // if (imageInfo.lastValidStates[0] == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-            //     D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(imageInfo.resource.Get());
-            //     mCommandList->ResourceBarrier(1, &uavBarrier);
-            // }
         }
 
         void D3DCommandBuffer::InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) {
@@ -645,6 +650,13 @@ namespace PyroshockStudios {
                         break;
                     }
                     mCommandList->ClearRenderTargetView(renderTargets.back(), clearCol, 1, &renderArea);
+                } else if (colTarg.loadOp == AttachmentLoadOp::DontCare) {
+                    D3D12_DISCARD_REGION region;
+                    region.FirstSubresource = rt->GetSubresource();
+                    region.NumSubresources = 1;
+                    region.NumRects = 1;
+                    region.pRects = &renderArea;
+                    mCommandList->DiscardResource(imageData.resource.Get(), &region);
                 }
                 if (colTarg.resolve.has_value()) {
                     auto dstRt = eastl::bit_cast<D3DRenderTarget*>(colTarg.resolve->target);
@@ -661,7 +673,9 @@ namespace PyroshockStudios {
             }
 
             if (info.depthStencilAttachment.has_value()) {
-                depthStencil = eastl::bit_cast<D3DRenderTarget*>(info.depthStencilAttachment->target)->GetDescriptor();
+                auto* rt = eastl::bit_cast<D3DRenderTarget*>(info.depthStencilAttachment->target);
+                depthStencil = rt->GetDescriptor();
+                auto& imageData = mDevice->ResourcePool().Get(rt->Info().image);
                 D3D12_CLEAR_FLAGS depthStencilClear = {};
                 if (info.depthStencilAttachment->depthLoadOp == AttachmentLoadOp::Clear) {
                     depthStencilClear |= D3D12_CLEAR_FLAG_DEPTH;
@@ -669,9 +683,18 @@ namespace PyroshockStudios {
                 if (info.depthStencilAttachment->stencilLoadOp == AttachmentLoadOp::Clear) {
                     depthStencilClear |= D3D12_CLEAR_FLAG_STENCIL;
                 }
-                mCommandList->ClearDepthStencilView(depthStencil, depthStencilClear,
-                    info.depthStencilAttachment->clearValue.depth, (UINT)info.depthStencilAttachment->clearValue.stencil,
-                    1, &renderArea);
+                if (info.depthStencilAttachment->stencilLoadOp == AttachmentLoadOp::DontCare && info.depthStencilAttachment->depthLoadOp == AttachmentLoadOp::DontCare) {
+                    D3D12_DISCARD_REGION region;
+                    region.FirstSubresource = rt->GetSubresource();
+                    region.NumSubresources = 1;
+                    region.NumRects = 1;
+                    region.pRects = &renderArea;
+                    mCommandList->DiscardResource(imageData.resource.Get(), &region);
+                } else if (depthStencilClear) {
+                    mCommandList->ClearDepthStencilView(depthStencil, depthStencilClear,
+                        info.depthStencilAttachment->clearValue.depth, (UINT)info.depthStencilAttachment->clearValue.stencil,
+                        1, &renderArea);
+                }
             }
             mCommandList->OMSetRenderTargets(static_cast<UINT>(renderTargets.size()), renderTargets.data(), FALSE,
                 info.depthStencilAttachment.has_value() ? &depthStencil : nullptr);

@@ -1,11 +1,13 @@
 # ==== RHI Backends ====
 option(PYRO_RHI_BUILD_VULKAN "Build Vulkan Backend" ON)
-if (PYRO_RHI_BUILD_VULKAN)
+option(PYRO_RHI_BUILD_TESTS "Build RHI Tests" OFF)
+	
+if (PYRO_RHI_BUILD_TESTS AND PYRO_RHI_BUILD_VULKAN)
 	option(PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS "Build Vulkan VVL Validation Tests" OFF)
 endif()
 if(WIN32)
     option(PYRO_RHI_BUILD_DX12 "Build DirectX 12 Backend" ON)
-	if (PYRO_RHI_BUILD_VULKAN)
+	if (PYRO_RHI_BUILD_TESTS AND PYRO_RHI_BUILD_DX12)
 		option(PYRO_RHI_BUILD_DX12_VALIDATION_TESTS "Build  DirectX 12 Debug Output Tests" OFF)
 	endif()
 else()

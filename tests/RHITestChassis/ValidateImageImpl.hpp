@@ -21,3 +21,20 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyImage) {
     mDevice->DestroyImage(image);
     EXPECT_FALSE(mDevice->IsImageValid(image));
 }
+
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyImageOverload) {
+    ImageInfo info = {};
+    info.size = { 256, 256, 1 };
+    info.format = Format::RGBA8Unorm;
+    info.usage = ImageUsageFlagBits::RENDER_TARGET;
+    info.name = "TestImage";
+
+    Image image = mDevice->Create(info);
+    ASSERT_TRUE(mDevice->IsValid(image));
+
+    const ImageInfo& queried = mDevice->GetImageInfo(image);
+    EXPECT_EQ(queried, info);
+
+    mDevice->Destroy(image);
+    EXPECT_FALSE(mDevice->IsValid(image));
+}

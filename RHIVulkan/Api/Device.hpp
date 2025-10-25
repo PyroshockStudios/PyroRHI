@@ -27,10 +27,10 @@
 #include <EASTL/stack.h>
 #include <EASTL/unordered_set.h>
 
+#include <PyroRHI/Api/IDevice.hpp>
 #include <RHIVulkan/Api/CommandBuffer.hpp>
 #include <RHIVulkan/Api/GPUResourcePool.hpp>
 #include <RHIVulkan/Core.hpp>
-#include <PyroRHI/Api/IDevice.hpp>
 
 
 namespace PyroshockStudios {
@@ -75,16 +75,16 @@ namespace PyroshockStudios {
             const GPUResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const override;
             const GPUResourceInfo& GetUnorderedAccessInfo(UnorderedAccessId id) const override;
             const SamplerInfo& GetSamplerInfo(SamplerId id) const override;
-            const RenderTargetInfo& GetRenderTargetInfo(RenderTarget renderTarget) const       override;
-            const RasterPipelineInfo& GetRasterPipelineInfo(RasterPipeline pipeline) const     override;
-            const ComputePipelineInfo& GetComputePipelineInfo(ComputePipeline pipeline) const  override;
+            const RenderTargetInfo& GetRenderTargetInfo(RenderTarget renderTarget) const override;
+            const RasterPipelineInfo& GetRasterPipelineInfo(RasterPipeline pipeline) const override;
+            const ComputePipelineInfo& GetComputePipelineInfo(ComputePipeline pipeline) const override;
             const SemaphoreInfo& GetSemaphoreInfo(Semaphore semaphore) const override;
 
             DeviceAddress BufferDeviceAddress(Buffer buffer) const override;
             u8* BufferHostAddress(Buffer buffer) const override;
 
             DeviceSize ImageSizeRequirements(Image image) const override;
-            u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const override;
+            u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const override;
 
             MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;
@@ -116,7 +116,7 @@ namespace PyroshockStudios {
             virtual void DestroyFence(IFence*& fence) override;
             virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) override;
 
-            eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) override;
+            eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
 
             void WaitIdle() override;
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
@@ -125,6 +125,7 @@ namespace PyroshockStudios {
             const VkPhysicalDeviceProperties& GetVkPhysicalDeviceProperties() {
                 return mPhysicalDeviceProperties;
             }
+
         public:
             Image NewSwapChainImage(VkImage swapchainImage, VkFormat format, u32 index, ImageUsageFlags usage, const ImageInfo& imageInfo);
 
@@ -141,8 +142,10 @@ namespace PyroshockStudios {
                 return mPresentQueue;
             }
 
-            const DeviceInfo& GetInfo() override;
-            const DevicePropertiesInfo& GetProperties() override;
+            const DeviceInfo& Info() const override;
+            const DevicePropertiesInfo& Properties() const override;
+            const DeviceFeaturesInfo& Features() const override;
+            DeviceStatusInfo Status() const override;
 
             VulkanContext* Context() {
                 return mContext;
@@ -179,6 +182,11 @@ namespace PyroshockStudios {
             VulkanDeviceCapabilities mVulkanCaps = {};
 
         private:
+            void PopulateDeviceInfo();
+            void PopulateDeviceProperties();
+            void PopulateDeviceFeatures();
+
+        private:
             eastl::deque<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
 
             GPUResourceId CreateImageView(const GPUResourceInfo& info, bool uav);
@@ -190,6 +198,7 @@ namespace PyroshockStudios {
 
             DeviceInfo mInfo = {};
             DevicePropertiesInfo mProperties = {};
+            DeviceFeaturesInfo mFeatures = {};
 
             VulkanContext* mContext;
             VkPhysicalDeviceProperties mPhysicalDeviceProperties;
@@ -212,5 +221,5 @@ namespace PyroshockStudios {
 
             usize mNumAllocatedCommandPools = 0;
         };
-    }
-}
+    } // namespace RHIVulkan
+} // namespace PyroshockStudios

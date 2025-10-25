@@ -129,8 +129,6 @@ namespace PyroshockStudios {
             D3D12MA::VirtualAllocation virtualAlloc = {};
             D3D12_RESOURCE_DESC desc = {};
             BufferInfo info = {};
-            // Required for keeping track of the "UNDEFINED" state
-            D3D12_RESOURCE_STATES lastValidState = D3D12_RESOURCE_STATE_COMMON;
             u8* mappedMemory = nullptr;
             D3D12_RANGE range = {};
         };
@@ -140,8 +138,6 @@ namespace PyroshockStudios {
             D3D12MA::VirtualAllocation virtualAlloc = {};
             D3D12_RESOURCE_DESC desc = {};
             ImageInfo info = {};
-            // Required for keeping track of the "UNDEFINED" state
-            eastl::vector<D3D12_RESOURCE_STATES> lastValidStates = {};
             // Blit Dst
             eastl::vector<GPUResourceId> blitImageRTVs = {};
             // Blit Src
