@@ -55,6 +55,11 @@ namespace PyroshockStudios {
         struct VulkanDeviceCapabilities {
             bool bVK_EXT_line_rasterization = false;
             bool bVK_EXT_buffer_device_address = false;
+            bool bVK_KHR_acceleration_structures = false;
+            bool bVK_KHR_ray_tracing_pipeline = false;
+            bool bVK_KHR_ray_query = false;
+            bool bVK_KHR_ray_tracing_position_fetch = false;
+            bool bVK_NV_ray_tracing_invocation_reorder = false;
         };
 
         class VulkanDevice : public IDevice, DeleteCopy, DeleteMove {
@@ -79,7 +84,7 @@ namespace PyroshockStudios {
             const RasterPipelineInfo& GetRasterPipelineInfo(RasterPipeline pipeline) const     override;
             const ComputePipelineInfo& GetComputePipelineInfo(ComputePipeline pipeline) const  override;
             const SemaphoreInfo& GetSemaphoreInfo(Semaphore semaphore) const override;
-            const BLASInfo& GetBLASInfo(BLAS blas) const override;
+            const BLASInfo& GetBLASInfo(BLASId blas) const override;
             const TLASInfo& GetTLASInfo(TLASId tlas) const override;
 
             DeviceAddress BufferDeviceAddress(Buffer buffer) const override;
@@ -88,8 +93,8 @@ namespace PyroshockStudios {
             DeviceSize ImageSizeRequirements(Image image) const override;
             u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const override;
 
-            DeviceSize BLASBuildSizeRequirements(BLAS blas, eastl::span<const BLASGeometryInfo>, u32 primitiveCount) const override;
-            DeviceSize TLASBuildSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo>, u32 instanceCount) const override;
+            AccelerationStructureBuildSizesInfo BLASSizeRequirements(BLASId blas, eastl::span<const BLASGeometryInfo> blasGeometryInfo, u32 primitiveCount) const override;
+            AccelerationStructureBuildSizesInfo TLASSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo> tlasInstanceInfo, u32 instanceCount) const override;
 
             MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;
@@ -97,7 +102,7 @@ namespace PyroshockStudios {
             ShaderResourceId CreateShaderResource(const GPUResourceInfo& info) override;
             UnorderedAccessId CreateUnorderedAccess(const GPUResourceInfo& info) override;
             SamplerId CreateSampler(const SamplerInfo& info) override;
-            BLAS CreateBLAS(const BLASInfo& info) override;
+            BLASId CreateBLAS(const BLASInfo& info) override;
             TLASId CreateTLAS(const TLASInfo& info) override;
 
             RenderTarget CreateRenderTarget(const RenderTargetInfo& info) override;
@@ -114,7 +119,7 @@ namespace PyroshockStudios {
             virtual void DestroyShaderResource(ShaderResourceId& srv) override;
             virtual void DestroyUnorderedAccess(UnorderedAccessId& uav) override;
             virtual void DestroySampler(SamplerId& sampler) override;
-            virtual void DestroyBLAS(BLAS& blas) override;
+            virtual void DestroyBLAS(BLASId& blas) override;
             virtual void DestroyTLAS(TLASId& tlas) override;
 
             virtual void DestroyRenderTarget(RenderTarget& renderTarget) override;

@@ -254,7 +254,7 @@ namespace PyroshockStudios {
             /**
              * @brief Retrieves BLAS description.
              */
-            PYRO_NODISCARD virtual const BLASInfo& GetBLASInfo(BLAS blas) const = 0;
+            PYRO_NODISCARD virtual const BLASInfo& GetBLASInfo(BLASId blas) const = 0;
 
             /**
              * @brief Retrieves TLAS description.
@@ -313,11 +313,11 @@ namespace PyroshockStudios {
             /**
              * @brief Returns the minimum required size for building a bottom-level acceleration structure  
              */
-            PYRO_NODISCARD virtual DeviceSize BLASBuildSizeRequirements(BLAS blas, eastl::span<const BLASGeometryInfo>, u32 primitiveCount) const = 0;
+            PYRO_NODISCARD virtual AccelerationStructureBuildSizesInfo BLASSizeRequirements(BLASId blas, eastl::span<const BLASGeometryInfo> blasGeometryInfo, u32 primitiveCount) const = 0;
             /**
              * @brief Returns the minimum required size for building a top-level acceleration structure  
              */
-            PYRO_NODISCARD virtual DeviceSize TLASBuildSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo>, u32 instanceCount) const = 0;
+            PYRO_NODISCARD virtual AccelerationStructureBuildSizesInfo TLASSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo> tlasInstanceInfo, u32 instanceCount) const = 0;
 
 
             // ---------------------------------------------------------------------
@@ -390,7 +390,7 @@ namespace PyroshockStudios {
              * @brief - REQUIRES RAY TRACING SUPPORT -
              * Creates a bottom level acceleration structure to be referenced by a TLAS.
              */
-            PYRO_NODISCARD virtual BLAS CreateBLAS(const BLASInfo& info) = 0;
+            PYRO_NODISCARD virtual BLASId CreateBLAS(const BLASInfo& info) = 0;
             /**
              * @brief - REQUIRES RAY TRACING SUPPORT -
              * Creates a top level acceleration structure with the given parameters. This returns a handle
@@ -459,7 +459,7 @@ namespace PyroshockStudios {
             /**
              * @brief Immediately destroys the BLAS, and sets the handle to NULL
              */
-            virtual void DestroyBLAS(BLAS& blas) = 0;
+            virtual void DestroyBLAS(BLASId& blas) = 0;
             /**
              * @brief Immediately destroys the TLAS, and sets the handle to NULL
              */
@@ -480,7 +480,7 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE void Destroy(IFence*& fence) { DestroyFence(fence); }
             PYRO_FORCEINLINE void Destroy(ITimestampQueryPool*& queryPool) { DestroyTimestampQueryPool(queryPool); }
            
-            PYRO_FORCEINLINE void Destroy(BLAS& blas) { DestroyBLAS(blas); }
+            PYRO_FORCEINLINE void Destroy(BLASId& blas) { DestroyBLAS(blas); }
             PYRO_FORCEINLINE void Destroy(TLASId& tlas) { DestroyTLAS(tlas); }
 
             // ---------------------------------------------------------------------
@@ -549,7 +549,7 @@ namespace PyroshockStudios {
             PYRO_NODISCARD PYRO_FORCEINLINE Semaphore Create(const SemaphoreInfo& info) { return CreateSemaphore(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE IFence* Create(const FenceInfo& info) { return CreateFence(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE ITimestampQueryPool* Create(const TimestampQueryPoolInfo& info) { return CreateTimestampQueryPool(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE BLAS Create(const BLASInfo& info) { return CreateBLAS(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE BLASId Create(const BLASInfo& info) { return CreateBLAS(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE TLASId Create(const TLASInfo& info) { return CreateTLAS(info); }
         };
 

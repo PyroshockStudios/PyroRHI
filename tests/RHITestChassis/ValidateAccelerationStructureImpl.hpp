@@ -11,7 +11,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateAndDestroyBLAS) {
         .flags = BLASCreateFlagBits::NONE,
         .name = "My BLAS"
     };
-    BLAS blas = mDevice->Create(info);
+    BLASId blas = mDevice->Create(info);
     EXPECT_EQ(mDevice->GetBLASInfo(blas), info);
     mDevice->Destroy(blas);
 }
@@ -34,7 +34,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, BuildBLAS) {
         .flags = BLASCreateFlagBits::PREFER_FAST_BUILD, 
         .name = "My BLAS"
     };
-    BLAS blas = mDevice->Create(info);
+    BLASId blas = mDevice->Create(info);
 
     // 2. Create vertex buffer (single triangle)
     struct Vertex { float x, y, z; };

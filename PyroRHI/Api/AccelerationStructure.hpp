@@ -72,6 +72,8 @@ namespace PyroshockStudios {
         struct BLASInfo {
             /// @brief Create flags
             BLASCreateFlags flags = BLASCreateFlagBits::NONE;
+            /// @brief Memory size in bytes
+            DeviceSize size = {};  
             /// @brief Optional human-readable name for debugging/profiling.
             eastl::string name = {};
             PYRO_NODISCARD bool operator==(const BLASInfo&) const = default;
@@ -81,10 +83,17 @@ namespace PyroshockStudios {
         /**
          * @brief GPU BLAS handle.
          */
-        RHI_TYPED_PTR_HANDLE(BLAS);
+        struct BLASId : public GPUResourceId {
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const BLASId& other) const {
+                return eastl::bit_cast<u64>(*this) == eastl::bit_cast<u64>(other);
+            }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool operator!=(const BLASId& other) const {
+                return !(*this == other);
+            }
+        };
         
         /// @brief Null (invalid) bottom-level acceleration structure handle.
-        constexpr BLAS PYRO_NULL_BLAS = BLAS{};
+        constexpr BLASId PYRO_NULL_BLAS = BLASId{};
         
         struct TLASCreateFlagsProperties {
             using Data = u32;
@@ -103,7 +112,7 @@ namespace PyroshockStudios {
         };
 
         struct TLASInstanceInfo {
-            BLAS blas = PYRO_NULL_BLAS;                                 ///< reference to bottom-level AS. *MUST* be NON null
+            BLASId blas = PYRO_NULL_BLAS;                                 ///< reference to bottom-level AS. *MUST* be NON null
             Transform transform = Transform::IDENTITY;                  ///< world transform
             u32 instanceID = 0;                                         ///< arbitrary identifier
             u32 hitGroupMask = 0xFFFFFFFF;                              ///< which hit groups to consider
@@ -116,6 +125,8 @@ namespace PyroshockStudios {
         struct TLASInfo {
             /// @brief Create flags
             TLASCreateFlags flags = TLASCreateFlagBits::NONE;
+            /// @brief Memory size in bytes
+            DeviceSize size = {}; 
             /// @brief Optional human-readable name for debugging/profiling.
             eastl::string name = {};
 
@@ -137,6 +148,12 @@ namespace PyroshockStudios {
 
         /// @brief Null (invalid) top-level acceleration structure handle.
         constexpr TLASId PYRO_NULL_TLAS = TLASId{};
+
+        struct AccelerationStructureBuildSizesInfo {
+            DeviceSize accelerationStructureSize;
+            DeviceSize updateScratchSize;
+            DeviceSize buildScratchSize;
+        };
 
     } // namespace RHI
 } // namespace PyroshockStudios

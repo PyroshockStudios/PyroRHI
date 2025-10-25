@@ -29,6 +29,7 @@
 #define STORAGE_BUFFER_BINDING 0 /*SRV/UAV buffer*/
 #define SAMPLED_IMAGE_BINDING 1  /*SRV texture*/
 #define SAMPLER_BINDING 2        /*Sampler State*/
+#define ACCELERATION_STRUCTURE_BINDING 3        /*Sampler State*/
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
@@ -286,6 +287,29 @@ namespace PyroshockStudios {
             vkUpdateDescriptorSets(vkDevice, descriptorSetWriteCount, desciptorSetWrites.data(), 0, nullptr);
         }
 
+        void GPUShaderResourceTable::WriteDescriptorSetAccelerationStructure(VkDevice vkDevice, VkDescriptorSet vkDescriptorSet, VkAccelerationStructureKHR vkAccelerationStructure, u32 index) {
+            const VkWriteDescriptorSetAccelerationStructureKHR vkWriteDescriptorSet_AS = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
+                .pNext = nullptr,
+                .accelerationStructureCount = 1,
+                .pAccelerationStructures = &vkAccelerationStructure,
+            };
+
+            const VkWriteDescriptorSet vkWriteDescriptorSet = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = &vkWriteDescriptorSet_AS,
+                .dstSet = vkDescriptorSet,
+                .dstBinding = ACCELERATION_STRUCTURE_BINDING,
+                .dstArrayElement = index,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+                .pImageInfo = nullptr,
+                .pBufferInfo = nullptr,
+                .pTexelBufferView = nullptr,
+            };
+
+            vkUpdateDescriptorSets(vkDevice, 1, &vkWriteDescriptorSet, 0, nullptr);
+        }
 
 
         void GPUShaderResourceTable::CreateBindlessDescriptorSetLayout(VkDevice device, const VkAllocationCallbacks* allocator) {

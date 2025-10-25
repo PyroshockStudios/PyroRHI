@@ -115,46 +115,78 @@ namespace PyroshockStudios {
             eastl::vector<VkExtensionProperties> availableExtensions(extensionCount);
             vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
 
-            VkPhysicalDeviceLineRasterizationFeaturesEXT lineFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT };
-            VkPhysicalDeviceBufferDeviceAddressFeatures physicalDeviceBufferDeviceAddressFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES };
-            for (VkExtensionProperties& extension : availableExtensions) {
+            auto tryEnableExtension = [&physicalDevice, &lastPhysicalDevicePnext, &extensions](VkExtensionProperties& extension, const char* extensionName, auto& extensionFeatureStruct, const auto& checkFunc, const auto& customFunc) {
                 if (strcmp(extension.extensionName, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME) == 0) {
                     VkPhysicalDeviceFeatures2 features2{
                         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-                        .pNext = &lineFeatures,
+                        .pNext = &extensionFeatureStruct,
                     };
                     vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
-                    if (lineFeatures.smoothLines == VK_TRUE) {
-                        lineFeatures.pNext = lastPhysicalDevicePnext;
-                        lastPhysicalDevicePnext = reinterpret_cast<void*>(&lineFeatures);
 
-                        Logger::Info(gVulkanSink, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME " with 'smoothLines' is supported on this device.");
-                        mVulkanCaps.bVK_EXT_line_rasterization = true;
+                    if (checkFunc()) {
+                        extensionFeatureStruct.pNext = lastPhysicalDevicePnext;
+                        lastPhysicalDevicePnext = reinterpret_cast<void*>(&extensionFeatureStruct);
+
+                        customFunc();
+
                         extensions.push_back(extension.extensionName);
                     }
                 }
-                if (strcmp(extension.extensionName, VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME) == 0) {
-                    VkPhysicalDeviceFeatures2 features2{
-                        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-                        .pNext = &physicalDeviceBufferDeviceAddressFeatures,
-                    };
-                    vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
-                    if (features2.features.shaderInt64 == VK_TRUE && physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress == VK_TRUE) {
-                        physicalDeviceBufferDeviceAddressFeatures.pNext = lastPhysicalDevicePnext;
-                        lastPhysicalDevicePnext = reinterpret_cast<void*>(&physicalDeviceBufferDeviceAddressFeatures);
+            };
 
-                        Logger::Info(gVulkanSink, VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME " is supported on this device.");
+            VkPhysicalDeviceFeatures2 features2 = {
+                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+                .pNext = nullptr,
+            };
+            vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
 
-                        physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
-                        physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressCaptureReplay = VK_FALSE;
-                        physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressMultiDevice = VK_FALSE;
+            VkPhysicalDeviceLineRasterizationFeaturesEXT lineFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT };
+            VkPhysicalDeviceBufferDeviceAddressFeatures physicalDeviceBufferDeviceAddressFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES };
+            VkPhysicalDeviceAccelerationStructureFeaturesKHR physicalDeviceAccelerationStructureFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR };
+            VkPhysicalDeviceRayTracingPipelineFeaturesKHR physicalDeviceRayTracingPipelineFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR };
+            VkPhysicalDeviceRayQueryFeaturesKHR physicalDeviceRayQueryFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR };
+            VkPhysicalDeviceRayTracingPositionFetchFeaturesKHR physicalDeviceRayTracingPositionFetchFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR };
+            VkPhysicalDeviceRayTracingInvocationReorderPropertiesNV physicalDeviceRayTracingInvocationReorderProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_POSITION_FETCH_FEATURES_KHR };
+            for (VkExtensionProperties& extension : availableExtensions) {
+                tryEnableExtension(extension, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME, lineFeatures, [&]() { return lineFeatures.smoothLines == VK_TRUE; }, [&]() {
+                    Logger::Info(gVulkanSink, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME " with 'smoothLines' is supported on this device.");
+                    mVulkanCaps.bVK_EXT_line_rasterization = true; });
 
-                        mVulkanCaps.bVK_EXT_buffer_device_address = true;
-                        // No need to enable it since it's in vulkan 1.3 core.
-                        // Commenting this out fixes an error that both the KHR and EXT versions of this are enabled
-                        // extensions.push_back(extension.extensionName);
-                    }
-                }
+                tryEnableExtension(extension, VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, physicalDeviceBufferDeviceAddressFeatures, [&]() { return features2.features.shaderInt64 == VK_TRUE && physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress == VK_TRUE; }, [&]() {
+                    Logger::Info(gVulkanSink, VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME " is supported on this device.");
+
+                    physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+                    physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressCaptureReplay = VK_FALSE;
+                    physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressMultiDevice = VK_FALSE;
+
+                    mVulkanCaps.bVK_EXT_buffer_device_address = true; });
+
+                tryEnableExtension(extension, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, physicalDeviceAccelerationStructureFeatures, [&]() { return physicalDeviceAccelerationStructureFeatures.accelerationStructure == VK_TRUE; }, [&]() {
+                    Logger::Info(gVulkanSink, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME " is supported on this device.");
+                    
+                    physicalDeviceAccelerationStructureFeatures.accelerationStructureCaptureReplay = VK_FALSE;
+                    
+                    mVulkanCaps.bVK_KHR_acceleration_structures = true; });
+
+                tryEnableExtension(extension, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, physicalDeviceRayTracingPipelineFeatures, [&]() { return physicalDeviceRayTracingPipelineFeatures.rayTracingPipeline == VK_TRUE; }, [&]() {
+                    Logger::Info(gVulkanSink, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME " is supported on this device.");
+                    
+                    physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplay = VK_FALSE;
+                    physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplayMixed = VK_FALSE;
+
+                    mVulkanCaps.bVK_KHR_ray_tracing_pipeline = true; });
+
+                tryEnableExtension(extension, VK_KHR_RAY_QUERY_EXTENSION_NAME, physicalDeviceRayQueryFeatures, [&]() { return physicalDeviceRayQueryFeatures.rayQuery == VK_TRUE; }, [&]() {
+                    Logger::Info(gVulkanSink, VK_KHR_RAY_QUERY_EXTENSION_NAME " is supported on this device.");
+                    mVulkanCaps.bVK_KHR_ray_query = true; });
+
+                tryEnableExtension(extension, VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME, physicalDeviceRayTracingPositionFetchFeatures, [&]() { return physicalDeviceRayTracingPositionFetchFeatures.rayTracingPositionFetch == VK_TRUE; }, [&]() {
+                    Logger::Info(gVulkanSink, VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME " is supported on this device.");
+                    mVulkanCaps.bVK_KHR_ray_tracing_position_fetch = true; });
+
+                tryEnableExtension(extension, VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME, physicalDeviceRayTracingInvocationReorderProperties, [&]() { return physicalDeviceRayTracingInvocationReorderProperties.rayTracingInvocationReorderReorderingHint == VK_TRUE; }, [&]() {
+                    Logger::Info(gVulkanSink, VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME " is supported on this device.");
+                    mVulkanCaps.bVK_NV_ray_tracing_invocation_reorder = true; });
             }
 
             const VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{
@@ -900,7 +932,6 @@ namespace PyroshockStudios {
             CheckVkResult(result);
 
             if (vkSetDebugUtilsObjectNameEXT) {
-
                 const VkDebugUtilsObjectNameInfoEXT samplerNameInfo = {
                     .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
                     .pNext = nullptr,
@@ -916,12 +947,98 @@ namespace PyroshockStudios {
             return SamplerId{ id };
         }
 
-        BLAS VulkanDevice::CreateBLAS(const BLASInfo& info) {
-            return {};
+        BLASId VulkanDevice::CreateBLAS(const BLASInfo& info) {
+            auto [id, ret] = mResourceTable.mBlasSlots.NewSlot();
+            ret.info = info;
+
+            ret.ownsBuffer = true;
+            ret.bufferId = CreateBuffer({ .size = info.size,
+                .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER,
+                .allocationDomain = MemoryAllocationDomain::DeviceLocal,
+                .name = info.name + " - buffer" });
+            ret.vkBuffer = Slot(ret.bufferId).vkBuffer;
+
+            VkAccelerationStructureCreateInfoKHR vkCreateInfo = {
+                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+                .pNext = nullptr,
+                .createFlags = {}, // VK_ACCELERATION_STRUCTURE_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR,
+                .buffer = Slot(ret.bufferId).vkBuffer,
+                .offset = ret.offset,
+                .size = ret.info.size,
+                .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+                .deviceAddress = {},
+            };
+            VkResult result = vkCreateAccelerationStructureKHR(mDevice, &vkCreateInfo, mContext->GetVkAllocator(), &ret.vkAccelerationStructure);
+            CheckVkResult(result);
+
+            VkAccelerationStructureDeviceAddressInfoKHR vkAccelerationStructureDeviceAddressInfo = {
+                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+                .pNext = nullptr,
+                .accelerationStructure = ret.vkAccelerationStructure,
+            };
+
+            ret.deviceAddress = vkGetAccelerationStructureDeviceAddressKHR(mDevice, &vkAccelerationStructureDeviceAddressInfo);
+
+            if (vkSetDebugUtilsObjectNameEXT) {
+                const VkDebugUtilsObjectNameInfoEXT blasNameInfo = {
+                    .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+                    .pNext = nullptr,
+                    .objectType = VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR,
+                    .objectHandle = eastl::bit_cast<uint64_t>(ret.vkAccelerationStructure),
+                    .pObjectName = info.name.c_str(),
+                };
+                vkSetDebugUtilsObjectNameEXT(mDevice, &blasNameInfo);
+            }
+
+            return BLASId{ id };
         }
 
         TLASId VulkanDevice::CreateTLAS(const TLASInfo& info) {
-            return {};
+            auto [id, ret] = mResourceTable.mTlasSlots.NewSlot();
+            ret.info = info;
+
+            ret.ownsBuffer = true;
+            ret.bufferId = CreateBuffer({ .size = info.size,
+                .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER, // TODO: what here?
+                .allocationDomain = MemoryAllocationDomain::DeviceLocal,
+                .name = info.name + " - buffer" });
+            ret.vkBuffer = Slot(ret.bufferId).vkBuffer;
+
+            VkAccelerationStructureCreateInfoKHR vkCreateInfo = {
+                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+                .pNext = nullptr,
+                .createFlags = {}, // VK_ACCELERATION_STRUCTURE_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR,
+                .buffer = Slot(ret.bufferId).vkBuffer,
+                .offset = ret.offset,
+                .size = ret.info.size,
+                .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+                .deviceAddress = {},
+            };
+            VkResult result = vkCreateAccelerationStructureKHR(mDevice, &vkCreateInfo, mContext->GetVkAllocator(), &ret.vkAccelerationStructure);
+            CheckVkResult(result);
+
+            VkAccelerationStructureDeviceAddressInfoKHR vkAccelerationStructureDeviceAddressInfo = {
+                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+                .pNext = nullptr,
+                .accelerationStructure = ret.vkAccelerationStructure,
+            };
+
+            ret.deviceAddress = vkGetAccelerationStructureDeviceAddressKHR(mDevice, &vkAccelerationStructureDeviceAddressInfo);
+
+            if (vkSetDebugUtilsObjectNameEXT) {
+                const VkDebugUtilsObjectNameInfoEXT tlasNameInfo = {
+                    .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+                    .pNext = nullptr,
+                    .objectType = VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR,
+                    .objectHandle = eastl::bit_cast<uint64_t>(ret.vkAccelerationStructure),
+                    .pObjectName = info.name.c_str(),
+                };
+                vkSetDebugUtilsObjectNameEXT(mDevice, &tlasNameInfo);
+            }
+
+            mResourceTable.WriteDescriptorSetAccelerationStructure(mDevice, mResourceTable.mBindlessDescriptorSet, ret.vkAccelerationStructure, id.index);
+
+            return TLASId{ id };
         }
 
         RenderTarget VulkanDevice::CreateRenderTarget(const RenderTargetInfo& info) {
@@ -967,12 +1084,12 @@ namespace PyroshockStudios {
             return eastl::bit_cast<VulkanSemaphore*>(semaphore)->Info();
         }
 
-        const BLASInfo& VulkanDevice::GetBLASInfo(BLAS blas) const {
-            return {};
+        const BLASInfo& VulkanDevice::GetBLASInfo(BLASId blas) const {
+            return mResourceTable.mBlasSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(blas)).info;
         }
 
         const TLASInfo& VulkanDevice::GetTLASInfo(TLASId tlas) const {
-            return {};
+            return mResourceTable.mTlasSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(tlas)).info;
         }
 
         DeviceAddress VulkanDevice::BufferDeviceAddress(Buffer buffer) const {
@@ -995,12 +1112,24 @@ namespace PyroshockStudios {
             return PYRO_ALIGN(rowWidth, mPhysicalDeviceProperties.limits.optimalBufferCopyRowPitchAlignment);
         }
 
-        DeviceSize VulkanDevice::BLASBuildSizeRequirements(BLAS blas, eastl::span<const BLASGeometryInfo>, u32 primitiveCount) const {
-            return {};
-        }
+        AccelerationStructureBuildSizesInfo VulkanDevice::TLASSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo> tlasInstanceInfo, u32 instanceCount) const {
+            eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR> vkBuildGeometryInfos = {};
+            eastl::vector<VkAccelerationStructureGeometryKHR> vkGeometryInfos = {};
+            eastl::vector<u32> primitiveCounts = {};
+            eastl::vector<const u32*> primitiveCountsPtrs = {};
 
-        DeviceSize VulkanDevice::TLASBuildSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo>, u32 instanceCount) const {
-            return {};
+            VkAccelerationStructureBuildSizesInfoKHR vkAccelerationStructureBuildSizesInfo = {
+                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
+                .pNext = nullptr,
+            };
+
+            vkGetAccelerationStructureBuildSizesKHR(mDevice, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, vkBuildGeometryInfos.data(), primitiveCounts.data(), &vkAccelerationStructureBuildSizesInfo);
+
+            return {
+                .accelerationStructureSize = vkAccelerationStructureBuildSizesInfo.accelerationStructureSize,
+                .updateScratchSize = vkAccelerationStructureBuildSizesInfo.updateScratchSize,
+                .buildScratchSize = vkAccelerationStructureBuildSizesInfo.buildScratchSize,
+            };
         }
 
         bool VulkanDevice::IsMemoryBlockValid(MemoryBlock memory) const {
@@ -1114,12 +1243,20 @@ namespace PyroshockStudios {
             sampler = PYRO_NULL_SAMPLER;
         }
 
-        void VulkanDevice::DestroyBLAS(BLAS& blas) {
-
+        void VulkanDevice::DestroyBLAS(BLASId& blas) {
+            ImplBlasSlot& blasSlot = mResourceTable.mBlasSlots.DereferenceId(blas);
+            vkDestroyAccelerationStructureKHR(mDevice, blasSlot.vkAccelerationStructure, mContext->GetVkAllocator());
+            blasSlot = {};
+            mResourceTable.mBlasSlots.ReturnSlot(blas);
+            blas = PYRO_NULL_BLAS;
         }
 
         void VulkanDevice::DestroyTLAS(TLASId& tlas) {
-
+            ImplTlasSlot& tlasSlot = mResourceTable.mTlasSlots.DereferenceId(tlas);
+            vkDestroyAccelerationStructureKHR(mDevice, tlasSlot.vkAccelerationStructure, mContext->GetVkAllocator());
+            tlasSlot = {};
+            mResourceTable.mTlasSlots.ReturnSlot(tlas);
+            tlas = PYRO_NULL_TLAS;
         }
 
         void VulkanDevice::DestroySemaphore(Semaphore& semaphore) {

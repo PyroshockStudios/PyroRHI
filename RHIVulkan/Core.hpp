@@ -50,11 +50,18 @@
 #pragma GCC diagnostic ignored "-Wnullability-completeness"
 #endif
 #endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnullability-completeness"
+#endif
 #pragma warning(push)
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
 #ifndef _MSC_VER
 #pragma GCC diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic pop
 #endif
 
 #ifdef PYRO_PLATFORM_WINDOWS

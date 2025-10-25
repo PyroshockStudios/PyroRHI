@@ -36,6 +36,7 @@
 
 #include <RHIVulkan/Core.hpp>
 #include <PyroRHI/Api/GPUResource.hpp>
+#include <PyroRHI/Api/AccelerationStructure.hpp>
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
@@ -88,6 +89,26 @@ namespace PyroshockStudios {
             bool zombie = {};
             // eastl::atomic<u32> debugReferences = 0;
             u32 debugReferences = 0;
+        };
+
+        struct ImplBlasSlot {
+            BLASInfo info = {};
+            VkAccelerationStructureKHR vkAccelerationStructure = {};
+            Buffer bufferId = {};
+            VkBuffer vkBuffer = {};
+            u64 offset = {};
+            VkDeviceAddress deviceAddress = {};
+            bool ownsBuffer = {};
+        };
+
+        struct ImplTlasSlot {
+            TLASInfo info = {};
+            VkAccelerationStructureKHR vkAccelerationStructure = {};
+            Buffer bufferId = {};
+            VkBuffer vkBuffer = {};
+            u64 offset = {};
+            VkDeviceAddress deviceAddress = {};
+            bool ownsBuffer = {};
         };
 
         template <typename ResourceT>
@@ -209,6 +230,10 @@ namespace PyroshockStudios {
 
             GpuResourcePool<ImplSamplerSlot> mSamplerSlots = {};
 
+            GpuResourcePool<ImplBlasSlot> mBlasSlots = {};
+
+            GpuResourcePool<ImplTlasSlot> mTlasSlots = {};
+
             VkDescriptorSetLayout mBindlessDescriptorSetLayout = {};
             VkDescriptorSetLayout mPushDescriptorSetLayout = {};
             VkDescriptorSet mBindlessDescriptorSet = {};
@@ -231,6 +256,7 @@ namespace PyroshockStudios {
             void WriteDescriptorSetSampler(VkDevice vkDevice, VkDescriptorSet descriptorSet, VkSampler vkSampler, u32 index);
             void WriteDescriptorSetBuffer(VkDevice vkDevice, VkDescriptorSet descriptorSet, VkBuffer vkBuffer, VkDeviceSize offset, VkDeviceSize range, u32 index);
             void WriteDescriptorSetImageView(VkDevice vkDevice, VkDescriptorSet descriptorSet, VkImageView vkImageView, ImageUsageFlags usage, u32 index);
+            void WriteDescriptorSetAccelerationStructure(VkDevice vkDevice, VkDescriptorSet vkDescriptorSet, VkAccelerationStructureKHR vkAccelerationStructure, u32 index);
 
         private:
             void CreateBindlessDescriptorSetLayout(VkDevice device, const VkAllocationCallbacks* allocator);

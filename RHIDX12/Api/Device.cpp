@@ -388,7 +388,7 @@ namespace PyroshockStudios {
         const SemaphoreInfo& D3DDevice::GetSemaphoreInfo(Semaphore semaphore) const {
             return eastl::bit_cast<D3DSemaphore*>(semaphore)->Info();
         }
-        const BLASInfo& D3DDevice::GetBLASInfo(BLAS blas) const {
+        const BLASInfo& D3DDevice::GetBLASInfo(BLASId blas) const {
             return {};
         }
         const TLASInfo& D3DDevice::GetTLASInfo(TLASId tlas) const {
@@ -422,11 +422,11 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             return footprint.Footprint.RowPitch;
         }
-        DeviceSize D3DDevice::BLASBuildSizeRequirements(BLAS blas, eastl::span<const BLASGeometryInfo>, u32 primitiveCount) const {
+        AccelerationStructureBuildSizesInfo D3DDevice::BLASSizeRequirements(BLASId blas, eastl::span<const BLASGeometryInfo> blasGeometryInfo, u32 primitiveCount) const {
             return {};
         }
 
-        DeviceSize D3DDevice::TLASBuildSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo>, u32 instanceCount) const {
+        AccelerationStructureBuildSizesInfo D3DDevice::TLASSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo> tlasInstanceInfo, u32 instanceCount) const {
             return {};
         }
         MemoryBlock D3DDevice::CreateMemoryBlock(const MemoryBlockInfo& info) {
@@ -952,7 +952,7 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             return SamplerId(handle);
         }
-        BLAS D3DDevice::CreateBLAS(const BLASInfo& info) {
+        BLASId D3DDevice::CreateBLAS(const BLASInfo& info) {
             return {};
         }
         TLASId D3DDevice::CreateTLAS(const TLASInfo& info) {
@@ -1063,7 +1063,7 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             sampler = PYRO_NULL_SAMPLER;
         }
-        void D3DDevice::DestroyBLAS(BLAS& blas) {
+        void D3DDevice::DestroyBLAS(BLASId& blas) {
 
         }
         void D3DDevice::DestroyTLAS(TLASId& tlas) {
