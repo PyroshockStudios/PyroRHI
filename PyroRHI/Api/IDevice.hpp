@@ -313,11 +313,11 @@ namespace PyroshockStudios {
             /**
              * @brief Returns the minimum required size for building a bottom-level acceleration structure  
              */
-            PYRO_NODISCARD virtual AccelerationStructureBuildSizesInfo BLASSizeRequirements(BLASId blas, eastl::span<const BLASGeometryInfo> blasGeometryInfo, u32 primitiveCount) const = 0;
+            PYRO_NODISCARD virtual AccelerationStructureBuildSizesInfo BLASSizeRequirements(const BLASBuildInfo& info) const = 0;
             /**
              * @brief Returns the minimum required size for building a top-level acceleration structure  
              */
-            PYRO_NODISCARD virtual AccelerationStructureBuildSizesInfo TLASSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo> tlasInstanceInfo, u32 instanceCount) const = 0;
+            PYRO_NODISCARD virtual AccelerationStructureBuildSizesInfo TLASSizeRequirements(const TLASBuildInfo& info) const = 0;
 
 
             // ---------------------------------------------------------------------

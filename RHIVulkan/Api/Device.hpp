@@ -93,8 +93,8 @@ namespace PyroshockStudios {
             DeviceSize ImageSizeRequirements(Image image) const override;
             u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const override;
 
-            AccelerationStructureBuildSizesInfo BLASSizeRequirements(BLASId blas, eastl::span<const BLASGeometryInfo> blasGeometryInfo, u32 primitiveCount) const override;
-            AccelerationStructureBuildSizesInfo TLASSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo> tlasInstanceInfo, u32 instanceCount) const override;
+            AccelerationStructureBuildSizesInfo BLASSizeRequirements(const BLASBuildInfo& info) const override;
+            AccelerationStructureBuildSizesInfo TLASSizeRequirements(const TLASBuildInfo& info) const override;
 
             MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;
@@ -177,6 +177,8 @@ namespace PyroshockStudios {
             ImplResourceViewSlot& Slot(ShaderResourceId id);
             ImplResourceViewSlot& Slot(UnorderedAccessId id);
             ImplSamplerSlot& Slot(SamplerId id);
+            ImplBlasSlot& Slot(BLASId id);
+            ImplTlasSlot& Slot(TLASId id);
 
             const ImplVmaVirtualBlockSlot& Slot(MemoryBlock block) const;
             const ImplBufferSlot& Slot(Buffer buffer) const;
@@ -184,6 +186,10 @@ namespace PyroshockStudios {
             const ImplResourceViewSlot& Slot(ShaderResourceId id) const;
             const ImplResourceViewSlot& Slot(UnorderedAccessId id) const;
             const ImplSamplerSlot& Slot(SamplerId id) const;
+            const ImplBlasSlot& Slot(BLASId id) const;
+            const ImplTlasSlot& Slot(TLASId id) const;
+
+            void CreateAccelerationStructureBuildInfo(const eastl::span<const TLASBuildInfo>& tlasBuildInfos, const eastl::span<const BLASBuildInfo>& blasBuildInfos, eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR>& vkBuildGeometryInfos, eastl::vector<VkAccelerationStructureGeometryKHR>& vkGeometryInfos, eastl::vector<u32>& primitiveCounts, eastl::vector<const u32*>& primitiveCountsPtrs) const;
 
         public:
             eastl::atomic<u64> mMainQueueCpuTimeline = {};

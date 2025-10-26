@@ -112,8 +112,8 @@ namespace PyroshockStudios {
             DeviceSize ImageSizeRequirements(Image image) const override;
             u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const override;
 
-            AccelerationStructureBuildSizesInfo BLASSizeRequirements(BLASId blas, eastl::span<const BLASGeometryInfo> blasGeometryInfo, u32 primitiveCount) const override;
-            AccelerationStructureBuildSizesInfo TLASSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo> tlasInstanceInfo, u32 instanceCount) const override;
+            AccelerationStructureBuildSizesInfo BLASSizeRequirements(const BLASBuildInfo& info) const override;
+            AccelerationStructureBuildSizesInfo TLASSizeRequirements(const TLASBuildInfo& info) const override;
 
             MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;

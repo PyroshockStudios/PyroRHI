@@ -422,11 +422,11 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             return footprint.Footprint.RowPitch;
         }
-        AccelerationStructureBuildSizesInfo D3DDevice::BLASSizeRequirements(BLASId blas, eastl::span<const BLASGeometryInfo> blasGeometryInfo, u32 primitiveCount) const {
+        AccelerationStructureBuildSizesInfo D3DDevice::BLASSizeRequirements(const BLASBuildInfo& info) const {
             return {};
         }
 
-        AccelerationStructureBuildSizesInfo D3DDevice::TLASSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo> tlasInstanceInfo, u32 instanceCount) const {
+        AccelerationStructureBuildSizesInfo D3DDevice::TLASSizeRequirements(const TLASBuildInfo& info) const {
             return {};
         }
         MemoryBlock D3DDevice::CreateMemoryBlock(const MemoryBlockInfo& info) {

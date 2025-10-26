@@ -1112,11 +1112,162 @@ namespace PyroshockStudios {
             return PYRO_ALIGN(rowWidth, mPhysicalDeviceProperties.limits.optimalBufferCopyRowPitchAlignment);
         }
 
-        AccelerationStructureBuildSizesInfo VulkanDevice::TLASSizeRequirements(TLASId tlas, eastl::span<const TLASInstanceInfo> tlasInstanceInfo, u32 instanceCount) const {
+        void VulkanDevice::CreateAccelerationStructureBuildInfo(const eastl::span<const TLASBuildInfo>& tlasBuildInfos, const eastl::span<const BLASBuildInfo>& blasBuildInfos, eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR>& vkBuildGeometryInfos, eastl::vector<VkAccelerationStructureGeometryKHR>& vkGeometryInfos, eastl::vector<u32>& primitiveCounts, eastl::vector<const u32*>& primitiveCountsPtrs) const {
+            vkBuildGeometryInfos.reserve(blasBuildInfos.size() + tlasBuildInfos.size());
+            primitiveCounts.reserve(blasBuildInfos.size() + tlasBuildInfos.size());
+            usize geometryInfoCount = 0;
+            for(const auto& tlasBuildInfo : tlasBuildInfos) {
+                geometryInfoCount += tlasBuildInfo.instances.size();
+            }
+            for(const auto& blasBuildInfo : blasBuildInfos) {
+                if(auto* triangleGeometryInfos = eastl::get_if<eastl::span<const BLASTriangleGeometryInfo>>(&blasBuildInfo.geometries)) {
+                    geometryInfoCount += triangleGeometryInfos->size();
+                }
+
+                if(auto* aabbGeometryInfos = eastl::get_if<eastl::span<const BLASAABBGeometryInfo>>(&blasBuildInfo.geometries)) {
+                    geometryInfoCount += aabbGeometryInfos->size();
+                }
+            }
+            vkGeometryInfos.reserve(geometryInfoCount);
+            primitiveCounts.reserve(geometryInfoCount);
+            primitiveCountsPtrs.reserve(geometryInfoCount);
+
+            for(const auto& tlasBuildInfo : tlasBuildInfos) {
+                const VkAccelerationStructureGeometryKHR* vkGeometryArrayPtr = vkGeometryInfos.data() + vkGeometryInfos.size();
+                const u32* primitiveCountsPtr = primitiveCounts.data() + primitiveCounts.size();
+
+                for(const auto& instance : tlasBuildInfo.instances) {
+                    VkAccelerationStructureGeometryInstancesDataKHR vkInstanceData = {
+                        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR,
+                        .pNext = nullptr,
+                        .arrayOfPointers = static_cast<VkBool32>(instance.isDataArrayOfPointers),
+                        .data = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(instance.data).deviceAddress)
+                    };
+                    vkGeometryInfos.push_back(VkAccelerationStructureGeometryKHR {
+                        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+                        .pNext = nullptr,
+                        .geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR,
+                        .geometry = VkAccelerationStructureGeometryDataKHR {
+                            .instances = vkInstanceData
+                        }
+                    });
+                    primitiveCounts.push_back(instance.count);
+                }
+
+                vkBuildGeometryInfos.push_back({
+                    .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+                    .pNext = nullptr,
+                    .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+                    .flags = static_cast<VkBuildAccelerationStructureFlagsKHR>(tlasBuildInfo.flags),
+                    .mode = tlasBuildInfo.update ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR  : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+                    .srcAccelerationStructure = tlasBuildInfo.srcTlas != PYRO_NULL_TLAS ? Slot(tlasBuildInfo.srcTlas).vkAccelerationStructure : nullptr,
+                    .dstAccelerationStructure = tlasBuildInfo.dstTlas != PYRO_NULL_TLAS ? Slot(tlasBuildInfo.dstTlas).vkAccelerationStructure : nullptr,
+                    .geometryCount = static_cast<u32>(tlasBuildInfo.instances.size()),
+                    .pGeometries = vkGeometryArrayPtr,
+                    .ppGeometries = nullptr,
+                    .scratchData = eastl::bit_cast<VkDeviceOrHostAddressKHR>(Slot(tlasBuildInfo.scratchBuffer).deviceAddress),
+                });
+                primitiveCountsPtrs.push_back(primitiveCountsPtr);
+            }
+
+            for(const auto& blasBuildInfo : blasBuildInfos) {
+                const VkAccelerationStructureGeometryKHR* vkGeometryArrayPtr = vkGeometryInfos.data() + vkGeometryInfos.size();
+                const u32* primitiveCountsPtr = primitiveCounts.data() + primitiveCounts.size();
+
+                u32 geometryCount = 0;
+                if(auto* triangleGeometryInfos = eastl::get_if<eastl::span<const BLASTriangleGeometryInfo>>(&blasBuildInfo.geometries)) {
+                    geometryCount = triangleGeometryInfos->size();
+                    for(const auto& geometry : *triangleGeometryInfos) {
+                        VkAccelerationStructureGeometryKHR geometryInfo = {
+                            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+                            .pNext = nullptr,
+                            .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+                            .geometry = {
+                                .triangles = {
+                                    .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+                                    .pNext = nullptr,
+                                    .vertexFormat = ToVkFormat(geometry.vertexFormat),
+                                    .vertexData = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(geometry.vertexBuffer).deviceAddress),
+                                    .vertexStride = geometry.vertexStride,
+                                    .maxVertex = geometry.vertexCount - 1,
+                                    .indexType = ToVkIndexType(geometry.indexType),
+                                    .indexData = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(geometry.indexBuffer).deviceAddress),
+                                    .transformData = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(geometry.transformData).deviceAddress + geometry.transformDataOffset),
+                                },
+                            },
+                            .flags = eastl::bit_cast<VkGeometryFlagsKHR>(geometry.flags),
+                        };
+                        primitiveCounts.push_back(geometry.indexBuffer == PYRO_NULL_BUFFER ? geometry.vertexCount / 3 : geometry.indexCount / 3);
+                        vkGeometryInfos.push_back(geometryInfo);
+                    }
+                }
+
+                if(auto* aabbGeometryInfos = eastl::get_if<eastl::span<const BLASAABBGeometryInfo>>(&blasBuildInfo.geometries)) {
+                    geometryCount = aabbGeometryInfos->size();
+                    for(const auto& geometry : *aabbGeometryInfos) {
+                        VkAccelerationStructureGeometryKHR geometryInfo = {
+                            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+                            .pNext = nullptr,
+                            .geometryType = VK_GEOMETRY_TYPE_AABBS_KHR,
+                            .geometry = {
+                                .aabbs = {
+                                    .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR,
+                                    .pNext = nullptr,
+                                    .data = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(geometry.data).deviceAddress),
+                                    .stride = geometry.stride,
+                                },
+                            },
+                            .flags = eastl::bit_cast<VkGeometryFlagsKHR>(geometry.flags),
+                        };
+                        primitiveCounts.push_back(geometry.count);
+                        vkGeometryInfos.push_back(geometryInfo);
+                    }
+                }
+
+                vkBuildGeometryInfos.push_back({
+                    .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+                    .pNext = nullptr,
+                    .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+                    .flags = static_cast<VkBuildAccelerationStructureFlagsKHR>(blasBuildInfo.flags),
+                    .mode = blasBuildInfo.bUpdate ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR  : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+                    .srcAccelerationStructure = blasBuildInfo.srcBLAS != PYRO_NULL_BLAS ? Slot(blasBuildInfo.srcBLAS).vkAccelerationStructure : nullptr,
+                    .dstAccelerationStructure = blasBuildInfo.dstBLAS != PYRO_NULL_BLAS ? Slot(blasBuildInfo.dstBLAS).vkAccelerationStructure : nullptr,
+                    .geometryCount = geometryCount,
+                    .pGeometries = vkGeometryArrayPtr,
+                    .ppGeometries = nullptr,
+                    .scratchData = eastl::bit_cast<VkDeviceOrHostAddressKHR>(Slot(blasBuildInfo.scratchBuffer).deviceAddress),
+                });
+                primitiveCountsPtrs.push_back(primitiveCountsPtr);
+            }
+        }
+
+        AccelerationStructureBuildSizesInfo VulkanDevice::BLASSizeRequirements(const BLASBuildInfo& info) const {
             eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR> vkBuildGeometryInfos = {};
             eastl::vector<VkAccelerationStructureGeometryKHR> vkGeometryInfos = {};
             eastl::vector<u32> primitiveCounts = {};
             eastl::vector<const u32*> primitiveCountsPtrs = {};
+            CreateAccelerationStructureBuildInfo({}, {&info, 1}, vkBuildGeometryInfos, vkGeometryInfos, primitiveCounts, primitiveCountsPtrs);
+
+            VkAccelerationStructureBuildSizesInfoKHR vkAccelerationStructureBuildSizesInfo = {
+                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
+                .pNext = nullptr,
+            };
+
+            vkGetAccelerationStructureBuildSizesKHR(mDevice, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, vkBuildGeometryInfos.data(), primitiveCounts.data(), &vkAccelerationStructureBuildSizesInfo);
+
+            return {
+                .accelerationStructureSize = vkAccelerationStructureBuildSizesInfo.accelerationStructureSize,
+                .updateScratchSize = vkAccelerationStructureBuildSizesInfo.updateScratchSize,
+                .buildScratchSize = vkAccelerationStructureBuildSizesInfo.buildScratchSize,
+            };
+        }
+
+        AccelerationStructureBuildSizesInfo VulkanDevice::TLASSizeRequirements(const TLASBuildInfo& info) const {
+            eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR> vkBuildGeometryInfos = {};
+            eastl::vector<VkAccelerationStructureGeometryKHR> vkGeometryInfos = {};
+            eastl::vector<u32> primitiveCounts = {};
+            eastl::vector<const u32*> primitiveCountsPtrs = {};
+            CreateAccelerationStructureBuildInfo({&info, 1}, {}, vkBuildGeometryInfos, vkGeometryInfos, primitiveCounts, primitiveCountsPtrs);
 
             VkAccelerationStructureBuildSizesInfoKHR vkAccelerationStructureBuildSizesInfo = {
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
@@ -1246,6 +1397,11 @@ namespace PyroshockStudios {
         void VulkanDevice::DestroyBLAS(BLASId& blas) {
             ImplBlasSlot& blasSlot = mResourceTable.mBlasSlots.DereferenceId(blas);
             vkDestroyAccelerationStructureKHR(mDevice, blasSlot.vkAccelerationStructure, mContext->GetVkAllocator());
+
+            if(blasSlot.ownsBuffer) {
+                DestroyBuffer(blasSlot.bufferId);
+            }
+
             blasSlot = {};
             mResourceTable.mBlasSlots.ReturnSlot(blas);
             blas = PYRO_NULL_BLAS;
@@ -1254,6 +1410,11 @@ namespace PyroshockStudios {
         void VulkanDevice::DestroyTLAS(TLASId& tlas) {
             ImplTlasSlot& tlasSlot = mResourceTable.mTlasSlots.DereferenceId(tlas);
             vkDestroyAccelerationStructureKHR(mDevice, tlasSlot.vkAccelerationStructure, mContext->GetVkAllocator());
+
+            if(tlasSlot.ownsBuffer) {
+                DestroyBuffer(tlasSlot.bufferId);
+            }
+
             tlasSlot = {};
             mResourceTable.mTlasSlots.ReturnSlot(tlas);
             tlas = PYRO_NULL_TLAS;
@@ -1619,6 +1780,8 @@ namespace PyroshockStudios {
         auto VulkanDevice::Slot(ShaderResourceId id) -> ImplResourceViewSlot& { return mResourceTable.mResourceViewSlots.DereferenceId(id); }
         auto VulkanDevice::Slot(UnorderedAccessId id) -> ImplResourceViewSlot& { return mResourceTable.mResourceViewSlots.DereferenceId(id); }
         auto VulkanDevice::Slot(SamplerId id) -> ImplSamplerSlot& { return mResourceTable.mSamplerSlots.DereferenceId(id); }
+        auto VulkanDevice::Slot(BLASId id) -> ImplBlasSlot& { return mResourceTable.mBlasSlots.DereferenceId(id); }
+        auto VulkanDevice::Slot(TLASId id) -> ImplTlasSlot& { return mResourceTable.mTlasSlots.DereferenceId(id); }
 
         auto VulkanDevice::Slot(MemoryBlock id) const -> const ImplVmaVirtualBlockSlot& { return mResourceTable.mVirtualBlockSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
         auto VulkanDevice::Slot(Buffer id) const -> const ImplBufferSlot& { return mResourceTable.mBufferSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
@@ -1626,5 +1789,7 @@ namespace PyroshockStudios {
         auto VulkanDevice::Slot(ShaderResourceId id) const -> const ImplResourceViewSlot& { return mResourceTable.mResourceViewSlots.DereferenceId(id); }
         auto VulkanDevice::Slot(UnorderedAccessId id) const -> const ImplResourceViewSlot& { return mResourceTable.mResourceViewSlots.DereferenceId(id); }
         auto VulkanDevice::Slot(SamplerId id) const -> const ImplSamplerSlot& { return mResourceTable.mSamplerSlots.DereferenceId(id); }
+        auto VulkanDevice::Slot(BLASId id) const -> const ImplBlasSlot& { return mResourceTable.mBlasSlots.DereferenceId(id); }
+        auto VulkanDevice::Slot(TLASId id) const -> const ImplTlasSlot& { return mResourceTable.mTlasSlots.DereferenceId(id); }
     } // namespace RHIVulkan
 } // namespace PyroshockStudios

@@ -32,28 +32,26 @@
 namespace PyroshockStudios {
     inline namespace RHI {
         
-        struct BLASCreateFlagsProperties {
+        struct AccelerationStructureCreateFlagsProperties {
             using Data = u32;
         };
-        using BLASCreateFlags = Flags<BLASCreateFlagsProperties>;
-        struct BLASCreateFlagBits {
-            static constexpr inline BLASCreateFlags NONE = { 0x00000000 };
-            static constexpr inline BLASCreateFlags ALLOW_REBUILD = { 0x00000001 };
-            static constexpr inline BLASCreateFlags PREFER_FAST_TRACE = { 0x00000002 };
-            static constexpr inline BLASCreateFlags PREFER_FAST_BUILD = { 0x00000004 };
+        using AccelerationStructureCreateFlags = Flags<AccelerationStructureCreateFlagsProperties>;
+        struct AccelerationStructureCreateFlagBits {
+            static constexpr inline AccelerationStructureCreateFlags NONE = { 0x00000000 };
+            static constexpr inline AccelerationStructureCreateFlags ALLOW_UPDATE = { 0x00000001 };
+            static constexpr inline AccelerationStructureCreateFlags ALLOW_COMPACTION = { 0x00000002 };
+            static constexpr inline AccelerationStructureCreateFlags PREFER_FAST_TRACE = { 0x00000004 };
+            static constexpr inline AccelerationStructureCreateFlags PREFER_FAST_BUILD = { 0x00000008 };
+            static constexpr inline AccelerationStructureCreateFlags LOW_MEMORY = { 0x00000010 };
+            static constexpr inline AccelerationStructureCreateFlags ALLOW_DATA_ACCESS = { 0x00000800 };
         };
 
-        enum struct BLASGeometryType : u32 {
-            Triangles = 0,
-            AABB = 1
-        };
-        enum struct BLASGeometryOpacity {
-            Opaque = 0,
-            Transparent = 1,
+        enum struct GeometryFlags {
+            Opaque = 0x00000001,
+            NO_DUPLICATE_ANY_HIT_INVOCATION = 0x00000002,
         };
 
-        struct BLASGeometryInfo {
-            BLASGeometryType type = BLASGeometryType::Triangles;
+        struct BLASTriangleGeometryInfo {
             Format vertexFormat = Format::Undefined;
             IndexType indexType = IndexType::Uint32;
             Buffer vertexBuffer = PYRO_NULL_BUFFER; // vertex data
@@ -63,15 +61,22 @@ namespace PyroshockStudios {
             u32 indexOffset = 0;
             u32 vertexCount = 0;
             u32 indexCount = 0;
-            BLASGeometryOpacity opacity = BLASGeometryOpacity::Opaque;  ///< Attribute for opaque/transparent geometry
+            GeometryFlags flags = GeometryFlags::Opaque;  ///< Attribute for opaque/transparent geometry
+            Buffer transformData = PYRO_NULL_BUFFER;
+            usize transformDataOffset = {};
+        };
+
+        struct BLASAABBGeometryInfo {
+            Buffer data = PYRO_NULL_BUFFER;
+            u32 stride = {};
+            u32 count = {};
+            GeometryFlags flags = GeometryFlags::Opaque;  ///< Attribute for opaque/transparent geometry
         };
 
         /**
          * @brief Parameters used to create a bottom-level acceleration structure for ray tracing.
          */
         struct BLASInfo {
-            /// @brief Create flags
-            BLASCreateFlags flags = BLASCreateFlagBits::NONE;
             /// @brief Memory size in bytes
             DeviceSize size = {};  
             /// @brief Optional human-readable name for debugging/profiling.
@@ -94,37 +99,36 @@ namespace PyroshockStudios {
         
         /// @brief Null (invalid) bottom-level acceleration structure handle.
         constexpr BLASId PYRO_NULL_BLAS = BLASId{};
-        
-        struct TLASCreateFlagsProperties {
-            using Data = u32;
-        };
-        using TLASCreateFlags = Flags<TLASCreateFlagsProperties>;
-        struct TLASCreateFlagBits {
-            static constexpr inline TLASCreateFlags NONE = { 0x00000000 };
-            static constexpr inline TLASCreateFlags ALLOW_UPDATE = { 0x00000001 };
-            static constexpr inline TLASCreateFlags PREFER_FAST_TRACE = { 0x00000002 };
-            static constexpr inline TLASCreateFlags PREFER_FAST_BUILD = { 0x00000004 };
+
+        struct BLASBuildInfo {
+            AccelerationStructureCreateFlags flags = AccelerationStructureCreateFlagBits::NONE;
+            bool bUpdate = false;
+            BLASId srcBLAS = PYRO_NULL_BLAS;
+            BLASId dstBLAS = PYRO_NULL_BLAS;
+            eastl::variant<eastl::span<const BLASTriangleGeometryInfo>, eastl::span<const BLASAABBGeometryInfo>> geometries = {};
+            Buffer scratchBuffer = PYRO_NULL_BUFFER;
         };
 
-        enum struct TLASInstanceOpacity {
-            Opaque = 0,
-            Transparent = 1,
+        struct BlasInstanceData {
+            BLASId blas = PYRO_NULL_BLAS; // TODO: You need a adress and not blasId
+            Transform transform = Transform::IDENTITY;  
+            u32 instanceCustomIndex : 24;
+            u32 mask : 8;
+            u32 instanceShaderBindingTableRecordOffset : 24;
+            u32 flags : 8;
         };
 
         struct TLASInstanceInfo {
-            BLASId blas = PYRO_NULL_BLAS;                                 ///< reference to bottom-level AS. *MUST* be NON null
-            Transform transform = Transform::IDENTITY;                  ///< world transform
-            u32 instanceID = 0;                                         ///< arbitrary identifier
-            u32 hitGroupMask = 0xFFFFFFFF;                              ///< which hit groups to consider
-            TLASInstanceOpacity opacity = TLASInstanceOpacity::Opaque;  ///< Attribute for opaque/transparent instance
+            Buffer data = {};
+            u32 count = {};
+            bool isDataArrayOfPointers = {};
+            GeometryFlags flags = GeometryFlags::Opaque;  ///< Attribute for opaque/transparent instance
         };
 
         /**
          * @brief Parameters used to create a top-level acceleration structure for ray tracing.
          */
         struct TLASInfo {
-            /// @brief Create flags
-            TLASCreateFlags flags = TLASCreateFlagBits::NONE;
             /// @brief Memory size in bytes
             DeviceSize size = {}; 
             /// @brief Optional human-readable name for debugging/profiling.
@@ -148,6 +152,15 @@ namespace PyroshockStudios {
 
         /// @brief Null (invalid) top-level acceleration structure handle.
         constexpr TLASId PYRO_NULL_TLAS = TLASId{};
+
+        struct TLASBuildInfo {
+            AccelerationStructureCreateFlags flags = AccelerationStructureCreateFlagBits::NONE;
+            bool update = false;
+            TLASId srcTlas = PYRO_NULL_TLAS;
+            TLASId dstTlas = PYRO_NULL_TLAS;
+            eastl::span<const TLASInstanceInfo> instances = {};
+            Buffer scratchBuffer = PYRO_NULL_BUFFER;
+        };
 
         struct AccelerationStructureBuildSizesInfo {
             DeviceSize accelerationStructureSize;
