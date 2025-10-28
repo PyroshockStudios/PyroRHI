@@ -23,6 +23,7 @@
 #include "CommandQueue.hpp"
 
 #include <RHIVulkan/Api/CommandBuffer.hpp>
+#include <RHIVulkan/Api/Sync.hpp>
 #include <RHIVulkan/Api/SwapChain.hpp>
 
 #include <libassert/assert.hpp>
@@ -33,8 +34,11 @@ namespace PyroshockStudios::RHIVulkan {
     VulkanCommandQueue::VulkanCommandQueue(VulkanDevice* device, VkQueue queue, u32 family, const CommandQueueInfo& info)
         : mInfo(info), mDevice(device), mQueue(queue), mQueueFamily(family) {
         mCommandBufferPool = new CommandBufferPool();
+        cpuTimeline = 0;
+        gpuTimeline = static_cast<VulkanFence*>(device->CreateFence({ .initialValue = cpuTimeline, .name = info.name + " (Internal GPU Timeline)" }));
     }
     VulkanCommandQueue::~VulkanCommandQueue() {
+        mDevice->DestroyImmediately(gpuTimeline);
         mCommandBufferPool->Cleanup(mDevice, this);
         delete mCommandBufferPool;
     }

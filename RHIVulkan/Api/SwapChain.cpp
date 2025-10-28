@@ -102,7 +102,7 @@ namespace PyroshockStudios::RHIVulkan {
     }
     VulkanSwapChain::~VulkanSwapChain() {
         for (i32 i = 0; i < mInfo.bufferCount; ++i) {
-            mDevice->DestroyImage(mWrappedImages[i]);
+            mDevice->DestroyImmediately(mWrappedImages[i]);
             vkDestroySemaphore(mDevice->GetVkDevice(), mImageAcquireSemaphores[i], mDevice->Context()->GetVkAllocator());
         }
         vkDestroySwapchainKHR(mDevice->GetVkDevice(), mSwapChain, mDevice->Context()->GetVkAllocator());
@@ -130,7 +130,7 @@ namespace PyroshockStudios::RHIVulkan {
         mInfo.extent = { mSupportInfo.capabilities.currentExtent.width, mSupportInfo.capabilities.currentExtent.height };
         mImageIndex = 0;
         for (Image img : mWrappedImages) {
-            mDevice->DestroyImage(img);
+            mDevice->DestroyImmediately(img);
         }
         mWrappedImages.clear();
         VkSwapchainKHR oldSwapChain = mSwapChain;

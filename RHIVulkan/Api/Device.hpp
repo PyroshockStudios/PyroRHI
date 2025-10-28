@@ -48,7 +48,6 @@ namespace PyroshockStudios {
         struct CommandListZombie {
             VkCommandBuffer vkCmdBuffer = {};
             VkCommandPool vkCmdPool = {};
-            eastl::unique_ptr<CommandBufferZombieInfo> zombies = {};
             VulkanCommandQueue* queue = nullptr;
         };
 
@@ -101,23 +100,24 @@ namespace PyroshockStudios {
             IFence* CreateFence(const FenceInfo& info) override;
             ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
 
-            virtual void DestroyMemoryBlock(MemoryBlock& memory) override;
-            virtual void DestroyBuffer(Buffer& buffer) override;
-            virtual void DestroyImage(Image& image) override;
-            virtual void DestroyShaderResource(ShaderResourceId& srv) override;
-            virtual void DestroyUnorderedAccess(UnorderedAccessId& uav) override;
-            virtual void DestroySampler(SamplerId& sampler) override;
+            virtual void DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) override;
+            virtual void DestroyBuffer(Buffer& buffer, bool bDefer) override;
+            virtual void DestroyImage(Image& image, bool bDefer) override;
+            virtual void DestroyShaderResource(ShaderResourceId& srv, bool bDefer) override;
+            virtual void DestroyUnorderedAccess(UnorderedAccessId& uav, bool bDefer) override;
+            virtual void DestroySampler(SamplerId& sampler, bool bDefer) override;
 
-            virtual void DestroyRenderTarget(RenderTarget& renderTarget) override;
-            virtual void DestroyRasterPipeline(RasterPipeline& pipeline) override;
-            virtual void DestroyComputePipeline(ComputePipeline& pipeline) override;
-            virtual void DestroySwapChain(ISwapChain*& swapChain) override;
-            virtual void DestroySemaphore(Semaphore& semaphore) override;
-            virtual void DestroyFence(IFence*& fence) override;
-            virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) override;
+            virtual void DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer) override;
+            virtual void DestroyRasterPipeline(RasterPipeline& pipeline, bool bDefer) override;
+            virtual void DestroyComputePipeline(ComputePipeline& pipeline, bool bDefer) override;
+            virtual void DestroySwapChain(ISwapChain*& swapChain, bool bDefer) override;
+            virtual void DestroySemaphore(Semaphore& semaphore, bool bDefer) override;
+            virtual void DestroyFence(IFence*& fence, bool bDefer) override;
+            virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer) override;
 
             eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
 
+            void CollectGarbage() override;
             void WaitIdle() override;
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
             void PresentQueue(const CommandQueuePresentInfo& info) override;
@@ -188,10 +188,10 @@ namespace PyroshockStudios {
 
         private:
             eastl::deque<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
+            eastl::deque<eastl::pair<u64, VulkanCommandQueue*>> mQueuePendingSubmits = {};
 
             GPUResourceId CreateImageView(const GPUResourceInfo& info, bool uav);
             GPUResourceId CreateBufferView(const GPUResourceInfo& info);
-            void CollectGarbage();
 
 
             IFence* mMainQueueGpuFence = {};

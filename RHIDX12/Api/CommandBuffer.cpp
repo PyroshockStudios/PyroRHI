@@ -396,7 +396,7 @@ namespace PyroshockStudios {
                     mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
                     gDx12Context->FlushDebugMessages();
                 }
-             }
+            }
         }
 
         void D3DCommandBuffer::ImageBarrier(const ImageMemoryBarrierInfo& info) {
@@ -482,15 +482,19 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) {
+            /*NOP*/
         }
 
         void D3DCommandBuffer::TransferImageOwnership(Image image, ICommandQueue* dstQueue) {
+            /*NOP*/
         }
 
         void D3DCommandBuffer::AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) {
+            /*NOP*/
         }
 
         void D3DCommandBuffer::AcquireImageOwnership(Image image, ICommandQueue* srcQueue) {
+            /*NOP*/
         }
 
         void D3DCommandBuffer::InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) {
@@ -668,6 +672,7 @@ namespace PyroshockStudios {
                         .dst = dstImageData.resource.Get(),
                         .dstSubresource = dstRt->GetSubresource(),
                         .format = ToDXGIFormat(dstImageData.info.format),
+                        .extent = { dstImageData.info.size.width, dstImageData.info.size.height },
                     });
                 }
             }
@@ -714,6 +719,15 @@ namespace PyroshockStudios {
 
         void D3DCommandBuffer::EndRenderPass() {
             for (const auto& resolveInfo : mRenderPassResolves) {
+                // discard first for resource optimisation
+                D3D12_RECT resolveArea = ToD3D12Rect(Rect2D::Cut(resolveInfo.extent));
+                D3D12_DISCARD_REGION region;
+                region.FirstSubresource = resolveInfo.dstSubresource;
+                region.NumSubresources = 1;
+                region.NumRects = 1;
+                region.pRects = &resolveArea;
+                mCommandList->DiscardResource(resolveInfo.dst, &region);
+
                 // DX12 uniquely has a resolve state, just opaquely transition them and be done with it
                 D3D12_RESOURCE_BARRIER enterBarriers[2] = {
                     CD3DX12_RESOURCE_BARRIER::Transition(

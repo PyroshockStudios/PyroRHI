@@ -117,6 +117,7 @@ namespace PyroshockStudios {
                 ID3D12Resource* dst;
                 UINT dstSubresource;
                 DXGI_FORMAT format;
+                Extent2D extent;
             };
             eastl::fixed_vector<ResolveRenderTargetInfo, 8> mRenderPassResolves = {};
             eastl::vector<D3D12_VERTEX_BUFFER_VIEW> mPendingVertexBufferBinds = {};
