@@ -31,7 +31,7 @@ namespace PyroshockStudios {
             }
         } // namespace temptemptempinternalthingy
 #define ToHexH64(x) temptemptempinternalthingy::ToHexImpl(eastl::bit_cast<u64>(x))
-//#define ToHexHPtr(x) temptemptempinternalthingy::ToHexImpl(eastl::bit_cast<const void*>(x))
+// #define ToHexHPtr(x) temptemptempinternalthingy::ToHexImpl(eastl::bit_cast<const void*>(x))
 #define ToHexU32(x) temptemptempinternalthingy::ToHexU32Impl(x)
 #define Indent(x) temptemptempinternalthingy::IndentImpl(x)
 
@@ -478,7 +478,7 @@ namespace PyroshockStudios {
         }
 
         inline eastl::string DepthStencilClearValue::ToString(usize indentation) const {
-            return Indent(indentation) + eastl::string().sprintf("DepthStencilClear{ depth=%.3f, stencil=%u }", depth, stencil);
+            return eastl::string().sprintf("DepthStencilClear{ depth=%.3f, stencil=%u }", depth, stencil);
         }
 
         inline eastl::string ColorClearValue::ToString(usize indentation) const {
@@ -512,7 +512,10 @@ namespace PyroshockStudios {
             bool allFloat = isLikelyFloat(int32[0]) && isLikelyFloat(int32[1]) &&
                             isLikelyFloat(int32[2]) && isLikelyFloat(int32[3]);
 
-            eastl::string result = Indent(indentation) + "ColorClear<" + (allFloat ? "Float32" : "Int32") + ">{ ";
+            eastl::string result;
+            result += "ColorClear<";
+            result += allFloat ? "Float32" : "Int32";
+            result += ">{ ";
             for (int i = 0; i < 4; ++i) {
                 if (i > 0)
                     result += ", ";
@@ -524,18 +527,18 @@ namespace PyroshockStudios {
         }
 
         inline eastl::string Offset2D::ToString(usize indentation) const {
-            return Indent(indentation) + eastl::string().sprintf("{ %u, %u }", x, y);
+            return eastl::string().sprintf("{ %u, %u }", x, y);
         }
 
         inline eastl::string Offset3D::ToString(usize indentation) const {
-            return Indent(indentation) + eastl::string().sprintf("{ %u, %u, %u }", x, y, z);
+            return eastl::string().sprintf("{ %u, %u, %u }", x, y, z);
         }
 
         inline eastl::string Extent2D::ToString(usize indentation) const {
-            return Indent(indentation) + eastl::string().sprintf("{ %u, %u }", width, height);
+            return eastl::string().sprintf("{ %u, %u }", width, height);
         }
         inline eastl::string Extent3D::ToString(usize indentation) const {
-            return Indent(indentation) + eastl::string().sprintf("{ %u, %u, %u }", width, height, depth);
+            return eastl::string().sprintf("{ %u, %u, %u }", width, height, depth);
         }
 
         inline eastl::string ViewportInfo::ToString(usize indentation) const {
@@ -551,33 +554,33 @@ namespace PyroshockStudios {
                 indent.c_str());
         }
         inline eastl::string Rect2D::ToString(usize indentation) const {
-            return Indent(indentation) + eastl::string().sprintf("{ x=%u, y=%u, width=%u, height=%u }", x, y, width, height);
+            return eastl::string().sprintf("{ x=%u, y=%u, width=%u, height=%u }", x, y, width, height);
         }
 
         inline eastl::string Box3D::ToString(usize indentation) const {
-            return Indent(indentation) + eastl::string().sprintf("{ x=%u, y=%u, z=%u, width=%u, height=%u, depth=%u }", x, y, z, width, height, depth);
+            return eastl::string().sprintf("{ x=%u, y=%u, z=%u, width=%u, height=%u, depth=%u }", x, y, z, width, height, depth);
         }
 
         inline eastl::string BufferRegion::ToString(usize indentation) const {
-            return Indent(indentation) + eastl::string().sprintf("{ offset=%" PRIu64 ", size=%zu }", offset, size);
+            return eastl::string().sprintf("{ offset=%" PRIu64 ", size=%zu }", offset, size);
         }
 
         inline eastl::string ImageMipArraySlice::ToString(usize indentation) const {
-            return Indent(indentation) + eastl::string().sprintf("{ firstMip=%u, mipCount=%u, firstLayer=%u, layerCount=%u }",
-                                             baseMipLevel, levelCount, baseArrayLayer, layerCount);
+            return eastl::string().sprintf("{ firstMip=%u, mipCount=%u, firstLayer=%u, layerCount=%u }",
+                baseMipLevel, levelCount, baseArrayLayer, layerCount);
         }
         inline eastl::string ImageArraySlice::ToString(usize indentation) const {
-            return Indent(indentation) + eastl::string().sprintf("{ mip=%u, firstLayer=%u, layerCount=%u }",
-                                             mipLevel, baseArrayLayer, layerCount);
+            return eastl::string().sprintf("{ mip=%u, firstLayer=%u, layerCount=%u }",
+                mipLevel, baseArrayLayer, layerCount);
         }
         inline eastl::string ImageSlice::ToString(usize indentation) const {
-            return Indent(indentation) + eastl::string().sprintf("{ mip=%u, layer=%u }", mipLevel, arrayLayer);
+            return eastl::string().sprintf("{ mip=%u, layer=%u }", mipLevel, arrayLayer);
         }
 
 
         inline eastl::string Access::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "Access { stages: " + eastl::to_string(stages.data) + ", access: " + eastl::to_string(type.data) + " }";
+            s += "Access { stages: " + eastl::to_string(stages.data) + ", access: " + eastl::to_string(type.data) + " }";
             return s;
         }
 
@@ -603,7 +606,7 @@ namespace PyroshockStudios {
             };
 
             eastl::string s;
-            s += indent + "DeviceInfo {\n";
+            s += "DeviceInfo {\n";
             s += indent + "  Name: " + name + "\n";
             s += indent + "  Vendor: " + vendor + "\n";
             s += indent + "  VendorID: " + eastl::to_string(vendorID) + "\n";
@@ -629,7 +632,7 @@ namespace PyroshockStudios {
         inline eastl::string DeviceFeaturesInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
             eastl::string s;
-            s += indent + "DeviceFeaturesInfo {\n";
+            s += "DeviceFeaturesInfo {\n";
 #define BOOL_FIELD(name) \
     s += indent + "  " + eastl::string(&#name[1]) + ": " + (name ? "true" : "false") + "\n";
             BOOL_FIELD(bGeometryShaders);
@@ -658,7 +661,7 @@ namespace PyroshockStudios {
         inline eastl::string DevicePropertiesInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
             eastl::string s;
-            s += indent + "DevicePropertiesInfo {\n";
+            s += "DevicePropertiesInfo {\n";
             s += indent + "  MSAA ColorTarget: " + eastl::to_string((u32)msaaSupportColorTarget) + "\n";
             s += indent + "  MSAA DepthStencilTarget: " + eastl::to_string((u32)msaaSupportDepthStencilTarget) + "\n";
             s += indent + "  MSAA ShaderResourceView: " + eastl::to_string((u32)msaaSupportShaderResourceView) + "\n";
@@ -684,7 +687,7 @@ namespace PyroshockStudios {
         inline eastl::string DeviceStatusInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
             eastl::string s;
-            s += indent + "DeviceStatusInfo {\n";
+            s += "DeviceStatusInfo {\n";
             s += indent + "  HostAllocations: " + eastl::to_string(numHostAllocations) + " (" + eastl::to_string(numHostAllocatedBytes) + " bytes)\n";
             s += indent + "  DeviceAllocations: " + eastl::to_string(numDeviceMemoryAllocations) + " (" + eastl::to_string(numDeviceAllocatedBytes) + " bytes)\n";
             s += indent + "  BuffersCreated: " + eastl::to_string(numBufferResourcesCreated) + "\n";
@@ -705,7 +708,7 @@ namespace PyroshockStudios {
         inline eastl::string SemaphoreSubmitInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
             eastl::string s;
-            s += indent + "SemaphoreSubmitInfo { semaphore=";
+            s += "SemaphoreSubmitInfo { semaphore=";
             s += (ToHexH64(semaphore));
             s += ", stage=" + eastl::to_string(static_cast<u64>(stage.data)) + " }";
             return s;
@@ -714,7 +717,7 @@ namespace PyroshockStudios {
         inline eastl::string FenceSubmitInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
             eastl::string s;
-            s += indent + "FenceSubmitInfo { fence=";
+            s += "FenceSubmitInfo { fence=";
             s += (ToHexH64(fence));
             s += ", value=" + eastl::to_string(value) + " }";
             return s;
@@ -723,7 +726,7 @@ namespace PyroshockStudios {
         inline eastl::string CommandQueueSubmitInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
             eastl::string s;
-            s += indent + "CommandQueueSubmitInfo {\n";
+            s += "CommandQueueSubmitInfo {\n";
             s += indent + "  queue: " + (ToHexH64(queue)) + "\n";
             s += indent + "  waitSemaphores: [\n";
             for (const auto& subInfo : waitSemaphores) {
@@ -755,7 +758,7 @@ namespace PyroshockStudios {
         inline eastl::string CommandQueuePresentInfo::ToString(usize indentation) const {
             const eastl::string indent = eastl::string(indentation, ' ');
             eastl::string s;
-            s += indent + "CommandQueuePresentInfo {\n";
+            s += "CommandQueuePresentInfo {\n";
             s += indent + "  queue: " + (ToHexH64(queue)) + "\n";
             s += indent + "  waitSemaphores: [\n";
             for (const auto& subInfo : waitSemaphores) {
@@ -770,13 +773,13 @@ namespace PyroshockStudios {
 
         inline eastl::string CommandBufferInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "CommandBufferInfo { name: \"" + name + "\" }";
+            s += "CommandBufferInfo { name: \"" + name + "\" }";
             return s;
         }
 
         inline eastl::string CopyBufferToBufferInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "CopyBufferToBufferInfo {\n";
+            s += "CopyBufferToBufferInfo {\n";
             s += Indent(indentation + 2) + "srcBuffer: " + ToHexH64(srcBuffer) + "\n";
             s += Indent(indentation + 2) + "dstBuffer: " + ToHexH64(dstBuffer) + "\n";
             s += Indent(indentation + 2) + "srcOffset: " + eastl::to_string(srcOffset) + "\n";
@@ -788,7 +791,7 @@ namespace PyroshockStudios {
 
         inline eastl::string CopyBufferToImageInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "CopyBufferToImageInfo {\n";
+            s += "CopyBufferToImageInfo {\n";
             s += Indent(indentation + 2) + "buffer: " + ToHexH64(buffer) + "\n";
             s += Indent(indentation + 2) + "bufferOffset: " + eastl::to_string(bufferOffset) + "\n";
             s += Indent(indentation + 2) + "image: " + ToHexH64(image) + "\n";
@@ -802,7 +805,7 @@ namespace PyroshockStudios {
 
         inline eastl::string CopyImageToBufferInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "CopyImageToBufferInfo {\n";
+            s += "CopyImageToBufferInfo {\n";
             s += Indent(indentation + 2) + "image: " + ToHexH64(image) + "\n";
             s += Indent(indentation + 2) + "imageSlice: " + imageSlice.ToString() + "\n";
             s += Indent(indentation + 2) + "imageOffset: " + imageOffset.ToString() + "\n";
@@ -816,7 +819,7 @@ namespace PyroshockStudios {
 
         inline eastl::string CopyImageToImageInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "CopyImageToImageInfo {\n";
+            s += "CopyImageToImageInfo {\n";
             s += Indent(indentation + 2) + "srcImage: " + ToHexH64(srcImage) + "\n";
             s += Indent(indentation + 2) + "dstImage: " + ToHexH64(dstImage) + "\n";
             s += Indent(indentation + 2) + "srcImageSlice: " + srcImageSlice.ToString() + "\n";
@@ -830,7 +833,7 @@ namespace PyroshockStudios {
 
         inline eastl::string BlitImageToImageInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "BlitImageToImageInfo {\n";
+            s += "BlitImageToImageInfo {\n";
             s += Indent(indentation + 2) + "srcImage: " + ToHexH64(srcImage) + "\n";
             s += Indent(indentation + 2) + "dstImage: " + ToHexH64(dstImage) + "\n";
             s += Indent(indentation + 2) + "srcImageSlice: " + srcImageSlice.ToString() + "\n";
@@ -844,7 +847,7 @@ namespace PyroshockStudios {
 
         inline eastl::string ClearUnorderedAccessViewInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "ClearUAVInfo {\n";
+            s += "ClearUAVInfo {\n";
             s += Indent(indentation + 2) + "view: " + ToHexH64(view) + "\n";
             s += Indent(indentation + 2) + "clearValue: " + clearValue.ToString() + "\n";
             s += Indent(indentation) + "}";
@@ -853,7 +856,7 @@ namespace PyroshockStudios {
 
         inline eastl::string UpdateBufferInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "UpdateBufferInfo {\n";
+            s += "UpdateBufferInfo {\n";
             s += Indent(indentation + 2) + "buffer: " + ToHexH64(buffer) + "\n";
             s += Indent(indentation + 2) + "region: " + region.ToString() + "\n";
             s += Indent(indentation + 2) + "data: " + ToHexH64(data) + "\n";
@@ -863,7 +866,7 @@ namespace PyroshockStudios {
 
         inline eastl::string BufferMemoryBarrierInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "BufferMemoryBarrierInfo {\n";
+            s += "BufferMemoryBarrierInfo {\n";
             s += Indent(indentation + 2) + "buffer: " + ToHexH64(buffer) + "\n";
             s += Indent(indentation + 2) + "region: " + region.ToString() + "\n";
             s += Indent(indentation + 2) + "srcAccess: " + srcAccess.ToString() + "\n";
@@ -876,7 +879,7 @@ namespace PyroshockStudios {
 
         inline eastl::string ImageMemoryBarrierInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "ImageMemoryBarrierInfo {\n";
+            s += "ImageMemoryBarrierInfo {\n";
             s += Indent(indentation + 2) + "image: " + ToHexH64(image) + "\n";
             s += Indent(indentation + 2) + "imageSlice: " + imageSlice.ToString() + "\n";
             s += Indent(indentation + 2) + "srcAccess: " + srcAccess.ToString() + "\n";
@@ -889,7 +892,7 @@ namespace PyroshockStudios {
 
         inline eastl::string InvalidateTimestampQueryInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "InvalidateTimestampQueryInfo {\n";
+            s += "InvalidateTimestampQueryInfo {\n";
             s += Indent(indentation + 2) + "queryPool: " + ToHexH64(queryPool) + "\n";
             s += Indent(indentation + 2) + "firstQuery: " + eastl::to_string(firstQuery) + "\n";
             s += Indent(indentation + 2) + "queryCount: " + eastl::to_string(queryCount) + "\n";
@@ -899,7 +902,7 @@ namespace PyroshockStudios {
 
         inline eastl::string WriteTimestampInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "WriteTimestampInfo {\n";
+            s += "WriteTimestampInfo {\n";
             s += Indent(indentation + 2) + "queryPool: " + ToHexH64(queryPool) + "\n";
             s += Indent(indentation + 2) + "stage: " + eastl::to_string(static_cast<u64>(stage.data)) + "\n";
             s += Indent(indentation + 2) + "queryIndex: " + eastl::to_string(queryIndex) + "\n";
@@ -909,7 +912,7 @@ namespace PyroshockStudios {
 
         inline eastl::string CommandLabelInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "CommandLabelInfo {\n";
+            s += "CommandLabelInfo {\n";
             s += Indent(indentation + 2) + "labelColor: #" + ToHexU32(labelColor.ToU32()).substr(2) + "\n";
             s += Indent(indentation + 2) + "name: \"" + eastl::string(name) + "\"\n";
             s += Indent(indentation) + "}";
@@ -918,7 +921,7 @@ namespace PyroshockStudios {
 
         inline eastl::string AttachmentResolveInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "AttachmentResolveInfo {\n";
+            s += "AttachmentResolveInfo {\n";
             s += Indent(indentation + 2) + "mode: ";
             switch (mode) {
             case ResolveMode::None:
@@ -945,7 +948,7 @@ namespace PyroshockStudios {
 
         inline eastl::string ColorAttachmentInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "ColorAttachmentInfo {\n";
+            s += "ColorAttachmentInfo {\n";
             s += Indent(indentation + 2) + "target: " + ToHexH64(target) + "\n";
             s += Indent(indentation + 2) + "loadOp: " + EnumToString(loadOp) + "\n";
             s += Indent(indentation + 2) + "storeOp: " + EnumToString(storeOp) + "\n";
@@ -960,7 +963,7 @@ namespace PyroshockStudios {
 
         inline eastl::string DepthStencilAttachmentInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "DepthStencilAttachmentInfo {\n";
+            s += "DepthStencilAttachmentInfo {\n";
             s += Indent(indentation + 2) + "target: " + ToHexH64(target) + "\n";
             s += Indent(indentation + 2) + "depthLoadOp: " + EnumToString(depthLoadOp) + "\n";
             s += Indent(indentation + 2) + "depthStoreOp: " + EnumToString(depthStoreOp) + "\n";
@@ -973,7 +976,7 @@ namespace PyroshockStudios {
 
         inline eastl::string RenderPassBeginInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "RenderPassBeginInfo {\n";
+            s += "RenderPassBeginInfo {\n";
             s += Indent(indentation + 2) + "colorAttachments: [\n";
             for (auto& ca : colorAttachments)
                 s += ca.ToString(indentation + 4) + ",\n";
@@ -989,7 +992,7 @@ namespace PyroshockStudios {
 
         inline eastl::string PushConstantInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "PushConstantInfo {\n";
+            s += "PushConstantInfo {\n";
             s += Indent(indentation + 2) + "data: [";
             const u32* dwords = reinterpret_cast<const u32*>(data);
             for (u32 i = 0; i < size / 4; ++i) {
@@ -1006,7 +1009,7 @@ namespace PyroshockStudios {
 
         inline eastl::string SetUniformBufferViewInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "SetUniformBufferViewInfo {\n";
+            s += "SetUniformBufferViewInfo {\n";
             s += Indent(indentation + 2) + "slot: " + eastl::to_string(slot) + "\n";
             s += Indent(indentation + 2) + "buffer: " + ToHexH64(buffer) + "\n";
             s += Indent(indentation + 2) + "region: " + region.ToString(indentation + 2) + "\n";
@@ -1017,7 +1020,7 @@ namespace PyroshockStudios {
 
         inline eastl::string SetUnorderedAccessViewInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "SetUnorderedAccessViewInfo {\n";
+            s += "SetUnorderedAccessViewInfo {\n";
             s += Indent(indentation + 2) + "slot: " + eastl::to_string(slot) + "\n";
             s += Indent(indentation + 2) + "view: " + ToHexH64(view) + "\n";
             s += Indent(indentation + 2) + "bindPoint: " + EnumToString(bindPoint) + "\n";
@@ -1037,7 +1040,7 @@ namespace PyroshockStudios {
 
         inline eastl::string SetIndexBufferInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "SetIndexBufferInfo {\n";
+            s += "SetIndexBufferInfo {\n";
             s += Indent(indentation + 2) + "buffer: " + ToHexH64(buffer) + "\n";
             s += Indent(indentation + 2) + "offset: " + eastl::to_string(offset) + "\n";
             s += Indent(indentation + 2) + "indexType: " + EnumToString(indexType) + "\n";
@@ -1047,44 +1050,44 @@ namespace PyroshockStudios {
 
         inline eastl::string DrawInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "DrawInfo { vertexCount: " + eastl::to_string(vertexCount) + ", instanceCount: " + eastl::to_string(instanceCount) + ", firstVertex: " + eastl::to_string(firstVertex) + ", firstInstance: " + eastl::to_string(firstInstance) + " }";
+            s += "DrawInfo { vertexCount: " + eastl::to_string(vertexCount) + ", instanceCount: " + eastl::to_string(instanceCount) + ", firstVertex: " + eastl::to_string(firstVertex) + ", firstInstance: " + eastl::to_string(firstInstance) + " }";
             return s;
         }
 
         inline eastl::string DrawIndexedInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "DrawIndexedInfo { indexCount: " + eastl::to_string(indexCount) + ", instanceCount: " + eastl::to_string(instanceCount) + ", firstIndex: " + eastl::to_string(firstIndex) + ", vertexOffset: " + eastl::to_string(vertexOffset) + ", firstInstance: " + eastl::to_string(firstInstance) + " }";
+            s += "DrawIndexedInfo { indexCount: " + eastl::to_string(indexCount) + ", instanceCount: " + eastl::to_string(instanceCount) + ", firstIndex: " + eastl::to_string(firstIndex) + ", vertexOffset: " + eastl::to_string(vertexOffset) + ", firstInstance: " + eastl::to_string(firstInstance) + " }";
             return s;
         }
 
         inline eastl::string DrawIndirectInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "DrawIndirectInfo { indirectBuffer: " + ToHexH64(indirectBuffer) + ", indirectBufferOffset: " + eastl::to_string(indirectBufferOffset) + ", drawCount: " + eastl::to_string(drawCount) + ", drawCommandStride: " + eastl::to_string(drawCommandStride) + " }";
+            s += "DrawIndirectInfo { indirectBuffer: " + ToHexH64(indirectBuffer) + ", indirectBufferOffset: " + eastl::to_string(indirectBufferOffset) + ", drawCount: " + eastl::to_string(drawCount) + ", drawCommandStride: " + eastl::to_string(drawCommandStride) + " }";
             return s;
         }
 
         inline eastl::string DrawIndexedIndirectInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "DrawIndexedIndirectInfo { indirectBuffer: " + ToHexH64(indirectBuffer) + ", indirectBufferOffset: " + eastl::to_string(indirectBufferOffset) + ", drawCount: " + eastl::to_string(drawCount) + ", drawCommandStride: " + eastl::to_string(drawCommandStride) + " }";
+            s += "DrawIndexedIndirectInfo { indirectBuffer: " + ToHexH64(indirectBuffer) + ", indirectBufferOffset: " + eastl::to_string(indirectBufferOffset) + ", drawCount: " + eastl::to_string(drawCount) + ", drawCommandStride: " + eastl::to_string(drawCommandStride) + " }";
             return s;
         }
 
         inline eastl::string DispatchInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "DispatchInfo { x: " +
+            s += "DispatchInfo { x: " +
                  eastl::to_string(x) + ", y: " + eastl::to_string(y) + ", z: " + eastl::to_string(z) + " }";
             return s;
         }
 
         inline eastl::string DispatchIndirectInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "DispatchIndirectInfo { indirectBuffer: " + ToHexH64(indirectBuffer) + ", indirectBufferOffset: " + eastl::to_string(indirectBufferOffset) + " }";
+            s += "DispatchIndirectInfo { indirectBuffer: " + ToHexH64(indirectBuffer) + ", indirectBufferOffset: " + eastl::to_string(indirectBufferOffset) + " }";
             return s;
         }
 
         inline eastl::string MemoryBlockInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "MemoryBlockInfo {\n";
+            s += +"MemoryBlockInfo {\n";
             s += Indent(indentation + 2) + "bufferUsage: " + eastl::to_string(static_cast<u64>(bufferUsage.data)) + "\n";
             s += Indent(indentation + 2) + "imageUsage: " + eastl::to_string(static_cast<u64>(imageUsage.data)) + "\n";
             s += Indent(indentation + 2) + "size: " + eastl::to_string(size) + "\n";
@@ -1098,7 +1101,7 @@ namespace PyroshockStudios {
 
         inline eastl::string BufferInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "BufferInfo {\n";
+            s += "BufferInfo {\n";
             s += Indent(indentation + 2) + "memoryBlock: " + ToHexH64(memoryBlock) + "\n";
             s += Indent(indentation + 2) + "flags: " + eastl::to_string(flags.data) + "\n";
             s += Indent(indentation + 2) + "size: " + eastl::to_string(size) + "\n";
@@ -1112,7 +1115,7 @@ namespace PyroshockStudios {
 
         inline eastl::string ImageInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "ImageInfo {\n";
+            s += "ImageInfo {\n";
             s += Indent(indentation + 2) + "memoryBlock: " + ToHexH64(memoryBlock) + "\n";
             s += Indent(indentation + 2) + "flags: " + eastl::to_string(flags.data) + "\n";
             s += Indent(indentation + 2) + "dimensions: " + EnumToString(dimensions) + "\n";
@@ -1129,7 +1132,7 @@ namespace PyroshockStudios {
 
         inline eastl::string SamplerInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "SamplerInfo {\n";
+            s += "SamplerInfo {\n";
             s += Indent(indentation + 2) + "magnificationFilter: " + EnumToString(magnificationFilter) + "\n";
             s += Indent(indentation + 2) + "minificationFilter: " + EnumToString(minificationFilter) + "\n";
             s += Indent(indentation + 2) + "mipmapFilter: " + EnumToString(mipmapFilter) + "\n";
@@ -1156,7 +1159,7 @@ namespace PyroshockStudios {
 
         inline eastl::string BufferResourceInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "BufferResourceInfo {\n";
+            s += "BufferResourceInfo {\n";
             s += Indent(indentation + 2) + "buffer: " + ToHexH64(buffer) + "\n";
             s += Indent(indentation + 2) + "region: " + region.ToString(0) + "\n"; // BufferRegion::ToString already handles its own indentation for itself
             s += Indent(indentation) + "}";
@@ -1165,7 +1168,7 @@ namespace PyroshockStudios {
 
         inline eastl::string ImageResourceInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "ImageResourceInfo {\n";
+            s += "ImageResourceInfo {\n";
             s += Indent(indentation + 2) + "image: " + ToHexH64(image) + "\n";
             s += Indent(indentation + 2) + "slice: " + slice.ToString(0) + "\n"; // ImageMipArraySlice::ToString already handles its own indentation for itself
             s += Indent(indentation + 2) + "viewType: " + EnumToString(viewType) + "\n";
@@ -1174,10 +1177,10 @@ namespace PyroshockStudios {
             return s;
         }
 
-        
+
         inline eastl::string FenceInfo::ToString(usize indentation) const {
             eastl::string s;
-            s += Indent(indentation) + "FenceInfo {\n";
+            s += "FenceInfo {\n";
             s += Indent(indentation + 2) + "initialValue: " + eastl::to_string(initialValue) + "\n";
             s += Indent(indentation + 2) + "name: \"" + name + "\"\n";
             s += Indent(indentation) + "}";

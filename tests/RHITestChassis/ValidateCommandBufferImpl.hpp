@@ -848,21 +848,21 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsClearColorPassMSAAResolve) {
     TRACK_RHI_HANDLE(srcImageMS);
     ASSERT_TRUE(mDevice->IsValid(srcImageMS));
 
-    ImageInfo srcImageInfo{};
-    srcImageInfo.dimensions = ImageDimensions::e2D;
-    srcImageInfo.size = { 64, 64, 1 };
-    srcImageInfo.format = Format::RGBA8Unorm;
-    srcImageInfo.usage = ImageUsageFlagBits::RENDER_TARGET;
-    srcImageInfo.name = "color target (resolve)";
-    TRACK_RHI_PARAMETER(srcImageInfo);
-    Image srcImage = mDevice->CreateImage(srcImageInfo);
-    TRACK_RHI_HANDLE(srcImage);
-    ASSERT_TRUE(mDevice->IsValid(srcImage));
+    ImageInfo dstImageResolveInfo{};
+    dstImageResolveInfo.dimensions = ImageDimensions::e2D;
+    dstImageResolveInfo.size = { 64, 64, 1 };
+    dstImageResolveInfo.format = Format::RGBA8Unorm;
+    dstImageResolveInfo.usage = ImageUsageFlagBits::RENDER_TARGET;
+    dstImageResolveInfo.name = "color target (resolve)";
+    TRACK_RHI_PARAMETER(dstImageResolveInfo);
+    Image dstImageResolve = mDevice->CreateImage(dstImageResolveInfo);
+    TRACK_RHI_HANDLE(dstImageResolve);
+    ASSERT_TRUE(mDevice->IsValid(dstImageResolve));
 
     RenderTarget srcTargetMS = mDevice->CreateRenderTarget({ .image = srcImageMS, .flags = RenderTargetFlagBits::COLOR_TARGET, .name = "render target MS" });
     TRACK_RHI_HANDLE(srcTargetMS);
-    RenderTarget srcTargetResolve = mDevice->CreateRenderTarget({ .image = srcImage, .flags = RenderTargetFlagBits::COLOR_TARGET, .name = "render target" });
-    TRACK_RHI_HANDLE(srcTargetResolve);
+    RenderTarget dstTargetResolve = mDevice->CreateRenderTarget({ .image = dstImageResolve, .flags = RenderTargetFlagBits::COLOR_TARGET, .name = "render target Resolve" });
+    TRACK_RHI_HANDLE(dstTargetResolve);
 
     ICommandBuffer* cb = q->GetCommandBuffer({});
     TRACK_RHI_HANDLE(cb);
@@ -875,7 +875,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsClearColorPassMSAAResolve) {
         .dstLayout = ImageLayout::RenderTarget,
     }));
     EXPECT_NO_FATAL_FAILURE(cb->ImageBarrier({
-        .image = srcImage,
+        .image = dstImageResolve,
         .srcAccess = AccessConsts::NONE,
         .dstAccess = AccessConsts::RESOLVE_WRITE,
         .srcLayout = ImageLayout::Undefined,
@@ -888,7 +888,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsClearColorPassMSAAResolve) {
             .target = srcTargetMS,
             .loadOp = AttachmentLoadOp::Clear,
             .clearValue = { 0.64f, 0.25f, 0.86f, 1.0f },
-            .resolve = eastl::make_optional(AttachmentResolveInfo{ .target = srcTargetResolve }),
+            .resolve = eastl::make_optional(AttachmentResolveInfo{ .target = dstTargetResolve }),
         },
     };
     rpBeginInfo.renderArea = { .x = 0, .y = 0, .width = 64, .height = 64 };
@@ -904,9 +904,9 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsClearColorPassMSAAResolve) {
     mDevice->WaitIdle();
 
     mDevice->DestroyImmediately(srcTargetMS);
-    mDevice->DestroyImmediately(srcTargetResolve);
+    mDevice->DestroyImmediately(dstTargetResolve);
     mDevice->DestroyImmediately(srcImageMS);
-    mDevice->DestroyImmediately(srcImage);
+    mDevice->DestroyImmediately(dstImageResolve);
 }
 
 

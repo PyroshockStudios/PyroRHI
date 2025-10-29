@@ -72,8 +72,8 @@ namespace PyroshockStudios {
             VulkanFence* GetGpuTimeline() {
                 return gpuTimeline;
             }
-            eastl::atomic<u64>& RefCpuTimelineValue() {
-                return cpuTimeline;
+            u64 IncGetCpuTimelineValue() {
+                return cpuTimeline.add_fetch(1);
             }
 
         private:

@@ -56,6 +56,13 @@ namespace PyroshockStudios {
             bool bVK_EXT_buffer_device_address = false;
         };
 
+        struct PendingQueueSubmitZombie {
+            //u64 mainCpuTimelineValue = 0;
+            u64 localCpuTimelineValue = 0;
+            VulkanCommandQueue* queue = nullptr;
+        };
+
+        using QueueTimelineSnapshot = eastl::vector<u64>;
         class VulkanDevice : public IDevice, DeleteCopy, DeleteMove {
         public:
             VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features, bool bHeadlessEnabled);
@@ -175,9 +182,9 @@ namespace PyroshockStudios {
             const ImplSamplerSlot& Slot(SamplerId id) const;
 
         public:
-            eastl::atomic<u64> mMainQueueCpuTimeline = {};
+            QueueTimelineSnapshot SnapshotQueueTimelineValues()const;
 
-            eastl::deque<eastl::pair<u64, ZombieDeleter>> mMainQueueZombies = {};
+            eastl::vector<eastl::pair<QueueTimelineSnapshot, ZombieDeleter>> mResourceZombies = {};
 
             VulkanDeviceCapabilities mVulkanCaps = {};
 
@@ -187,14 +194,11 @@ namespace PyroshockStudios {
             void PopulateDeviceFeatures();
 
         private:
-            eastl::deque<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
-            eastl::deque<eastl::pair<u64, VulkanCommandQueue*>> mQueuePendingSubmits = {};
+            eastl::vector<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
+            eastl::vector<PendingQueueSubmitZombie> mQueuePendingSubmits = {};
 
             GPUResourceId CreateImageView(const GPUResourceInfo& info, bool uav);
             GPUResourceId CreateBufferView(const GPUResourceInfo& info);
-
-
-            IFence* mMainQueueGpuFence = {};
 
             DeviceInfo mInfo = {};
             DevicePropertiesInfo mProperties = {};

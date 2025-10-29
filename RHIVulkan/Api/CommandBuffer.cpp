@@ -344,6 +344,8 @@ namespace PyroshockStudios::RHIVulkan {
         VkBufferMemoryBarrier2 barrier = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
             .buffer = bufferSlot.vkBuffer,
+            .offset = 0,
+            .size = VK_WHOLE_SIZE,
         };
         ASSERT(dstQueue != nullptr && mQueue != dstQueue, "Queue ownerships must define BOTH a correct SRC and DST DIFFERENT ICommandQueue's!!");
         barrier.srcQueueFamilyIndex = mQueue->GetQueueFamily();
@@ -383,6 +385,8 @@ namespace PyroshockStudios::RHIVulkan {
         VkBufferMemoryBarrier2 barrier = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
             .buffer = bufferSlot.vkBuffer,
+            .offset = 0,
+                .size = VK_WHOLE_SIZE,
         };
         ASSERT(srcQueue != nullptr && mQueue != srcQueue, "Queue ownerships must define BOTH a correct SRC and DST DIFFERENT ICommandQueue's!!");
         barrier.srcQueueFamilyIndex = static_cast<VulkanCommandQueue*>(srcQueue)->GetQueueFamily();
