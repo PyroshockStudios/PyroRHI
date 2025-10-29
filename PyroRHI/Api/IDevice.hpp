@@ -596,7 +596,7 @@ namespace PyroshockStudios {
             virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer = false) = 0;
 
             // Convenience overloads
-            
+
             PYRO_FORCEINLINE void Destroy(MemoryBlock& memory, bool bDefer = false) { DestroyMemoryBlock(memory, bDefer); }
             PYRO_FORCEINLINE void Destroy(Buffer& buffer, bool bDefer = false) { DestroyBuffer(buffer, bDefer); }
             PYRO_FORCEINLINE void Destroy(Image& image, bool bDefer = false) { DestroyImage(image, bDefer); }
@@ -662,6 +662,51 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
             // Submission & Synchronization
             // ---------------------------------------------------------------------
+
+            /**
+             * @brief Destroys all pending objects for deletion. This is required to be called after a deferred destruction call, otherwise resources will be accumulated.
+             * This should ONLY be called AFTER all queues using the resources have been submitted, or the device may assume the resource was never used, and prematurely destroy them.
+             * The following is an example of CORRECT usage: 
+             * 
+             * ======================================================
+             * 
+             * -- Frame 1
+             * 
+             *   - Destroy resources A
+             * 
+             *   - Use resources A
+             * 
+             *   - Submit Queue 1
+             * 
+             *   - Use resources A
+             * 
+             *   - Submit Queue 2
+             * 
+             *   - Collect Garbage
+             * 
+             * -- Frame 2
+             * 
+             *   - Destroy resources B
+             * 
+             *   - Use resources B
+             * 
+             *   - Collect Garbage
+             * 
+             *   - Submit Queue 1
+             * 
+             *   - Destroy resources C
+             * 
+             *   - Use resources C
+             * 
+             *   - Submit Queue 2
+             * 
+             *   - Collect Garbage
+             * 
+             * ======================================================
+             * 
+             * @note this is automatically called upon device destruction.
+             */
+            virtual void CollectGarbage() = 0;
 
             /**
              * @brief Blocks until the device has finished all queued work.

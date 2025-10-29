@@ -72,6 +72,10 @@ namespace PyroshockStudios {
             VulkanFence* GetGpuTimeline() {
                 return gpuTimeline;
             }
+            u64 GetCpuTimelineValue() {
+                return cpuTimeline;
+            }
+
             u64 IncGetCpuTimelineValue() {
                 return cpuTimeline.add_fetch(1);
             }

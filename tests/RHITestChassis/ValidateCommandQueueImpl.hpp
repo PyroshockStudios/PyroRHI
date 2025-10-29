@@ -400,8 +400,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SingleQueueDestroyDeferredSuccess) {
             mDevice->DestroyDeferred(dstBuffer);
             mDevice->DestroyDeferred(block);
 
-            // Is the abstraction smart enough to know that the above resources are not ready for destruction?
-
             eastl::string framename1 = "Record frame #" + eastl::to_string(i);
             eastl::string framename = "Transition Resources " + eastl::to_string(i);
             cb->BeginLabel({ .name = framename1 });
@@ -429,6 +427,9 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SingleQueueDestroyDeferredSuccess) {
             cb->Complete();
             cq->SubmitCommandBuffer(cb);
             mDevice->SubmitQueue({ .queue = cq });
+
+            // Clean up anything ready for destruction
+            mDevice->CollectGarbage();
         }
         mDevice->WaitIdle();
     }
@@ -533,8 +534,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueDestroyDeferredSuccess) {
                 mDevice->SubmitQueue({ .queue = tq1, .signalSemaphores = { &currFrameSemaphoreSubmit, 1 } });
             }
 
-            // Is the abstraction smart enough to know that the above resources are not ready for destruction?
-
             // Use buffer in Queue 2
             {
                 eastl::string framename1 = "Record frame TQ2 #" + eastl::to_string(i);
@@ -557,7 +556,10 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueDestroyDeferredSuccess) {
                 tq2->SubmitCommandBuffer(cb2);
                 mDevice->SubmitQueue({ .queue = tq2, .waitSemaphores = { &currFrameSemaphoreSubmit, 1 } });
             }
+            // Clean up anything ready for destruction
+            mDevice->CollectGarbage();
         }
+        // finally, wait for everything to clean up
         mDevice->WaitIdle();
     }
 }

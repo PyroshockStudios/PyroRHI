@@ -55,6 +55,9 @@ namespace PyroshockStudios {
 
             UINT64 GetFenceValue();
 
+            UINT64 GetCpuValue() {
+                return mCurrentQueueFenceValue;
+            }
             UINT64 IncGetCpuValue() {
                 return mCurrentQueueFenceValue.add_fetch(1);
             }

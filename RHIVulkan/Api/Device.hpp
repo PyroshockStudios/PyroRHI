@@ -123,6 +123,7 @@ namespace PyroshockStudios {
 
             eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
 
+            void CollectGarbage() override;
             void WaitIdle() override;
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
             void PresentQueue(const CommandQueuePresentInfo& info) override;
@@ -185,14 +186,13 @@ namespace PyroshockStudios {
             VulkanDeviceCapabilities mVulkanCaps = {};
 
         private:
+            QueueTimelineSnapshot SnapshotQueueTimelineValues() const;
+
             void PopulateDeviceInfo();
             void PopulateDeviceProperties();
             void PopulateDeviceFeatures();
 
         private:
-            QueueTimelineSnapshot SnapshotQueueTimelineValues() const;
-
-            void CollectGarbage() ;
             eastl::vector<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
             eastl::vector<PendingQueueSubmitZombie> mQueuePendingSubmits = {};
 

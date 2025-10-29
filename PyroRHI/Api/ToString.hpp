@@ -730,25 +730,25 @@ namespace PyroshockStudios {
             s += indent + "  queue: " + (ToHexH64(queue)) + "\n";
             s += indent + "  waitSemaphores: [\n";
             for (const auto& subInfo : waitSemaphores) {
-                s += subInfo.ToString(indentation + 4) + "\n";
+                s += indent + "    " + subInfo.ToString(indentation + 4) + "\n";
             }
             s += indent + "  ]\n";
 
             s += indent + "  signalSemaphores: [\n";
             for (const auto& subInfo : signalSemaphores) {
-                s += subInfo.ToString(indentation + 4) + "\n";
+                s += indent + "    " + subInfo.ToString(indentation + 4) + "\n";
             }
             s += indent + "  ]\n";
 
             s += indent + "  signalPresentSemaphores: [\n";
             for (const auto& subInfo : signalPresentReadySemaphores) {
-                s += subInfo.ToString(indentation + 4) + "\n";
+                s += indent + "    " + subInfo.ToString(indentation + 4) + "\n";
             }
             s += indent + "  ]\n";
 
             s += indent + "  signalFences: [\n";
             for (const auto& subInfo : signalFences) {
-                s += subInfo.ToString(indentation + 4) + "\n";
+                s += indent + "    " + subInfo.ToString(indentation + 4) + "\n";
             }
             s += indent + "  ]\n";
             s += indent + "}";

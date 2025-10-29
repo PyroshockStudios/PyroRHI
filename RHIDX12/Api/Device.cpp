@@ -990,8 +990,6 @@ namespace PyroshockStudios {
             }
             q->mSubmittedCommands.clear();
             gDx12Context->FlushDebugMessages();
-            CollectGarbage();
-            gDx12Context->FlushDebugMessages();
         }
         void D3DDevice::PresentQueue(const CommandQueuePresentInfo& info) {
             auto* q = static_cast<D3DCommandQueue*>(info.queue);
@@ -1210,7 +1208,7 @@ namespace PyroshockStudios {
             values.reserve(mCommandQueueList.size());
             for (ICommandQueue* q : mCommandQueueList) {
                 auto* vkQueue = static_cast<D3DCommandQueue*>(q);
-                values.emplace_back(vkQueue->GetFenceValue());
+                values.emplace_back(vkQueue->GetCpuValue());
             }
             return values;
         }

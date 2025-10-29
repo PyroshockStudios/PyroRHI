@@ -361,6 +361,7 @@ namespace PyroshockStudios {
         VulkanDevice::~VulkanDevice() {
             VulkanDevice::WaitIdle();
             VulkanDevice::CollectGarbage();
+            ASSERT(mResourceZombies.empty(), "Dangling zombies remaining after device destruction! This should never happen!");
             mResourceTable.Cleanup(mDevice, mContext->GetVkAllocator());
             vmaDestroyAllocator(mVmaAllocator);
 
@@ -1568,8 +1569,6 @@ namespace PyroshockStudios {
             }
 
             vkQueue->RefSubmittedCommandBuffers().clear();
-
-            CollectGarbage();
         }
 
         void VulkanDevice::PresentQueue(const CommandQueuePresentInfo& info) {
@@ -1740,7 +1739,7 @@ namespace PyroshockStudios {
             values.reserve(mCommandQueues.size());
             for (ICommandQueue* q : mCommandQueues) {
                 auto* vkQueue = static_cast<VulkanCommandQueue*>(q);
-                values.emplace_back(vkQueue->GetGpuTimeline()->Value());
+                values.emplace_back(vkQueue->GetCpuTimelineValue());
             }
             return values;
         }

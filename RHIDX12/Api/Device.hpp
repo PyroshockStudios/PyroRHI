@@ -150,6 +150,7 @@ namespace PyroshockStudios {
             const DeviceFeaturesInfo& Features() const override;
             DeviceStatusInfo Status() const override;
 
+            void CollectGarbage() override;
 
             void ImageAddIfNecessaryBlitSupport(D3DImageResourceData& data);
             const DescriptorTableInfo& GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc);
@@ -181,7 +182,6 @@ namespace PyroshockStudios {
 
         private:
             QueueFenceSnapshot SnapshotQueueFenceValues() const;
-            void CollectGarbage() ;
 
             void WriteAllSRVDescriptorHeapCopies(ID3D12Resource* pResource,
                 const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GPUResourceId handle);
