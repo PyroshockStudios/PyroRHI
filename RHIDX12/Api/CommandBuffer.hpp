@@ -52,15 +52,6 @@ namespace PyroshockStudios {
             void AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) override;
             void AcquireImageOwnership(Image image, ICommandQueue* srcQueue) override;
             void InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) override;
-            void DestroyMemoryBlockDeferred(MemoryBlock memory) override;
-            void DestroyBufferDeferred(Buffer buffer) override;
-            void DestroyImageDeferred(Image image) override;
-            void DestroyShaderResourceDeferred(ShaderResourceId srv) override;
-            void DestroyUnorderedAccessDeferred(UnorderedAccessId uav) override;
-            void DestroySamplerDeferred(SamplerId sampler) override;
-            void DestroyRenderTargetDeferred(RenderTarget renderTarget) override;
-            void DestroyRasterPipelineDeferred(RasterPipeline pipeline) override;
-            void DestroyComputePipelineDeferred(ComputePipeline pipeline) override;
             void WriteTimestamp(const WriteTimestampInfo& info) override;
             void BeginLabel(const CommandLabelInfo& info) override;
             void EndLabel() override;

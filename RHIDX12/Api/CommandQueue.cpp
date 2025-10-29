@@ -29,7 +29,7 @@ namespace PyroshockStudios {
         D3DCommandQueue::D3DCommandQueue(D3DDevice* device, CommandQueueInfo&& info, ComPtr<ID3D12CommandQueue>&& queue)
             : mDevice(device), mInfo(eastl::move(info)), mCommandQueue(eastl::move(queue)) {
             D3DSetDebugName(mCommandQueue, mInfo.name.c_str());
-            CheckD3DResult(mDevice->InternalDevice() ->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mCommandBufferTracker)));
+            CheckD3DResult(mDevice->InternalDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mQueueTracker)));
         }
         D3DCommandQueue::~D3DCommandQueue() {
             for (auto& [cmb, fenceVal] : mPooledCommandBuffers) {
@@ -39,7 +39,7 @@ namespace PyroshockStudios {
         ICommandBuffer* D3DCommandQueue::GetCommandBuffer(const CommandBufferInfo& info) {
             D3DCommandBuffer* commands = nullptr;
 
-            UINT64 completedVal = mCommandBufferTracker->GetCompletedValue();
+            UINT64 completedVal = mQueueTracker->GetCompletedValue();
             for (i32 i = 0; i < mPooledCommandBuffers.size(); ++i) {
                 auto& [cmb, fenceVal] = mPooledCommandBuffers[i];
                 if (completedVal > fenceVal) {
@@ -129,8 +129,11 @@ namespace PyroshockStudios {
             CheckD3DResult(mCommandQueue->GetTimestampFrequency(&freq));
             return 1e9 / static_cast<f64>(freq);
         }
-        void D3DCommandQueue::SignalCommandBufferFences() {
-            mCommandQueue->Signal(mCommandBufferTracker.Get(), ++mCurrentCommandBufferFenceValue);
+        void D3DCommandQueue::SignalQueueFence(UINT64 value) {
+            mCommandQueue->Signal(mQueueTracker.Get(), value);
+        }
+        UINT64 D3DCommandQueue::GetFenceValue() {
+            return mQueueTracker->GetCompletedValue();
         }
     } // namespace RHIDX12
 } // namespace PyroshockStudios

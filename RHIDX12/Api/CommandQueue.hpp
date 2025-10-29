@@ -23,6 +23,7 @@
 #pragma once
 #include <RHIDX12/Core.hpp>
 #include <PyroRHI/Api/ICommandQueue.hpp>
+#include <EASTL/atomic.h>
 namespace PyroshockStudios {
     namespace RHIDX12 {
         class D3DCommandBuffer;
@@ -43,21 +44,28 @@ namespace PyroshockStudios {
                 return mCommandQueue.Get();
             }
             void RestoreCommandBuffer(D3DCommandBuffer* cmb) {
-                mPooledCommandBuffers.emplace_back(cmb, mCurrentCommandBufferFenceValue);
+                mPooledCommandBuffers.emplace_back(cmb, static_cast<UINT64>(mCurrentQueueFenceValue));
             }
             eastl::vector<D3DCommandBuffer*> mSubmittedCommands = {};
             eastl::vector<ID3D12CommandList*> mPendingCommandListExecutes = {};
             eastl::vector<eastl::pair<IDXGISwapChain3*, UINT>> mPendingSwapPresents = {};
 
-            // Used for tracking which command buffers can be resurrected and when.
-            void SignalCommandBufferFences();
+            // Used for tracking which command buffers can be resurrected and when. Also for resource destruction
+            void SignalQueueFence(UINT64 value);
+
+            UINT64 GetFenceValue();
+
+            UINT64 IncGetCpuValue() {
+                return mCurrentQueueFenceValue.add_fetch(1);
+            }
+
         private:
             D3DDevice* mDevice = nullptr;
             CommandQueueInfo mInfo = {};
             ComPtr<ID3D12CommandQueue> mCommandQueue = {};
 
-            UINT64 mCurrentCommandBufferFenceValue = 0;
-            ComPtr<ID3D12Fence> mCommandBufferTracker = {};
+            eastl::atomic<UINT64> mCurrentQueueFenceValue = 0;
+            ComPtr<ID3D12Fence> mQueueTracker = {};
 
             eastl::vector<eastl::pair<D3DCommandBuffer*, UINT64>> mPooledCommandBuffers = {};
         };

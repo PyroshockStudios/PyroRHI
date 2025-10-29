@@ -664,12 +664,6 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
 
             /**
-             * @brief Destroys all pending objects for deletion. This is required to be called after a deferred destruction call, otherwise resources will be accumulated.
-             * @note this is automatically called upon device destruction.
-             */
-            virtual void CollectGarbage() = 0;
-
-            /**
              * @brief Blocks until the device has finished all queued work.
              */
             virtual void WaitIdle() = 0;

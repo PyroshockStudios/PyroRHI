@@ -1568,6 +1568,8 @@ namespace PyroshockStudios {
             }
 
             vkQueue->RefSubmittedCommandBuffers().clear();
+
+            CollectGarbage();
         }
 
         void VulkanDevice::PresentQueue(const CommandQueuePresentInfo& info) {

@@ -352,9 +352,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SingleQueueDestroyDeferredSuccess) {
         }
 
         for (i32 i = 0; i < NUM_DESTROY_DEFERRED_CYCLES; ++i) {
-            // cleanup any previous frames
-            mDevice->CollectGarbage();
-
             ImageInfo srcImageInfo{};
             srcImageInfo.dimensions = ImageDimensions::e3D;
             srcImageInfo.size = { 16, 16, 4 };
@@ -402,6 +399,9 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SingleQueueDestroyDeferredSuccess) {
             mDevice->DestroyDeferred(srcImage);
             mDevice->DestroyDeferred(dstBuffer);
             mDevice->DestroyDeferred(block);
+
+            // Is the abstraction smart enough to know that the above resources are not ready for destruction?
+
             eastl::string framename1 = "Record frame #" + eastl::to_string(i);
             eastl::string framename = "Transition Resources " + eastl::to_string(i);
             cb->BeginLabel({ .name = framename1 });
@@ -431,8 +431,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SingleQueueDestroyDeferredSuccess) {
             mDevice->SubmitQueue({ .queue = cq });
         }
         mDevice->WaitIdle();
-        // cleanup the rest
-        mDevice->CollectGarbage();
     }
 }
 
@@ -476,9 +474,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueDestroyDeferredSuccess) {
         }
 
         for (i32 i = 0; i < NUM_DESTROY_DEFERRED_CYCLES; ++i) {
-            // cleanup any previous frames
-            mDevice->CollectGarbage();
-
             ICommandBuffer* cb1 = commandsQueue1[i];
             TRACK_RHI_HANDLE(cb1);
             ICommandBuffer* cb2 = commandsQueue2[i];
@@ -538,6 +533,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueDestroyDeferredSuccess) {
                 mDevice->SubmitQueue({ .queue = tq1, .signalSemaphores = { &currFrameSemaphoreSubmit, 1 } });
             }
 
+            // Is the abstraction smart enough to know that the above resources are not ready for destruction?
+
             // Use buffer in Queue 2
             {
                 eastl::string framename1 = "Record frame TQ2 #" + eastl::to_string(i);
@@ -562,8 +559,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueDestroyDeferredSuccess) {
             }
         }
         mDevice->WaitIdle();
-        // cleanup the rest
-        mDevice->CollectGarbage();
     }
 }
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueResourceTransferSuccess) {

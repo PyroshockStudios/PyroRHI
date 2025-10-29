@@ -57,7 +57,7 @@ namespace PyroshockStudios {
         };
 
         struct PendingQueueSubmitZombie {
-            //u64 mainCpuTimelineValue = 0;
+            // u64 mainCpuTimelineValue = 0;
             u64 localCpuTimelineValue = 0;
             VulkanCommandQueue* queue = nullptr;
         };
@@ -113,7 +113,6 @@ namespace PyroshockStudios {
             virtual void DestroyShaderResource(ShaderResourceId& srv, bool bDefer) override;
             virtual void DestroyUnorderedAccess(UnorderedAccessId& uav, bool bDefer) override;
             virtual void DestroySampler(SamplerId& sampler, bool bDefer) override;
-
             virtual void DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer) override;
             virtual void DestroyRasterPipeline(RasterPipeline& pipeline, bool bDefer) override;
             virtual void DestroyComputePipeline(ComputePipeline& pipeline, bool bDefer) override;
@@ -124,7 +123,6 @@ namespace PyroshockStudios {
 
             eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
 
-            void CollectGarbage() override;
             void WaitIdle() override;
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
             void PresentQueue(const CommandQueuePresentInfo& info) override;
@@ -182,8 +180,6 @@ namespace PyroshockStudios {
             const ImplSamplerSlot& Slot(SamplerId id) const;
 
         public:
-            QueueTimelineSnapshot SnapshotQueueTimelineValues()const;
-
             eastl::vector<eastl::pair<QueueTimelineSnapshot, ZombieDeleter>> mResourceZombies = {};
 
             VulkanDeviceCapabilities mVulkanCaps = {};
@@ -194,6 +190,9 @@ namespace PyroshockStudios {
             void PopulateDeviceFeatures();
 
         private:
+            QueueTimelineSnapshot SnapshotQueueTimelineValues() const;
+
+            void CollectGarbage() ;
             eastl::vector<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
             eastl::vector<PendingQueueSubmitZombie> mQueuePendingSubmits = {};
 
