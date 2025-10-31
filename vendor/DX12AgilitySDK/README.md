@@ -12,6 +12,32 @@ The included licenses apply to the following files:
 - **LICENSE-CODE.txt** : applies to all files under `build/native/include/`
 
 ## Changelog
+### Version 1.618.2:
+- Correctly enable SODB capture for advanced shader delivery
+- Add ID3D12StateObjectDatabase for programmatic SODB generation
+- Add D3D12StateObjectCompiler 'merge' command
+
+### Version 1.618.1:
+- StateObjectCompiler binaries added to the AgilitySDK NuGet
+
+### Version 1.618.0:
+_Golden Ratio edition_
+
+- Advanced Shader Delivery
+- Application Specific Driver States
+- Video features
+  - D3D12_Video_Encoding_HEVC_ReferenceListExtension
+  - D3D12_Video_Encoding_LowerResolution_2Pass 
+  - PSNR stats added to: D3D12_Video_Encoding_Stats_Metadata 
+  - D3D12 Video encode subregion
+  - D3D12 Video encode output stats (per block QP, per block SATD, per block bit allocation) 
+  - D3D12 Video encode GPU texture input QP map 
+  - D3D12 Video encode GPU texture/CPU buffer Dirty maps/rects 
+  - D3D12 Video encode GPU texture/CPU buffer motion vector hints 
+  - D3D12 Video Encode Spatial Adaptive Rate Control Quantization 
+- Recreate at GPUVA
+- Tight Alignment
+
 
 ### Version 1.717.1:
  

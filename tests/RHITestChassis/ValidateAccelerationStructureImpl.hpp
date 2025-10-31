@@ -57,7 +57,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateBlas_Success) {
     BufferInfo vbInfo = {
         .size = sizeof(vertices),
         .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER,
-        .initialLayout = BufferLayout::Undefined,
+        .initialLayout = BufferLayout::ReadOnly,
         .allocationDomain = MemoryAllocationDomain::HostRandomWrite // Mappable
     };
     Buffer vertexBuffer = mDevice->CreateBuffer(vbInfo);
@@ -70,7 +70,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateBlas_Success) {
     BufferInfo ibInfo = {
         .size = sizeof(indices),
         .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER,
-        .initialLayout = BufferLayout::Undefined,
+        .initialLayout = BufferLayout::ReadOnly,
         .allocationDomain = MemoryAllocationDomain::HostRandomWrite // Mappable
     };
     Buffer indexBuffer = mDevice->CreateBuffer(ibInfo);
@@ -133,6 +133,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateTlas_Success) {
     BufferInfo vbInfo = {
         .size = sizeof(vertices),
         .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER,
+        .initialLayout = BufferLayout::ReadOnly,
         .allocationDomain = MemoryAllocationDomain::HostRandomWrite,
     };
     Buffer vertexBuffer = mDevice->CreateBuffer(vbInfo);
@@ -142,6 +143,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateTlas_Success) {
     BufferInfo ibInfo = {
         .size = sizeof(indices),
         .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER,
+        .initialLayout = BufferLayout::ReadOnly,
         .allocationDomain = MemoryAllocationDomain::HostRandomWrite,
     };
     Buffer indexBuffer = mDevice->CreateBuffer(ibInfo);
@@ -178,6 +180,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CreateTlas_Success) {
     BufferInfo instanceBufferInfo = {
         .size = sizeof(instanceData),
         .usage = BufferUsageFlagBits::BLAS_INSTANCE_BUFFER,
+        .initialLayout = BufferLayout::ReadOnly,
         .allocationDomain = MemoryAllocationDomain::HostRandomWrite
     };
     Buffer instanceBuffer = mDevice->CreateBuffer(instanceBufferInfo);
@@ -229,6 +232,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, BuildBlas_Success) {
     BufferInfo vbInfo = {
         .size = sizeof(vertices),
         .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER,
+        .initialLayout = BufferLayout::ReadOnly,
         .allocationDomain = MemoryAllocationDomain::HostRandomWrite,
     };
     Buffer vertexBuffer = mDevice->CreateBuffer(vbInfo);
@@ -237,6 +241,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, BuildBlas_Success) {
     BufferInfo ibInfo = {
         .size = sizeof(indices),
         .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER,
+        .initialLayout = BufferLayout::ReadOnly,
         .allocationDomain = MemoryAllocationDomain::HostRandomWrite,
     };
     Buffer indexBuffer = mDevice->CreateBuffer(ibInfo);
@@ -321,6 +326,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, BuildTlas_Success) {
     BufferInfo vbInfo = {
         .size = sizeof(vertices),
         .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER,
+        .initialLayout = BufferLayout::ReadOnly,
         .allocationDomain = MemoryAllocationDomain::HostRandomWrite,
     };
     Buffer vertexBuffer = mDevice->CreateBuffer(vbInfo);
@@ -329,6 +335,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, BuildTlas_Success) {
     BufferInfo ibInfo = {
         .size = sizeof(indices),
         .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER,
+        .initialLayout = BufferLayout::ReadOnly,
         .allocationDomain = MemoryAllocationDomain::HostRandomWrite,
     };
     Buffer indexBuffer = mDevice->CreateBuffer(ibInfo);
@@ -375,6 +382,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, BuildTlas_Success) {
     BufferInfo instanceBufferInfo = {
         .size = sizeof(instanceData),
         .usage = BufferUsageFlagBits::BLAS_INSTANCE_BUFFER,
+        .initialLayout = BufferLayout::ReadOnly,
         .allocationDomain = MemoryAllocationDomain::HostRandomWrite,
     };
     Buffer instanceBuffer = mDevice->CreateBuffer(instanceBufferInfo);

@@ -22,12 +22,12 @@
 
 #define PYRO_IMPLEMENT_NEW_OPERATOR
 #include <PyroCommon/MemoryOverload.hpp>
-
-extern "C" {
-// Export the SDK version. This must match the SDK version in vendor/DX12AgilitySDK
-__declspec(dllexport) extern const unsigned int D3D12SDKVersion = 717U;
-
-// Export the path to the Agility SDK DLLs, relative to the .exe.
-// We will copy the DLLs into a "D3D12/" subdirectory inside ./RHI/
-__declspec(dllexport) extern const char* D3D12SDKPath = ".\\RHI\\D3D12\\";
-}
+//
+//extern "C" {
+//// Export the SDK version. This must match the SDK version in vendor/DX12AgilitySDK
+//__declspec(dllexport) extern const unsigned int D3D12SDKVersion = 618U;
+//
+//// Export the path to the Agility SDK DLLs, relative to the .exe.
+//// We will copy the DLLs into a "D3D12/" subdirectory inside ./RHI/
+//__declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
+//}

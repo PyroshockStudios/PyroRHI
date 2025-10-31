@@ -46,22 +46,26 @@ namespace PyroshockStudios {
             const RHIProperties& Properties() override;
             IShaderFeatureSet* ShaderFeatureSet() override;
 
-            void InjectLogger( ILogStream* stream) override;
+            void InjectLogger(ILogStream* stream) override;
 
             PYRO_FORCEINLINE void FlushDebugMessages() {
-                if (!mInfoQueue) return;
+                if (!mInfoQueue)
+                    return;
 
                 InternalFlushDebugMessages();
             }
+
         private:
             void InternalFlushDebugMessages();
-            
+
             ComPtr<IDXGIFactory4> mFactory;
             ComPtr<ID3D12InfoQueue> mInfoQueue = nullptr;
-            ComPtr<ID3D12Debug> mDebugController= nullptr;
+            ComPtr<ID3D12Debug> mDebugController = nullptr;
             D3DDevice* mDevice = nullptr;
+            // HMODULE mD3D12CoreDll = {};
+            // HMODULE mD3D12SDKLayers = {};
             HMODULE mPixRuntimeDll = {};
             ILogStream* mDebugSink = nullptr;
         };
-    }
+    } // namespace RHIDX12
 } // namespace PyroshockStudios
