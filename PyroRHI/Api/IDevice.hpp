@@ -433,6 +433,13 @@ namespace PyroshockStudios {
                 return reinterpret_cast<T*>(BufferHostAddress(buffer));
             }
 
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * Returns the api specific address of a BLAS. This is to be used in `BlasInstanceData`
+             */
+            PYRO_NODISCARD virtual BlasAddress BlasInstanceAddress(BlasId blas) const = 0;
+
+
             // ---------------------------------------------------------------------
             // Memory requirements
             // ---------------------------------------------------------------------
@@ -457,13 +464,13 @@ namespace PyroshockStudios {
             PYRO_NODISCARD virtual u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice = {}) const = 0;
 
             /**
-             * @brief - REQUIRES RAY TRACING SUPPORT -
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
              *
              * Returns the size requirements for build, scratch and update buffers for a BLAS
              */
             PYRO_NODISCARD virtual AccelerationStructureBuildSizesInfo BlasSizeRequirements(const BlasBuildInfo& info) const = 0;
             /**
-             * @brief - REQUIRES RAY TRACING SUPPORT -
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
              *
              * Returns the size requirements for build, scratch and update buffers for a TLAS
              */
@@ -537,12 +544,12 @@ namespace PyroshockStudios {
             PYRO_NODISCARD virtual ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) = 0;
 
             /**
-             * @brief - REQUIRES RAY TRACING SUPPORT -
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
              * Creates a bottom level acceleration structure to be referenced by a Tlas.
              */
             PYRO_NODISCARD virtual BlasId CreateBlas(const BlasInfo& info) = 0;
             /**
-             * @brief - REQUIRES RAY TRACING SUPPORT -
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
              * Creates a top level acceleration structure with the given parameters. This returns a handle
              * that is meant to be passed to a shader, to index into a runtime array of Tlas descriptors
              */
@@ -635,14 +642,14 @@ namespace PyroshockStudios {
             virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer = false) = 0;
             
             /**
-             * @brief - REQUIRES RAY TRACING SUPPORT -
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
              * @brief Destroys the BLAS.
              * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
              * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
             virtual void DestroyBlas(BlasId& blas, bool bDefer = false) = 0;
             /**
-             * @brief - REQUIRES RAY TRACING SUPPORT -
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
              * @brief Destroys the TLAS.
              * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
              * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.

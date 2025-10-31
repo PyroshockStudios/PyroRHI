@@ -233,6 +233,7 @@ namespace PyroshockStudios {
 
             GpuResourcePool<ImplBlasSlot> mBlasSlots = {};
 
+            bool bAccelerationStructures = false;
             GpuResourcePool<ImplTlasSlot> mTlasSlots = {};
 
             VkDescriptorSetLayout mBindlessDescriptorSetLayout = {};
@@ -247,7 +248,7 @@ namespace PyroshockStudios {
                 u32 maxImageViews,
                 u32 maxSamplers,
                 u32 maxMemoryBlocks,
-                u32 maxAccelerationStructures,
+                u32 maxAccelerationStructures, // set this to 0 to disable AS
                 VkDevice device,
                 const VkAllocationCallbacks* allocator,
                 VkBuffer deviceAddressBuffer,

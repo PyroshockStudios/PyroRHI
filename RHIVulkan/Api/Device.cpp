@@ -41,6 +41,7 @@
 namespace PyroshockStudios {
     namespace RHIVulkan {
         PYRO_FORCEINLINE static constexpr VkImageViewType ToVkImageViewType(ImageViewType type) { return static_cast<VkImageViewType>(type); }
+        PYRO_FORCEINLINE static constexpr VkGeometryFlagsKHR ToVkGeometryFlagsKHR(AccelerationStructureGeometryFlags type) { return static_cast<VkGeometryFlagsKHR>(type); }
 
         VulkanDevice::VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features, bool bHeadlessEnabled)
             : mContext(context), mPhysicalDevice(physicalDevice) {
@@ -218,7 +219,7 @@ namespace PyroshockStudios {
                     .shaderImageGatherExtended = VK_TRUE,
                     .shaderStorageImageMultisample = VK_TRUE,
                     .shaderClipDistance = VK_TRUE,
-                    .shaderInt64 = mVulkanCaps.bVK_EXT_buffer_device_address ? VK_TRUE : VK_FALSE,
+                    .shaderInt64 = features.shaderInt64,
                 }
             };
 
@@ -387,7 +388,7 @@ namespace PyroshockStudios {
             CheckVkResult(result);
 
             mResourceTable.Initialize(MAX_VK_BINDLESS_BUFFERS, MAX_VK_BINDLESS_IMAGES, MAX_VK_BINDLESS_SAMPLERS,
-                MAX_VK_VIRTUAL_MEMORIES, MAX_VK_ACCELERATION_STRUCTURES,
+                MAX_VK_VIRTUAL_MEMORIES, mVulkanCaps.bVK_KHR_acceleration_structures ? MAX_VK_ACCELERATION_STRUCTURES : 0,
                 mDevice, mContext->GetVkAllocator(), VK_NULL_HANDLE, vkSetDebugUtilsObjectNameEXT);
 
             vkGetPhysicalDeviceProperties(mPhysicalDevice, &mPhysicalDeviceProperties);
@@ -528,15 +529,27 @@ namespace PyroshockStudios {
             if (info.usage & BufferUsageFlagBits::DRAW_INDIRECT) {
                 VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
             }
+
+            if (info.usage & BufferUsageFlagBits::ACCELERATION_STRUCTURE) {
+                ASSERT(mFeatures.bAccelerationStructureBuild, "Cannot create a buffer with ACCELERATION_STRUCTURE_BUFFER if the device does not support AccelerationStructureBuild!");
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            }
             if (info.usage & BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER) {
                 ASSERT(mFeatures.bAccelerationStructureBuild, "Cannot create a buffer with BLAS_GEOMETRY_BUFFER if the device does not support AccelerationStructureBuild!");
-                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
                 VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
             }
-            if (info.usage & BufferUsageFlagBits::TLAS_BLAS_SCRATCH_BUFFER) {
-                ASSERT(mFeatures.bAccelerationStructureBuild, "Cannot create a buffer with TLAS_BLAS_SCRATCH_BUFFER if the device does not support AccelerationStructureBuild!");
-                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+            if (info.usage & BufferUsageFlagBits::BLAS_INSTANCE_BUFFER) {
+                ASSERT(mFeatures.bAccelerationStructureBuild, "Cannot create a buffer with BLAS_GEOMETRY_BUFFER if the device does not support AccelerationStructureBuild!");
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
                 VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+            }
+            if (info.usage & BufferUsageFlagBits::ACCELERATION_STRUCTURE_SCRATCH_BUFFER) {
+                ASSERT(mFeatures.bAccelerationStructureBuild, "Cannot create a buffer with TLAS_BLAS_SCRATCH_BUFFER if the device does not support AccelerationStructureBuild!");
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
             }
             bool hostAccessible = false;
             VkMemoryPropertyFlags requiredMemoryFlags = {};
@@ -634,7 +647,7 @@ namespace PyroshockStudios {
                 .pNext = nullptr,
                 .buffer = ret.vkBuffer,
             };
-            if ((info.usage & BufferUsageFlagBits::BUFFER_DEVICE_ADDRESS) && mVulkanCaps.bVK_EXT_buffer_device_address) {
+            if ((VK_BUFFER_USAGE_FLAGS & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) && mVulkanCaps.bVK_EXT_buffer_device_address) {
                 ret.deviceAddress = vkGetBufferDeviceAddress(mDevice, &vkBufferDeviceAddressInfo);
             }
             ret.hostAddress = hostAccessible ? vmaAllocationInfo.pMappedData : nullptr;
@@ -653,7 +666,7 @@ namespace PyroshockStudios {
         Image VulkanDevice::CreateImage(const ImageInfo& info) {
             auto [id, ret] = mResourceTable.mImageSlots.NewSlot();
             ret.info = info;
-            ASSERT(info.flags != 0, "Images must have usage flags defined!");
+            ASSERT(info.usage.data != 0, "Images must have usage flags defined!");
 
             VkImageCreateInfo vkImageCreateInfo = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -937,6 +950,7 @@ namespace PyroshockStudios {
             vkGetPhysicalDeviceFeatures(mPhysicalDevice, &features);
             const VkPhysicalDeviceProperties& props = mPhysicalDeviceProperties;
 
+            mFeatures.bBCnTextureCompression = features.textureCompressionBC;
             mFeatures.bGeometryShaders = features.geometryShader;
             mFeatures.bTesselationShaders = features.tessellationShader;
             mFeatures.bInt64ShaderOps = features.shaderInt64;
@@ -1104,7 +1118,7 @@ namespace PyroshockStudios {
 
             ret.ownsBuffer = true;
             ret.bufferId = CreateBuffer({ .size = info.size,
-                .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER,
+                .usage = BufferUsageFlagBits::ACCELERATION_STRUCTURE,
                 .allocationDomain = MemoryAllocationDomain::DeviceLocal,
                 .name = info.name + " - buffer" });
             ret.vkBuffer = Slot(ret.bufferId).vkBuffer;
@@ -1150,7 +1164,7 @@ namespace PyroshockStudios {
 
             ret.ownsBuffer = true;
             ret.bufferId = CreateBuffer({ .size = info.size,
-                .usage = BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER, // TODO: what here?
+                .usage = BufferUsageFlagBits::ACCELERATION_STRUCTURE,
                 .allocationDomain = MemoryAllocationDomain::DeviceLocal,
                 .name = info.name + " - buffer" });
             ret.vkBuffer = Slot(ret.bufferId).vkBuffer;
@@ -1248,6 +1262,11 @@ namespace PyroshockStudios {
             return reinterpret_cast<u8*>(Slot(buffer).hostAddress);
         }
 
+        BlasAddress VulkanDevice::BlasInstanceAddress(BlasId blas) const {
+            return static_cast<BlasAddress>(Slot(blas).deviceAddress);
+        }
+
+
         DeviceSize VulkanDevice::ImageSizeRequirements(Image image) const {
             auto& img = Slot(image);
             VkMemoryRequirements requirements;
@@ -1259,7 +1278,12 @@ namespace PyroshockStudios {
         }
 
 
-        void VulkanDevice::CreateAccelerationStructureBuildInfo(const eastl::span<const TlasBuildInfo>& tlasBuildInfos, const eastl::span<const BlasBuildInfo>& blasBuildInfos, eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR>& vkBuildGeometryInfos, eastl::vector<VkAccelerationStructureGeometryKHR>& vkGeometryInfos, eastl::vector<u32>& primitiveCounts, eastl::vector<const u32*>& primitiveCountsPtrs) const {
+        void VulkanDevice::CreateAccelerationStructureBuildInfo(
+            const eastl::span<const TlasBuildInfo>& tlasBuildInfos, const eastl::span<const BlasBuildInfo>& blasBuildInfos,
+            eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR>& vkBuildGeometryInfos,
+            eastl::vector<VkAccelerationStructureGeometryKHR>& vkGeometryInfos,
+            eastl::vector<u32>& primitiveCounts,
+            eastl::vector<const u32*>& primitiveCountsPtrs) const {
             vkBuildGeometryInfos.reserve(blasBuildInfos.size() + tlasBuildInfos.size());
             primitiveCounts.reserve(blasBuildInfos.size() + tlasBuildInfos.size());
             usize geometryInfoCount = 0;
@@ -1310,7 +1334,10 @@ namespace PyroshockStudios {
                     .geometryCount = static_cast<u32>(tlasBuildInfo.instances.size()),
                     .pGeometries = vkGeometryArrayPtr,
                     .ppGeometries = nullptr,
-                    .scratchData = eastl::bit_cast<VkDeviceOrHostAddressKHR>(Slot(tlasBuildInfo.scratchBuffer).deviceAddress),
+                    .scratchData = tlasBuildInfo.scratchBuffer == PYRO_NULL_BUFFER
+                                       ? VkDeviceOrHostAddressKHR{}
+                                       : eastl::bit_cast<VkDeviceOrHostAddressKHR>(Slot(tlasBuildInfo.scratchBuffer).deviceAddress),
+
                 });
                 primitiveCountsPtrs.push_back(primitiveCountsPtr);
             }
@@ -1323,6 +1350,7 @@ namespace PyroshockStudios {
                 if (auto* triangleGeometryInfos = eastl::get_if<eastl::span<const BlasTriangleGeometryInfo>>(&blasBuildInfo.geometries)) {
                     geometryCount = triangleGeometryInfos->size();
                     for (const auto& geometry : *triangleGeometryInfos) {
+                        ASSERT(geometry.vertexBuffer != PYRO_NULL_BUFFER, "Vertex buffer must never be null when creating a triangle BLAS!");
                         VkAccelerationStructureGeometryKHR geometryInfo = {
                             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
                             .pNext = nullptr,
@@ -1332,15 +1360,19 @@ namespace PyroshockStudios {
                                     .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
                                     .pNext = nullptr,
                                     .vertexFormat = ToVkFormat(geometry.vertexFormat),
-                                    .vertexData = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(geometry.vertexBuffer).deviceAddress),
+                                    .vertexData = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(geometry.vertexBuffer).deviceAddress + geometry.vertexByteOffset),
                                     .vertexStride = geometry.vertexStride,
                                     .maxVertex = geometry.vertexCount - 1,
                                     .indexType = ToVkIndexType(geometry.indexType),
-                                    .indexData = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(geometry.indexBuffer).deviceAddress),
-                                    .transformData = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(geometry.transformData).deviceAddress + geometry.transformDataOffset),
+                                    .indexData = geometry.indexBuffer == PYRO_NULL_BUFFER
+                                                     ? VkDeviceOrHostAddressConstKHR{}
+                                                     : eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(geometry.indexBuffer).deviceAddress + geometry.indexOffset * ToVkIndexTypeSize(geometry.indexType)),
+                                    .transformData = geometry.transformData == PYRO_NULL_BUFFER
+                                                         ? VkDeviceOrHostAddressConstKHR{}
+                                                         : eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(geometry.transformData).deviceAddress + geometry.transformDataOffset),
                                 },
                             },
-                            .flags = eastl::bit_cast<VkGeometryFlagsKHR>(geometry.flags),
+                            .flags = ToVkGeometryFlagsKHR(geometry.flags),
                         };
                         primitiveCounts.push_back(geometry.indexBuffer == PYRO_NULL_BUFFER ? geometry.vertexCount / 3 : geometry.indexCount / 3);
                         vkGeometryInfos.push_back(geometryInfo);
@@ -1350,6 +1382,7 @@ namespace PyroshockStudios {
                 if (auto* aabbGeometryInfos = eastl::get_if<eastl::span<const BlasAabbGeometryInfo>>(&blasBuildInfo.geometries)) {
                     geometryCount = aabbGeometryInfos->size();
                     for (const auto& geometry : *aabbGeometryInfos) {
+                        ASSERT(geometry.data != PYRO_NULL_BUFFER, "AABB data buffer must never be null when creating a AABB BLAS!");
                         VkAccelerationStructureGeometryKHR geometryInfo = {
                             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
                             .pNext = nullptr,
@@ -1380,7 +1413,9 @@ namespace PyroshockStudios {
                     .geometryCount = geometryCount,
                     .pGeometries = vkGeometryArrayPtr,
                     .ppGeometries = nullptr,
-                    .scratchData = eastl::bit_cast<VkDeviceOrHostAddressKHR>(Slot(blasBuildInfo.scratchBuffer).deviceAddress),
+                    .scratchData = blasBuildInfo.scratchBuffer == PYRO_NULL_BUFFER
+                                       ? VkDeviceOrHostAddressKHR{}
+                                       : eastl::bit_cast<VkDeviceOrHostAddressKHR>(Slot(blasBuildInfo.scratchBuffer).deviceAddress),
                 });
                 primitiveCountsPtrs.push_back(primitiveCountsPtr);
             }

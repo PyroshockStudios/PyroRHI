@@ -1108,7 +1108,7 @@ TEST(RHICommonToStringTests, DrawInfoToString) {
 
 TEST(RHICommonToStringTests, DrawIndexedInfoToString) {
     DrawIndexedInfo info = { 1000, 1, 0, 0, 0 };
-    eastl::string expected = "DrawIndexedInfo { indexCount: 1000, instanceCount: 1, firstIndex: 0, vertexOffset: 0, firstInstance: 0 }";
+    eastl::string expected = "DrawIndexedInfo { indexCount: 1000, instanceCount: 1, firstIndex: 0, vertexByteOffset: 0, firstInstance: 0 }";
     EXPECT_STREQ(RemoveIndentation(info.ToString(0)).c_str(), RemoveIndentation(expected).c_str());
 }
 

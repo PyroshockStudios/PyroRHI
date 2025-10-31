@@ -103,15 +103,30 @@ namespace PyroshockStudios {
         PYRO_FORCEINLINE static constexpr VkFilter ToVkFilter(Filter type) { return static_cast<VkFilter>(type); }
         PYRO_FORCEINLINE static constexpr VkSamplerReductionMode ToVkReductionMode(ReductionMode type) { return static_cast<VkSamplerReductionMode>(type); }
         PYRO_FORCEINLINE static constexpr VkIndexType ToVkIndexType(IndexType type) { return static_cast<VkIndexType>(type); }
+        PYRO_FORCEINLINE static constexpr u32 ToVkIndexTypeSize(IndexType type) {
+            switch (type) {
+            case IndexType::Uint32:
+                return 4;
+            case IndexType::Uint16:
+                return 2;
+            case IndexType::Uint8:
+                return 1;
+            case IndexType::None:
+                return 0;
+            default:
+                return -1;
+            }
+            return -1;
+        }
         PYRO_FORCEINLINE static constexpr VkAttachmentLoadOp ToVkAttachmentLoadOp(AttachmentLoadOp type) { return static_cast<VkAttachmentLoadOp>(type); }
         PYRO_FORCEINLINE static constexpr VkAttachmentStoreOp ToVkAttachmentStoreOp(AttachmentStoreOp type) { return static_cast<VkAttachmentStoreOp>(type); }
         PYRO_FORCEINLINE static constexpr VkCullModeFlagBits ToVkFaceCull(FaceCull type) { return static_cast<VkCullModeFlagBits>(type); }
         PYRO_FORCEINLINE static constexpr VkColorComponentFlags ToVkColorComponentFlags(ColorComponentFlags type) { return static_cast<VkColorComponentFlags>(type.data); }
         PYRO_FORCEINLINE static constexpr VkAccessFlags2 ToVkAccessTypeFlags(AccessTypeFlags type) { return static_cast<VkAccessFlags2>(type.data); }
-        PYRO_FORCEINLINE static constexpr VkPipelineStageFlags2 ToVkPipelineStageFlags(PipelineStageFlags type) { 
+        PYRO_FORCEINLINE static constexpr VkPipelineStageFlags2 ToVkPipelineStageFlags(PipelineStageFlags type) {
             VkPipelineStageFlags2 flags = static_cast<VkPipelineStageFlags2>(type.data);
             if (type & PipelineStageFlagBits::RESOLVE) { // MSAA resolve requires COLOR_ATTACHMENT_OUTPUT_BIT to be set for some reason...
-                flags |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT; 
+                flags |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
             }
             return flags;
         }
@@ -119,7 +134,7 @@ namespace PyroshockStudios {
         PYRO_FORCEINLINE static constexpr VkFormatFeatureFlags ToVkFormatFeatureFlags(FormatFeatureFlags type) { return static_cast<VkFormatFeatureFlags>(type.data); }
         PYRO_FORCEINLINE static constexpr VkAttachmentLoadOp ToVkLoadOp(AttachmentLoadOp type) { return static_cast<VkAttachmentLoadOp>(type); }
         PYRO_FORCEINLINE static constexpr VkAttachmentStoreOp ToVkStoreOp(AttachmentStoreOp type) { return static_cast<VkAttachmentStoreOp>(type); }
-
+        
         PYRO_FORCEINLINE static constexpr VkImageUsageFlags ToVkImageUsageFlags(ImageUsageFlags type, Format format) {
             VkImageUsageFlags retFlags = {};
 

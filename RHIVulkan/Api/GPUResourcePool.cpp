@@ -26,10 +26,10 @@
 #include <format>
 #include <libassert/assert.hpp>
 
-#define STORAGE_BUFFER_BINDING 0 /*SRV/UAV buffer*/
-#define SAMPLED_IMAGE_BINDING 1  /*SRV texture*/
-#define SAMPLER_BINDING 2        /*Sampler State*/
-#define ACCELERATION_STRUCTURE_BINDING 3        /*Sampler State*/
+#define STORAGE_BUFFER_BINDING 0         /*SRV/UAV buffer*/
+#define SAMPLED_IMAGE_BINDING 1          /*SRV texture*/
+#define SAMPLER_BINDING 2                /*Sampler State*/
+#define ACCELERATION_STRUCTURE_BINDING 3 /*Sampler State*/
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
@@ -43,6 +43,7 @@ namespace PyroshockStudios {
             mVirtualBlockSlots.mMaxResources = maxMemoryBlocks;
             mBlasSlots.mMaxResources = maxAccelerationStructures;
             mTlasSlots.mMaxResources = maxAccelerationStructures;
+            bAccelerationStructures = maxAccelerationStructures != 0;
 
             const VkDescriptorPoolSize storageBufferDescriptorPoolSize = {
                 .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
@@ -69,13 +70,23 @@ namespace PyroshockStudios {
                 .descriptorCount = mSamplerSlots.mMaxResources,
             };
 
-            const eastl::array<const VkDescriptorPoolSize, 5> poolSizes = {
+            const VkDescriptorPoolSize asDescriptorPoolSize = {
+                .type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+                .descriptorCount = mTlasSlots.mMaxResources,
+            };
+
+            
+            eastl::vector poolSizes = {
                 storageBufferDescriptorPoolSize,
                 uniformBufferDescriptorPoolSize,
                 storageImageDescriptorPoolSize,
                 sampledImageDescriptorPoolSize,
                 samplerDescriptorPoolSize,
             };
+
+            if (bAccelerationStructures) {
+                poolSizes.emplace_back(asDescriptorPoolSize);
+            }
 
             const VkDescriptorPoolCreateInfo vkDescriptorPoolCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -339,17 +350,26 @@ namespace PyroshockStudios {
                 .pImmutableSamplers = nullptr,
             };
 
-            const eastl::array<VkDescriptorSetLayoutBinding, 3> descriptorSetLayoutBindings = {
+            const VkDescriptorSetLayoutBinding asDescriptorSetLayoutBinding = {
+                .binding = ACCELERATION_STRUCTURE_BINDING,
+                .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+                .descriptorCount = static_cast<u32>(mTlasSlots.mMaxResources),
+                .stageFlags = VK_SHADER_STAGE_ALL,
+                .pImmutableSamplers = nullptr,
+            };
+
+            eastl::vector descriptorSetLayoutBindings = {
                 bufferDescriptorSetLayoutBinding,
                 sampledImageDescriptorSetLayoutBinding,
                 samplerDescriptorSetLayoutBinding
             };
 
-            const eastl::array<const VkDescriptorBindingFlags, 3> vkDescriptorBindingFlags = {
-                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
-                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
-                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
-            };
+            if (bAccelerationStructures) {
+                descriptorSetLayoutBindings.emplace_back(asDescriptorSetLayoutBinding);
+            }
+
+            const eastl::vector<VkDescriptorBindingFlags> vkDescriptorBindingFlags(descriptorSetLayoutBindings.size(),
+                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT);
 
             const VkDescriptorSetLayoutBindingFlagsCreateInfo vkDescriptorSetLayoutBindingFlagsCreateInfo = {
                 .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
