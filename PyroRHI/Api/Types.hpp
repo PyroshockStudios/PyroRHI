@@ -1027,33 +1027,48 @@ namespace PyroshockStudios {
         inline LabelColor LabelColor::BLACK = { 0.0f, 0.0f, 0.0f, 1.0f };
 
         struct Transform {
-            float m00 = 0.0f;
-            float m01 = 0.0f;
-            float m02 = 0.0f;
-            float m03 = 0.0f;
-            float m10 = 0.0f;
-            float m11 = 0.0f;
-            float m12 = 0.0f;
-            float m13 = 0.0f;
-            float m20 = 0.0f;
-            float m21 = 0.0f;
-            float m22 = 0.0f;
-            float m23 = 0.0f;
-            float m30 = 0.0f;
-            float m31 = 0.0f;
-            float m32 = 0.0f;
-            float m33 = 0.0f;
+            float matrix[3][4];
 
-            static Transform IDENTITY;
-            static Transform ZERO;
+            // Default constructor (initializes to zero)
+            Transform() {
+                memset(matrix, 0, sizeof(matrix));
+            }
+
+            // Constructor for brace-initialization
+            Transform(float m00, float m01, float m02, float m03,
+                float m10, float m11, float m12, float m13,
+                float m20, float m21, float m22, float m23) {
+                matrix[0][0] = m00;
+                matrix[0][1] = m01;
+                matrix[0][2] = m02;
+                matrix[0][3] = m03;
+                matrix[1][0] = m10;
+                matrix[1][1] = m11;
+                matrix[1][2] = m12;
+                matrix[1][3] = m13;
+                matrix[2][0] = m20;
+                matrix[2][1] = m21;
+                matrix[2][2] = m22;
+                matrix[2][3] = m23;
+            }
+
+            // Static identity matrix
+            static const Transform IDENTITY;
+
+            // Static zero matrix
+            static const Transform ZERO;
         };
 
-        inline Transform Transform::IDENTITY = {
-            1.f, 0.f, 0.f, 0.f, 
-            0.f, 1.f, 0.f, 0.f, 
-            0.f, 0.f, 1.f, 0.f, 
-            0.f, 0.f, 0.f, 1.f, 
+        // This represents an affine identity transformation
+        // [ 1 0 0 0 ]
+        // [ 0 1 0 0 ]
+        // [ 0 0 1 0 ]
+        inline const Transform Transform::IDENTITY = {
+            1.0f, 0.0f, 0.0f, 0.0f, // Row 0
+            0.0f, 1.0f, 0.0f, 0.0f, // Row 1
+            0.0f, 0.0f, 1.0f, 0.0f  // Row 2
         };
-        inline Transform Transform::ZERO = {};
+
+        inline const Transform Transform::ZERO = {};
     } // namespace RHI
 } // namespace PyroshockStudios

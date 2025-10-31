@@ -70,7 +70,7 @@ namespace PyroshockStudios {
                     Logger::Warn(gDX12Sink, "Leaked {} resources in Resource Pool named '{}'", mHeapCounter - mTombstones.size(), mDebugName);
                 }
             }
-            eastl::pair<GPUResourceId, TInfo&> AcquireSlot() {
+            eastl::pair<GpuResourceId, TInfo&> AcquireSlot() {
                 UINT slot = 0;
                 if (mTombstones.size() == 1) {
                     slot = mHeapCounter++;
@@ -81,20 +81,20 @@ namespace PyroshockStudios {
                 }
                 return { { .index = slot, .version = 0 }, mSlots[slot] };
             }
-            void ReleaseSlot(GPUResourceId handle) {
+            void ReleaseSlot(GpuResourceId handle) {
                 mTombstones.emplace_back(handle.index);
             }
             void ReleaseSlot(D3D12_CPU_DESCRIPTOR_HANDLE handle) {
                 mTombstones.emplace_back(static_cast<UINT>((handle.ptr - mDescriptorBase.ptr) / mIncSz));
             }
 
-            D3D12_CPU_DESCRIPTOR_HANDLE Resolve(GPUResourceId slot) {
+            D3D12_CPU_DESCRIPTOR_HANDLE Resolve(GpuResourceId slot) {
                 D3D12_CPU_DESCRIPTOR_HANDLE handle;
                 handle.ptr = mDescriptorBase.ptr + slot.index * mIncSz;
                 return handle;
             }
 
-            TInfo& GetInfo(GPUResourceId slot) {
+            TInfo& GetInfo(GpuResourceId slot) {
                 return mSlots[slot.index];
             }
 
@@ -139,7 +139,7 @@ namespace PyroshockStudios {
             D3D12_RESOURCE_DESC desc = {};
             ImageInfo info = {};
             // Blit Dst
-            eastl::vector<GPUResourceId> blitImageRTVs = {};
+            eastl::vector<GpuResourceId> blitImageRTVs = {};
             // Blit Src
             eastl::vector<DescriptorTableInfo> blitImageSRVHeaps = {};
         };
@@ -165,8 +165,8 @@ namespace PyroshockStudios {
             D3DBufferResourceData& Get(Buffer handle);
             D3DImageResourceData& Get(Image handle);
 
-            D3DHeapManager<GPUResourceInfo> mSRVHeap;
-            D3DHeapManager<GPUResourceInfo> mUAVHeap;
+            D3DHeapManager<GpuResourceInfo> mSRVHeap;
+            D3DHeapManager<GpuResourceInfo> mUAVHeap;
             D3DHeapManager<SamplerInfo> mSamplerHeap;
             D3DHeapManager<D3DRenderTargetData> mRTVHeap;
             D3DHeapManager<D3DRenderTargetData> mDSVHeap;

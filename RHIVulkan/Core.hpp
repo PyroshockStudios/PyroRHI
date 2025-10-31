@@ -67,6 +67,7 @@
 #ifdef PYRO_PLATFORM_WINDOWS
 #undef CreateEvent
 #undef CreateSemaphore
+#undef OPAQUE
 #endif
 #ifdef PYRO_PLATFORM_LINUX
 // stupid X11
@@ -82,6 +83,8 @@ namespace PyroshockStudios {
         constexpr u32 MAX_VK_BINDLESS_BUFFERS = 32768;
         constexpr u32 MAX_VK_BINDLESS_IMAGES = 32768;
         constexpr u32 MAX_VK_BINDLESS_SAMPLERS = 2048;
+        constexpr u32 MAX_VK_VIRTUAL_MEMORIES = 16384;
+        constexpr u32 MAX_VK_ACCELERATION_STRUCTURES = 4096;
 
         void CheckVkResult(VkResult result);
 

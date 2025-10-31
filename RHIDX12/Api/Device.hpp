@@ -97,29 +97,29 @@ namespace PyroshockStudios {
             const MemoryBlockInfo& GetMemoryBlockInfo(MemoryBlock memory) const override;
             const BufferInfo& GetBufferInfo(Buffer buffer) const override;
             const ImageInfo& GetImageInfo(Image image) const override;
-            const GPUResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const override;
-            const GPUResourceInfo& GetUnorderedAccessInfo(UnorderedAccessId id) const override;
+            const GpuResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const override;
+            const GpuResourceInfo& GetUnorderedAccessInfo(UnorderedAccessId id) const override;
             const SamplerInfo& GetSamplerInfo(SamplerId id) const override;
             const RenderTargetInfo& GetRenderTargetInfo(RenderTarget renderTarget) const override;
             const RasterPipelineInfo& GetRasterPipelineInfo(RasterPipeline pipeline) const override;
             const ComputePipelineInfo& GetComputePipelineInfo(ComputePipeline pipeline) const override;
             const SemaphoreInfo& GetSemaphoreInfo(Semaphore semaphore) const override;
-            const BLASInfo& GetBLASInfo(BLASId blas) const override;
-            const TLASInfo& GetTLASInfo(TLASId tlas) const override;
+            const BlasInfo& GetBlasInfo(BlasId blas) const override;
+            const TlasInfo& GetTlasInfo(TlasId tlas) const override;
 
             DeviceAddress BufferDeviceAddress(Buffer buffer) const override;
             u8* BufferHostAddress(Buffer buffer) const override;
             DeviceSize ImageSizeRequirements(Image image) const override;
             u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const override;
 
-            AccelerationStructureBuildSizesInfo BLASSizeRequirements(const BLASBuildInfo& info) const override;
-            AccelerationStructureBuildSizesInfo TLASSizeRequirements(const TLASBuildInfo& info) const override;
+            AccelerationStructureBuildSizesInfo BlasSizeRequirements(const BlasBuildInfo& info) const override;
+            AccelerationStructureBuildSizesInfo TlasSizeRequirements(const TlasBuildInfo& info) const override;
 
             MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;
             Image CreateImage(const ImageInfo& info) override;
-            ShaderResourceId CreateShaderResource(const GPUResourceInfo& info) override;
-            UnorderedAccessId CreateUnorderedAccess(const GPUResourceInfo& info) override;
+            ShaderResourceId CreateShaderResource(const GpuResourceInfo& info) override;
+            UnorderedAccessId CreateUnorderedAccess(const GpuResourceInfo& info) override;
             SamplerId CreateSampler(const SamplerInfo& info) override;
             RenderTarget CreateRenderTarget(const RenderTargetInfo& info) override;
             RasterPipeline CreateRasterPipeline(const RasterPipelineInfo& info, const RasterPipelineShaderStages& rasterShaderStages) override;
@@ -128,8 +128,8 @@ namespace PyroshockStudios {
             Semaphore CreateSemaphore(const SemaphoreInfo& info) override;
             IFence* CreateFence(const FenceInfo& info) override;
             ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
-            BLASId CreateBLAS(const BLASInfo& info) override;
-            TLASId CreateTLAS(const TLASInfo& info) override;
+            BlasId CreateBLAS(const BlasInfo& info) override;
+            TlasId CreateTLAS(const TlasInfo& info) override;
 
             void DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) override;
             void DestroyBuffer(Buffer& buffer, bool bDefer) override;
@@ -144,8 +144,8 @@ namespace PyroshockStudios {
             void DestroySemaphore(Semaphore& semaphore, bool bDefer) override;
             void DestroyFence(IFence*& fence, bool bDefer) override;
             void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer) override;
-            void DestroyBLAS(BLASId& blas, bool bDefer) override;
-            void DestroyTLAS(TLASId& tlas, bool bDefer) override;
+            void DestroyBLAS(BlasId& blas, bool bDefer) override;
+            void DestroyTLAS(TlasId& tlas, bool bDefer) override;
 
             eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
             eastl::span<ICommandQueue*> GetCommandQueues() override;
@@ -192,7 +192,7 @@ namespace PyroshockStudios {
             QueueFenceSnapshot SnapshotQueueFenceValues() const;
 
             void WriteAllSRVDescriptorHeapCopies(ID3D12Resource* pResource,
-                const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GPUResourceId handle);
+                const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GpuResourceId handle);
             void DestroyAllUAVDescriptorHeapCopies(UnorderedAccessId handle);
 
         private:

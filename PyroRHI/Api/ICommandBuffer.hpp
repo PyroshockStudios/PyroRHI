@@ -693,8 +693,8 @@ namespace PyroshockStudios {
         };
 
         struct BuildAccelerationStructuresInfo {
-            eastl::span<TLASBuildInfo const> tlasBuildInfos = {};
-            eastl::span<BLASBuildInfo const> blasBuildInfos = {};
+            eastl::span<TlasBuildInfo const> tlasBuildInfos = {};
+            eastl::span<BlasBuildInfo const> blasBuildInfos = {};
         };
 
         /**

@@ -116,7 +116,7 @@ namespace PyroshockStudios {
             vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
 
             auto tryEnableExtension = [&physicalDevice, &lastPhysicalDevicePnext, &extensions](VkExtensionProperties& extension, const char* extensionName, auto& extensionFeatureStruct, const auto& checkFunc, const auto& customFunc) {
-                if (strcmp(extension.extensionName, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME) == 0) {
+                if (strcmp(extension.extensionName, extensionName) == 0) {
                     VkPhysicalDeviceFeatures2 features2{
                         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
                         .pNext = &extensionFeatureStruct,
@@ -131,8 +131,10 @@ namespace PyroshockStudios {
 
                         extensions.push_back(extension.extensionName);
                     }
+                    return true;
                 }
-                };
+                return false;
+            };
 
             VkPhysicalDeviceFeatures2 features2 = {
                 .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
@@ -159,14 +161,19 @@ namespace PyroshockStudios {
                     physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressCaptureReplay = VK_FALSE;
                     physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressMultiDevice = VK_FALSE;
 
+                    mFeatures.bBufferDeviceAddress = true;
                     mVulkanCaps.bVK_EXT_buffer_device_address = true; });
 
                 tryEnableExtension(extension, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, physicalDeviceAccelerationStructureFeatures, [&]() { return physicalDeviceAccelerationStructureFeatures.accelerationStructure == VK_TRUE; }, [&]() {
                     Logger::Info(gVulkanSink, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME " is supported on this device.");
 
                     physicalDeviceAccelerationStructureFeatures.accelerationStructureCaptureReplay = VK_FALSE;
-
-                    mVulkanCaps.bVK_KHR_acceleration_structures = true; });
+                    
+                    mFeatures.bAccelerationStructureBuild = true;
+                    mVulkanCaps.bVK_KHR_acceleration_structures = true; 
+                    // must also be supported
+                    mVulkanCaps.bVK_KHR_deferred_host_operations = true;
+                    extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME); });
 
                 tryEnableExtension(extension, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, physicalDeviceRayTracingPipelineFeatures, [&]() { return physicalDeviceRayTracingPipelineFeatures.rayTracingPipeline == VK_TRUE; }, [&]() {
                     Logger::Info(gVulkanSink, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME " is supported on this device.");
@@ -174,10 +181,12 @@ namespace PyroshockStudios {
                     physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplay = VK_FALSE;
                     physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplayMixed = VK_FALSE;
 
+                    mFeatures.bRayTracingPipelines = true;
                     mVulkanCaps.bVK_KHR_ray_tracing_pipeline = true; });
 
                 tryEnableExtension(extension, VK_KHR_RAY_QUERY_EXTENSION_NAME, physicalDeviceRayQueryFeatures, [&]() { return physicalDeviceRayQueryFeatures.rayQuery == VK_TRUE; }, [&]() {
                     Logger::Info(gVulkanSink, VK_KHR_RAY_QUERY_EXTENSION_NAME " is supported on this device.");
+                    mFeatures.bRayQueries = true;
                     mVulkanCaps.bVK_KHR_ray_query = true; });
 
                 tryEnableExtension(extension, VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME, physicalDeviceRayTracingPositionFetchFeatures, [&]() { return physicalDeviceRayTracingPositionFetchFeatures.rayTracingPositionFetch == VK_TRUE; }, [&]() {
@@ -231,30 +240,26 @@ namespace PyroshockStudios {
                         CommandQueueInfo{ .flags = CommandQueueFlagBits::GRAPHICS | CommandQueueFlagBits::COMPUTE | CommandQueueFlagBits::TRANSFER,
                             .name = "Graphics Command Queue #" + eastl::to_string(i) },
                         i);
-                }
-                else {
+                } else {
                     if (queueProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT && queueProps[i].queueFlags & VK_QUEUE_COMPUTE_BIT && queueProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
                         Logger::Trace(gVulkanSink, "Found additional graphics queue family {}", i);
                         queues.emplace_back(
                             CommandQueueInfo{ .flags = CommandQueueFlagBits::GRAPHICS | CommandQueueFlagBits::COMPUTE | CommandQueueFlagBits::TRANSFER,
                                 .name = "Graphics Command Queue #" + eastl::to_string(i) },
                             i);
-                    }
-                    else if (queueProps[i].queueFlags & VK_QUEUE_COMPUTE_BIT && queueProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
+                    } else if (queueProps[i].queueFlags & VK_QUEUE_COMPUTE_BIT && queueProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
                         Logger::Trace(gVulkanSink, "Found additional compute queue family {}", i);
                         queues.emplace_back(
                             CommandQueueInfo{ .flags = CommandQueueFlagBits::COMPUTE | CommandQueueFlagBits::TRANSFER,
                                 .name = "Compute Command Queue #" + eastl::to_string(i) },
                             i);
-                    }
-                    else if (queueProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
+                    } else if (queueProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT) {
                         Logger::Trace(gVulkanSink, "Found additional transfer queue family {}", i);
                         queues.emplace_back(
                             CommandQueueInfo{ .flags = CommandQueueFlagBits::TRANSFER,
                                 .name = "Transfer Command Queue #" + eastl::to_string(i) },
                             i);
-                    }
-                    else {
+                    } else {
                         Logger::Warn(gVulkanSink, "Queue family {} has non-standard usages!! Ignoring...", i);
                         continue;
                     }
@@ -276,7 +281,7 @@ namespace PyroshockStudios {
                     .queueFamilyIndex = family,
                     .queueCount = 1U,
                     .pQueuePriorities = &queuePriority,
-                    });
+                });
             }
 
             const VkDeviceCreateInfo deviceCreateInfo = {
@@ -382,7 +387,7 @@ namespace PyroshockStudios {
             CheckVkResult(result);
 
             mResourceTable.Initialize(MAX_VK_BINDLESS_BUFFERS, MAX_VK_BINDLESS_IMAGES, MAX_VK_BINDLESS_SAMPLERS,
-                16000,
+                MAX_VK_VIRTUAL_MEMORIES, MAX_VK_ACCELERATION_STRUCTURES,
                 mDevice, mContext->GetVkAllocator(), VK_NULL_HANDLE, vkSetDebugUtilsObjectNameEXT);
 
             vkGetPhysicalDeviceProperties(mPhysicalDevice, &mPhysicalDeviceProperties);
@@ -467,8 +472,7 @@ namespace PyroshockStudios {
                 if (info.bufferUsage & BufferUsageFlagBits::UNIFORM_BUFFER) {
                     requiredAlignment = eastl::max(requiredAlignment, mPhysicalDeviceProperties.limits.minUniformBufferOffsetAlignment);
                 }
-            }
-            else /*imageUsage != 0*/ {
+            } else /*imageUsage != 0*/ {
                 // At minimum, respect bufferImageGranularity to avoid illegal aliasing.
                 requiredAlignment = eastl::max(requiredAlignment, mPhysicalDeviceProperties.limits.bufferImageGranularity);
             }
@@ -494,6 +498,7 @@ namespace PyroshockStudios {
             ASSERT(info.size >= 4);
             auto [id, ret] = mResourceTable.mBufferSlots.NewSlot();
             ret.info = info;
+            ASSERT(info.usage.data != 0, "Buffers must have usage flags defined!");
 
             // NOTE:
             // Zilver - Since vulkan changes certain requirements for memory alignment,
@@ -522,6 +527,16 @@ namespace PyroshockStudios {
             }
             if (info.usage & BufferUsageFlagBits::DRAW_INDIRECT) {
                 VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+            }
+            if (info.usage & BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER) {
+                ASSERT(mFeatures.bAccelerationStructureBuild, "Cannot create a buffer with BLAS_GEOMETRY_BUFFER if the device does not support AccelerationStructureBuild!");
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+            }
+            if (info.usage & BufferUsageFlagBits::TLAS_BLAS_SCRATCH_BUFFER) {
+                ASSERT(mFeatures.bAccelerationStructureBuild, "Cannot create a buffer with TLAS_BLAS_SCRATCH_BUFFER if the device does not support AccelerationStructureBuild!");
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
             }
             bool hostAccessible = false;
             VkMemoryPropertyFlags requiredMemoryFlags = {};
@@ -581,8 +596,7 @@ namespace PyroshockStudios {
                 VkResult result = vmaCreateBuffer(mVmaAllocator, &vkBufferCreateInfo, &vmaAllocationCreateInfo, &ret.vkBuffer, &ret.vmaAllocation.Get<VmaAllocation>(), &vmaAllocationInfo);
                 CheckVkResult(result);
                 ret.allocationInfo = vmaAllocationInfo;
-            }
-            else {
+            } else {
                 auto& blockInfo = Slot(info.memoryBlock);
                 CheckVkResult(vkCreateBuffer(mDevice, &vkBufferCreateInfo, mContext->GetVkAllocator(), &ret.vkBuffer));
                 VkMemoryRequirements requirements;
@@ -639,6 +653,7 @@ namespace PyroshockStudios {
         Image VulkanDevice::CreateImage(const ImageInfo& info) {
             auto [id, ret] = mResourceTable.mImageSlots.NewSlot();
             ret.info = info;
+            ASSERT(info.flags != 0, "Images must have usage flags defined!");
 
             VkImageCreateInfo vkImageCreateInfo = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -701,8 +716,7 @@ namespace PyroshockStudios {
                 VkResult result = vmaCreateImage(mVmaAllocator, &vkImageCreateInfo, &vmaAllocationCreateInfo, &ret.vkImage, &ret.vmaAllocation.Get<VmaAllocation>(), &vmaAllocationInfo);
                 CheckVkResult(result);
                 ret.allocationInfo = vmaAllocationInfo;
-            }
-            else {
+            } else {
                 auto& blockInfo = Slot(info.memoryBlock);
                 CheckVkResult(vkCreateImage(mDevice, &vkImageCreateInfo, mContext->GetVkAllocator(), &ret.vkImage));
                 VkMemoryRequirements requirements;
@@ -748,8 +762,7 @@ namespace PyroshockStudios {
 
             if (!RHIUtil::FormatIsDepthStencil(info.format)) {
                 ret.aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
-            }
-            else {
+            } else {
                 if (RHIUtil::FormatHasDepth(info.format))
                     ret.aspectFlags |= VK_IMAGE_ASPECT_DEPTH_BIT;
                 if (RHIUtil::FormatHasStencil(info.format))
@@ -759,33 +772,29 @@ namespace PyroshockStudios {
             return eastl::bit_cast<Image>(id);
         }
 
-        ShaderResourceId VulkanDevice::CreateShaderResource(const GPUResourceInfo& info) {
+        ShaderResourceId VulkanDevice::CreateShaderResource(const GpuResourceInfo& info) {
             if (eastl::holds_alternative<BufferResourceInfo>(info)) {
                 return ShaderResourceId{ CreateBufferView(info) };
-            }
-            else if (eastl::holds_alternative<ImageResourceInfo>(info)) {
+            } else if (eastl::holds_alternative<ImageResourceInfo>(info)) {
                 return ShaderResourceId{ CreateImageView(info, false) };
-            }
-            else {
+            } else {
                 ASSERT(false, "Bad variant");
             }
             return ShaderResourceId{};
         }
 
-        UnorderedAccessId VulkanDevice::CreateUnorderedAccess(const GPUResourceInfo& info) {
+        UnorderedAccessId VulkanDevice::CreateUnorderedAccess(const GpuResourceInfo& info) {
             if (eastl::holds_alternative<BufferResourceInfo>(info)) {
                 return UnorderedAccessId{ CreateBufferView(info) };
-            }
-            else if (eastl::holds_alternative<ImageResourceInfo>(info)) {
+            } else if (eastl::holds_alternative<ImageResourceInfo>(info)) {
                 return UnorderedAccessId{ CreateImageView(info, true) };
-            }
-            else {
+            } else {
                 ASSERT(false, "Bad variant");
             }
             return UnorderedAccessId{};
         }
 
-        GPUResourceId VulkanDevice::CreateBufferView(const GPUResourceInfo& info) {
+        GpuResourceId VulkanDevice::CreateBufferView(const GpuResourceInfo& info) {
             auto [id, ret] = mResourceTable.mResourceViewSlots.NewSlot();
             ret.info = info;
             auto& resourceInfo = eastl::get<BufferResourceInfo>(info);
@@ -841,8 +850,7 @@ namespace PyroshockStudios {
             for (u32 i = 0; i < memProps.memoryHeapCount; ++i) {
                 if (memProps.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
                     mInfo.dedicatedVideoMemory += memProps.memoryHeaps[i].size;
-                }
-                else {
+                } else {
                     mInfo.sharedSystemMemory += memProps.memoryHeaps[i].size;
                 }
             }
@@ -909,8 +917,7 @@ namespace PyroshockStudios {
             for (ICommandQueue* q : mCommandQueues) {
                 if (q->Info().flags & CommandQueueFlagBits::COMPUTE && !(q->Info().flags & CommandQueueFlagBits::GRAPHICS)) {
                     mProperties.bHasDedicatedComputeQueue = true;
-                }
-                else if (q->Info().flags & CommandQueueFlagBits::TRANSFER && !(q->Info().flags & CommandQueueFlagBits::GRAPHICS)) {
+                } else if (q->Info().flags & CommandQueueFlagBits::TRANSFER && !(q->Info().flags & CommandQueueFlagBits::GRAPHICS)) {
                     mProperties.bHasDedicatedTransferQueue = true;
                 }
                 if (q->Info().flags & CommandQueueFlagBits::GRAPHICS) {
@@ -947,16 +954,14 @@ namespace PyroshockStudios {
 
             static const auto VulkanVersionAtLeast = [](uint32_t majorV, uint32_t minorV, uint32_t major, uint32_t minor) {
                 return (major > majorV) || (major == majorV && minor >= minorV);
-                };
+            };
 
             // Infer SPIR-V version as RHI numeric code
             if (VulkanVersionAtLeast(1, 4, major, minor)) {
                 mFeatures.supportedShaderModel = 0x16; // SPIR-V 1.6
-            }
-            else if (VulkanVersionAtLeast(1, 3, major, minor)) {
+            } else if (VulkanVersionAtLeast(1, 3, major, minor)) {
                 mFeatures.supportedShaderModel = 0x15; // SPIR-V 1.5
-            }
-            else if (VulkanVersionAtLeast(1, 1, major, minor)) {
+            } else if (VulkanVersionAtLeast(1, 1, major, minor)) {
                 // Query optional extension for SPIR-V 1.4
                 uint32_t extCount = 0;
                 vkEnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr, &extCount, nullptr);
@@ -971,13 +976,12 @@ namespace PyroshockStudios {
                     }
                 }
                 mFeatures.supportedShaderModel = bSupportsSPIRV14 ? 0x14 : 0x13; // SPIR-V 1.4 or 1.3
-            }
-            else {
+            } else {
                 mFeatures.supportedShaderModel = 0x10; // SPIR-V 1.0
             }
         }
 
-        GPUResourceId VulkanDevice::CreateImageView(const GPUResourceInfo& info, bool uav) {
+        GpuResourceId VulkanDevice::CreateImageView(const GpuResourceInfo& info, bool uav) {
             // ASSERT(!(info.mipmapFilter != Filter::CubicImg));
 
             auto [id, ret] = mResourceTable.mResourceViewSlots.NewSlot();
@@ -1029,8 +1033,7 @@ namespace PyroshockStudios {
             }
             if (uav) {
                 ret.descriptor.Get<VkDescriptorImageInfo>().imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            }
-            else {
+            } else {
                 ret.descriptor.Get<VkDescriptorImageInfo>().imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
             }
 
@@ -1095,7 +1098,7 @@ namespace PyroshockStudios {
             return RenderTarget(new VulkanRenderTarget(this, info));
         }
 
-        BLASId VulkanDevice::CreateBLAS(const BLASInfo& info) {
+        BlasId VulkanDevice::CreateBlas(const BlasInfo& info) {
             auto [id, ret] = mResourceTable.mBlasSlots.NewSlot();
             ret.info = info;
 
@@ -1138,10 +1141,10 @@ namespace PyroshockStudios {
                 vkSetDebugUtilsObjectNameEXT(mDevice, &blasNameInfo);
             }
 
-            return BLASId{ id };
+            return BlasId{ id };
         }
 
-        TLASId VulkanDevice::CreateTLAS(const TLASInfo& info) {
+        TlasId VulkanDevice::CreateTlas(const TlasInfo& info) {
             auto [id, ret] = mResourceTable.mTlasSlots.NewSlot();
             ret.info = info;
 
@@ -1186,26 +1189,26 @@ namespace PyroshockStudios {
 
             mResourceTable.WriteDescriptorSetAccelerationStructure(mDevice, mResourceTable.mBindlessDescriptorSet, ret.vkAccelerationStructure, id.index);
 
-            return TLASId{ id };
+            return TlasId{ id };
         }
 
 
         const MemoryBlockInfo& VulkanDevice::GetMemoryBlockInfo(MemoryBlock memory) const {
-            return mResourceTable.mVirtualBlockSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(memory)).info;
+            return mResourceTable.mVirtualBlockSlots.DereferenceId(eastl::bit_cast<GpuResourceId>(memory)).info;
         }
 
         const BufferInfo& VulkanDevice::GetBufferInfo(Buffer buffer) const {
-            return mResourceTable.mBufferSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(buffer)).info;
+            return mResourceTable.mBufferSlots.DereferenceId(eastl::bit_cast<GpuResourceId>(buffer)).info;
         }
 
         const ImageInfo& VulkanDevice::GetImageInfo(Image image) const {
-            return mResourceTable.mImageSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(image)).info;
+            return mResourceTable.mImageSlots.DereferenceId(eastl::bit_cast<GpuResourceId>(image)).info;
         }
 
-        const GPUResourceInfo& VulkanDevice::GetShaderResourceInfo(ShaderResourceId id) const {
+        const GpuResourceInfo& VulkanDevice::GetShaderResourceInfo(ShaderResourceId id) const {
             return mResourceTable.mResourceViewSlots.DereferenceId(id).info;
         }
-        const GPUResourceInfo& VulkanDevice::GetUnorderedAccessInfo(UnorderedAccessId id) const {
+        const GpuResourceInfo& VulkanDevice::GetUnorderedAccessInfo(UnorderedAccessId id) const {
             return mResourceTable.mResourceViewSlots.DereferenceId(id).info;
         }
 
@@ -1229,12 +1232,12 @@ namespace PyroshockStudios {
             return eastl::bit_cast<VulkanSemaphore*>(semaphore)->Info();
         }
 
-        const BLASInfo& VulkanDevice::GetBLASInfo(BLASId blas) const {
-            return mResourceTable.mBlasSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(blas)).info;
+        const BlasInfo& VulkanDevice::GetBlasInfo(BlasId blas) const {
+            return mResourceTable.mBlasSlots.DereferenceId(eastl::bit_cast<GpuResourceId>(blas)).info;
         }
 
-        const TLASInfo& VulkanDevice::GetTLASInfo(TLASId tlas) const {
-            return mResourceTable.mTlasSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(tlas)).info;
+        const TlasInfo& VulkanDevice::GetTlasInfo(TlasId tlas) const {
+            return mResourceTable.mTlasSlots.DereferenceId(eastl::bit_cast<GpuResourceId>(tlas)).info;
         }
 
         DeviceAddress VulkanDevice::BufferDeviceAddress(Buffer buffer) const {
@@ -1256,7 +1259,7 @@ namespace PyroshockStudios {
         }
 
 
-        void VulkanDevice::CreateAccelerationStructureBuildInfo(const eastl::span<const TLASBuildInfo>& tlasBuildInfos, const eastl::span<const BLASBuildInfo>& blasBuildInfos, eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR>& vkBuildGeometryInfos, eastl::vector<VkAccelerationStructureGeometryKHR>& vkGeometryInfos, eastl::vector<u32>& primitiveCounts, eastl::vector<const u32*>& primitiveCountsPtrs) const {
+        void VulkanDevice::CreateAccelerationStructureBuildInfo(const eastl::span<const TlasBuildInfo>& tlasBuildInfos, const eastl::span<const BlasBuildInfo>& blasBuildInfos, eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR>& vkBuildGeometryInfos, eastl::vector<VkAccelerationStructureGeometryKHR>& vkGeometryInfos, eastl::vector<u32>& primitiveCounts, eastl::vector<const u32*>& primitiveCountsPtrs) const {
             vkBuildGeometryInfos.reserve(blasBuildInfos.size() + tlasBuildInfos.size());
             primitiveCounts.reserve(blasBuildInfos.size() + tlasBuildInfos.size());
             usize geometryInfoCount = 0;
@@ -1264,11 +1267,11 @@ namespace PyroshockStudios {
                 geometryInfoCount += tlasBuildInfo.instances.size();
             }
             for (const auto& blasBuildInfo : blasBuildInfos) {
-                if (auto* triangleGeometryInfos = eastl::get_if<eastl::span<const BLASTriangleGeometryInfo>>(&blasBuildInfo.geometries)) {
+                if (auto* triangleGeometryInfos = eastl::get_if<eastl::span<const BlasTriangleGeometryInfo>>(&blasBuildInfo.geometries)) {
                     geometryInfoCount += triangleGeometryInfos->size();
                 }
 
-                if (auto* aabbGeometryInfos = eastl::get_if<eastl::span<const BLASAABBGeometryInfo>>(&blasBuildInfo.geometries)) {
+                if (auto* aabbGeometryInfos = eastl::get_if<eastl::span<const BlasAabbGeometryInfo>>(&blasBuildInfo.geometries)) {
                     geometryInfoCount += aabbGeometryInfos->size();
                 }
             }
@@ -1284,17 +1287,15 @@ namespace PyroshockStudios {
                     VkAccelerationStructureGeometryInstancesDataKHR vkInstanceData = {
                         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR,
                         .pNext = nullptr,
-                        .arrayOfPointers = static_cast<VkBool32>(instance.isDataArrayOfPointers),
+                        .arrayOfPointers = instance.bDataArrayOfPointers ? VK_TRUE : VK_FALSE,
                         .data = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(instance.data).deviceAddress)
                     };
                     vkGeometryInfos.push_back(VkAccelerationStructureGeometryKHR{
                         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
                         .pNext = nullptr,
                         .geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR,
-                        .geometry = VkAccelerationStructureGeometryDataKHR {
-                            .instances = vkInstanceData
-                        }
-                        });
+                        .geometry = VkAccelerationStructureGeometryDataKHR{
+                            .instances = vkInstanceData } });
                     primitiveCounts.push_back(instance.count);
                 }
 
@@ -1310,7 +1311,7 @@ namespace PyroshockStudios {
                     .pGeometries = vkGeometryArrayPtr,
                     .ppGeometries = nullptr,
                     .scratchData = eastl::bit_cast<VkDeviceOrHostAddressKHR>(Slot(tlasBuildInfo.scratchBuffer).deviceAddress),
-                    });
+                });
                 primitiveCountsPtrs.push_back(primitiveCountsPtr);
             }
 
@@ -1319,7 +1320,7 @@ namespace PyroshockStudios {
                 const u32* primitiveCountsPtr = primitiveCounts.data() + primitiveCounts.size();
 
                 u32 geometryCount = 0;
-                if (auto* triangleGeometryInfos = eastl::get_if<eastl::span<const BLASTriangleGeometryInfo>>(&blasBuildInfo.geometries)) {
+                if (auto* triangleGeometryInfos = eastl::get_if<eastl::span<const BlasTriangleGeometryInfo>>(&blasBuildInfo.geometries)) {
                     geometryCount = triangleGeometryInfos->size();
                     for (const auto& geometry : *triangleGeometryInfos) {
                         VkAccelerationStructureGeometryKHR geometryInfo = {
@@ -1346,7 +1347,7 @@ namespace PyroshockStudios {
                     }
                 }
 
-                if (auto* aabbGeometryInfos = eastl::get_if<eastl::span<const BLASAABBGeometryInfo>>(&blasBuildInfo.geometries)) {
+                if (auto* aabbGeometryInfos = eastl::get_if<eastl::span<const BlasAabbGeometryInfo>>(&blasBuildInfo.geometries)) {
                     geometryCount = aabbGeometryInfos->size();
                     for (const auto& geometry : *aabbGeometryInfos) {
                         VkAccelerationStructureGeometryKHR geometryInfo = {
@@ -1374,18 +1375,18 @@ namespace PyroshockStudios {
                     .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
                     .flags = static_cast<VkBuildAccelerationStructureFlagsKHR>(blasBuildInfo.flags),
                     .mode = blasBuildInfo.bUpdate ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
-                    .srcAccelerationStructure = blasBuildInfo.srcBLAS != PYRO_NULL_BLAS ? Slot(blasBuildInfo.srcBLAS).vkAccelerationStructure : nullptr,
-                    .dstAccelerationStructure = blasBuildInfo.dstBLAS != PYRO_NULL_BLAS ? Slot(blasBuildInfo.dstBLAS).vkAccelerationStructure : nullptr,
+                    .srcAccelerationStructure = blasBuildInfo.srcBlas != PYRO_NULL_BLAS ? Slot(blasBuildInfo.srcBlas).vkAccelerationStructure : VK_NULL_HANDLE,
+                    .dstAccelerationStructure = blasBuildInfo.dstBlas != PYRO_NULL_BLAS ? Slot(blasBuildInfo.dstBlas).vkAccelerationStructure : VK_NULL_HANDLE,
                     .geometryCount = geometryCount,
                     .pGeometries = vkGeometryArrayPtr,
                     .ppGeometries = nullptr,
                     .scratchData = eastl::bit_cast<VkDeviceOrHostAddressKHR>(Slot(blasBuildInfo.scratchBuffer).deviceAddress),
-                    });
+                });
                 primitiveCountsPtrs.push_back(primitiveCountsPtr);
             }
         }
 
-        AccelerationStructureBuildSizesInfo VulkanDevice::BLASSizeRequirements(const BLASBuildInfo& info) const {
+        AccelerationStructureBuildSizesInfo VulkanDevice::BlasSizeRequirements(const BlasBuildInfo& info) const {
             eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR> vkBuildGeometryInfos = {};
             eastl::vector<VkAccelerationStructureGeometryKHR> vkGeometryInfos = {};
             eastl::vector<u32> primitiveCounts = {};
@@ -1406,7 +1407,7 @@ namespace PyroshockStudios {
             };
         }
 
-        AccelerationStructureBuildSizesInfo VulkanDevice::TLASSizeRequirements(const TLASBuildInfo& info) const {
+        AccelerationStructureBuildSizesInfo VulkanDevice::TlasSizeRequirements(const TlasBuildInfo& info) const {
             eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR> vkBuildGeometryInfos = {};
             eastl::vector<VkAccelerationStructureGeometryKHR> vkGeometryInfos = {};
             eastl::vector<u32> primitiveCounts = {};
@@ -1428,15 +1429,15 @@ namespace PyroshockStudios {
         }
 
         bool VulkanDevice::IsMemoryBlockValid(MemoryBlock memory) const {
-            return mResourceTable.mVirtualBlockSlots.IsIdValid(eastl::bit_cast<GPUResourceId>(memory));
+            return mResourceTable.mVirtualBlockSlots.IsIdValid(eastl::bit_cast<GpuResourceId>(memory));
         }
 
         bool VulkanDevice::IsBufferValid(Buffer buffer) const {
-            return mResourceTable.mBufferSlots.IsIdValid(eastl::bit_cast<GPUResourceId>(buffer));
+            return mResourceTable.mBufferSlots.IsIdValid(eastl::bit_cast<GpuResourceId>(buffer));
         }
 
         bool VulkanDevice::IsImageValid(Image image) const {
-            return mResourceTable.mImageSlots.IsIdValid(eastl::bit_cast<GPUResourceId>(image));
+            return mResourceTable.mImageSlots.IsIdValid(eastl::bit_cast<GpuResourceId>(image));
         }
 
         bool VulkanDevice::IsShaderResourceValid(ShaderResourceId id) const {
@@ -1516,7 +1517,7 @@ namespace PyroshockStudios {
             vmaFreeMemory(mVmaAllocator, blockSlot.vmaAllocation);
             vmaDestroyVirtualBlock(blockSlot.vmaBlock);
             blockSlot = {};
-            mResourceTable.mVirtualBlockSlots.ReturnSlot(eastl::bit_cast<GPUResourceId>(memory));
+            mResourceTable.mVirtualBlockSlots.ReturnSlot(eastl::bit_cast<GpuResourceId>(memory));
             memory = PYRO_NULL_MEMORY_BLOCK;
         }
 
@@ -1536,12 +1537,11 @@ namespace PyroshockStudios {
                 --block.debugReferences;
                 vkDestroyBuffer(mDevice, bufferSlot.vkBuffer, mContext->GetVkAllocator());
                 vmaVirtualFree(block.vmaBlock, bufferSlot.vmaAllocation.Get<VmaVirtualAllocation>());
-            }
-            else {
+            } else {
                 vmaDestroyBuffer(mVmaAllocator, bufferSlot.vkBuffer, bufferSlot.vmaAllocation.Get<VmaAllocation>());
             }
             bufferSlot = {};
-            mResourceTable.mBufferSlots.ReturnSlot(eastl::bit_cast<GPUResourceId>(buffer));
+            mResourceTable.mBufferSlots.ReturnSlot(eastl::bit_cast<GpuResourceId>(buffer));
             buffer = PYRO_NULL_BUFFER;
         }
 
@@ -1562,13 +1562,12 @@ namespace PyroshockStudios {
                     --block.debugReferences;
                     vkDestroyImage(mDevice, imageSlot.vkImage, mContext->GetVkAllocator());
                     vmaVirtualFree(block.vmaBlock, imageSlot.vmaAllocation.Get<VmaVirtualAllocation>());
-                }
-                else {
+                } else {
                     vmaDestroyImage(mVmaAllocator, imageSlot.vkImage, imageSlot.vmaAllocation.Get<VmaAllocation>());
                 }
             }
             imageSlot = {};
-            mResourceTable.mImageSlots.ReturnSlot(eastl::bit_cast<GPUResourceId>(image));
+            mResourceTable.mImageSlots.ReturnSlot(eastl::bit_cast<GpuResourceId>(image));
             image = PYRO_NULL_IMAGE;
         }
 
@@ -1672,11 +1671,11 @@ namespace PyroshockStudios {
             queryPool = nullptr;
         }
 
-        void VulkanDevice::DestroyBLAS(BLASId& blas, bool bDefer) {
+        void VulkanDevice::DestroyBlas(BlasId& blas, bool bDefer) {
             if (bDefer) {
                 ZombieDeleter zombie = {
                     .resource = eastl::bit_cast<void*>(blas),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<BLASId>(res)); }
+                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<BlasId>(res)); }
                 };
                 mResourceZombies.emplace_back(eastl::move(SnapshotQueueTimelineValues()), zombie);
                 return;
@@ -1686,7 +1685,7 @@ namespace PyroshockStudios {
             vkDestroyAccelerationStructureKHR(mDevice, blasSlot.vkAccelerationStructure, mContext->GetVkAllocator());
 
             if (blasSlot.ownsBuffer) {
-                DestroyBuffer(blasSlot.bufferId);
+                VulkanDevice::DestroyBuffer(blasSlot.bufferId, false);
             }
 
             blasSlot = {};
@@ -1694,11 +1693,11 @@ namespace PyroshockStudios {
             blas = PYRO_NULL_BLAS;
         }
 
-        void VulkanDevice::DestroyTLAS(TLASId& tlas, bool bDefer) {
+        void VulkanDevice::DestroyTlas(TlasId& tlas, bool bDefer) {
             if (bDefer) {
                 ZombieDeleter zombie = {
                     .resource = eastl::bit_cast<void*>(tlas),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<TLASId>(res)); }
+                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<TlasId>(res)); }
                 };
                 mResourceZombies.emplace_back(eastl::move(SnapshotQueueTimelineValues()), zombie);
                 return;
@@ -1708,14 +1707,13 @@ namespace PyroshockStudios {
             vkDestroyAccelerationStructureKHR(mDevice, tlasSlot.vkAccelerationStructure, mContext->GetVkAllocator());
 
             if (tlasSlot.ownsBuffer) {
-                DestroyBuffer(tlasSlot.bufferId);
+                VulkanDevice::DestroyBuffer(tlasSlot.bufferId, false);
             }
 
             tlasSlot = {};
             mResourceTable.mTlasSlots.ReturnSlot(tlas);
             tlas = PYRO_NULL_TLAS;
         }
-
 
         VulkanSwapChainSupportInfo VulkanDevice::GetSwapChainSupport(VkSurfaceKHR surface) const {
             VulkanSwapChainSupportInfo support{};
@@ -1880,7 +1878,7 @@ namespace PyroshockStudios {
             mQueuePendingSubmits.push_back({
                 .localCpuTimelineValue = localQueueCpuTimelineValue,
                 .queue = vkQueue,
-                });
+            });
 
             for (auto [fence, index] : info.signalFences) {
                 VkSemaphoreSubmitInfo semaphoreSubmit{ VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
@@ -1989,8 +1987,7 @@ namespace PyroshockStudios {
                 if (completedValue >= queueTimeline) {
                     mQueuePendingSubmits.erase(mQueuePendingSubmits.begin() + i);
                     --i;
-                }
-                else {
+                } else {
                     for (auto& [oldestTimelineQueue, oldestVal] : oldestQueueTimelines) {
                         if (queue != oldestTimelineQueue)
                             continue;
@@ -2045,8 +2042,7 @@ namespace PyroshockStudios {
             ret.vkImage = swapchainImage;
             if (!RHIUtil::FormatIsDepthStencil(imageInfo.format)) {
                 ret.aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
-            }
-            else {
+            } else {
                 if (RHIUtil::FormatHasDepth(imageInfo.format))
                     ret.aspectFlags |= VK_IMAGE_ASPECT_DEPTH_BIT;
                 if (RHIUtil::FormatHasStencil(imageInfo.format))
@@ -2093,23 +2089,23 @@ namespace PyroshockStudios {
 
             return eastl::bit_cast<Image>(id);
         }
-        auto VulkanDevice::Slot(MemoryBlock id) -> ImplVmaVirtualBlockSlot& { return mResourceTable.mVirtualBlockSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
-        auto VulkanDevice::Slot(Buffer id) -> ImplBufferSlot& { return mResourceTable.mBufferSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
-        auto VulkanDevice::Slot(Image id) -> ImplImageSlot& { return mResourceTable.mImageSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
+        auto VulkanDevice::Slot(MemoryBlock id) -> ImplVmaVirtualBlockSlot& { return mResourceTable.mVirtualBlockSlots.DereferenceId(eastl::bit_cast<GpuResourceId>(id)); }
+        auto VulkanDevice::Slot(Buffer id) -> ImplBufferSlot& { return mResourceTable.mBufferSlots.DereferenceId(eastl::bit_cast<GpuResourceId>(id)); }
+        auto VulkanDevice::Slot(Image id) -> ImplImageSlot& { return mResourceTable.mImageSlots.DereferenceId(eastl::bit_cast<GpuResourceId>(id)); }
         auto VulkanDevice::Slot(ShaderResourceId id) -> ImplResourceViewSlot& { return mResourceTable.mResourceViewSlots.DereferenceId(id); }
         auto VulkanDevice::Slot(UnorderedAccessId id) -> ImplResourceViewSlot& { return mResourceTable.mResourceViewSlots.DereferenceId(id); }
         auto VulkanDevice::Slot(SamplerId id) -> ImplSamplerSlot& { return mResourceTable.mSamplerSlots.DereferenceId(id); }
-        auto VulkanDevice::Slot(BLASId id) -> ImplBlasSlot& { return mResourceTable.mBlasSlots.DereferenceId(id); }
-        auto VulkanDevice::Slot(TLASId id) -> ImplTlasSlot& { return mResourceTable.mTlasSlots.DereferenceId(id); }
+        auto VulkanDevice::Slot(BlasId id) -> ImplBlasSlot& { return mResourceTable.mBlasSlots.DereferenceId(id); }
+        auto VulkanDevice::Slot(TlasId id) -> ImplTlasSlot& { return mResourceTable.mTlasSlots.DereferenceId(id); }
 
-        auto VulkanDevice::Slot(MemoryBlock id) const -> const ImplVmaVirtualBlockSlot& { return mResourceTable.mVirtualBlockSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
-        auto VulkanDevice::Slot(Buffer id) const -> const ImplBufferSlot& { return mResourceTable.mBufferSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
-        auto VulkanDevice::Slot(Image id) const -> const ImplImageSlot& { return mResourceTable.mImageSlots.DereferenceId(eastl::bit_cast<GPUResourceId>(id)); }
+        auto VulkanDevice::Slot(MemoryBlock id) const -> const ImplVmaVirtualBlockSlot& { return mResourceTable.mVirtualBlockSlots.DereferenceId(eastl::bit_cast<GpuResourceId>(id)); }
+        auto VulkanDevice::Slot(Buffer id) const -> const ImplBufferSlot& { return mResourceTable.mBufferSlots.DereferenceId(eastl::bit_cast<GpuResourceId>(id)); }
+        auto VulkanDevice::Slot(Image id) const -> const ImplImageSlot& { return mResourceTable.mImageSlots.DereferenceId(eastl::bit_cast<GpuResourceId>(id)); }
         auto VulkanDevice::Slot(ShaderResourceId id) const -> const ImplResourceViewSlot& { return mResourceTable.mResourceViewSlots.DereferenceId(id); }
         auto VulkanDevice::Slot(UnorderedAccessId id) const -> const ImplResourceViewSlot& { return mResourceTable.mResourceViewSlots.DereferenceId(id); }
         auto VulkanDevice::Slot(SamplerId id) const -> const ImplSamplerSlot& { return mResourceTable.mSamplerSlots.DereferenceId(id); }
-        auto VulkanDevice::Slot(BLASId id) const -> const ImplBlasSlot& { return mResourceTable.mBlasSlots.DereferenceId(id); }
-        auto VulkanDevice::Slot(TLASId id) const -> const ImplTlasSlot& { return mResourceTable.mTlasSlots.DereferenceId(id); }
+        auto VulkanDevice::Slot(BlasId id) const -> const ImplBlasSlot& { return mResourceTable.mBlasSlots.DereferenceId(id); }
+        auto VulkanDevice::Slot(TlasId id) const -> const ImplTlasSlot& { return mResourceTable.mTlasSlots.DereferenceId(id); }
 
         eastl::vector<u64> VulkanDevice::SnapshotQueueTimelineValues() const {
             eastl::vector<u64> values = {};

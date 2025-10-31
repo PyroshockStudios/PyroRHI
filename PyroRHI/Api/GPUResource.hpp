@@ -214,20 +214,20 @@ namespace PyroshockStudios {
         /**
          * @brief Generic GPU resource identifier with index and version.
          */
-        struct GPUResourceId {
+        struct GpuResourceId {
             u32 index = 0x00000000;   /**< Resource index in a table. */
             u32 version = 0x00000000; /**< Version number to avoid stale references. */
 
             /**
              * @brief Three-way comparison operator.
              */
-            PYRO_FORCEINLINE auto operator<=>(GPUResourceId const& other) const {
+            PYRO_FORCEINLINE auto operator<=>(GpuResourceId const& other) const {
                 return eastl::bit_cast<u64>(*this) <=> eastl::bit_cast<u64>(other);
             }
         };
 
         /// @brief Identifier for a shader resource view (SRV).
-        struct ShaderResourceId : public GPUResourceId {
+        struct ShaderResourceId : public GpuResourceId {
             PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const ShaderResourceId& other) const {
                 return eastl::bit_cast<u64>(*this) == eastl::bit_cast<u64>(other);
             }
@@ -238,7 +238,7 @@ namespace PyroshockStudios {
 
         /// @brief Identifier for an unordered access view (UAV).
         /// @note The `index` variable is not to be used as a bindless index.
-        struct UnorderedAccessId : public GPUResourceId {
+        struct UnorderedAccessId : public GpuResourceId {
             PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const UnorderedAccessId& other) const {
                 return eastl::bit_cast<u64>(*this) == eastl::bit_cast<u64>(other);
             }
@@ -248,7 +248,7 @@ namespace PyroshockStudios {
         };
 
         /// @brief Identifier for a sampler resource.
-        struct SamplerId : public GPUResourceId {
+        struct SamplerId : public GpuResourceId {
             PYRO_NODISCARD PYRO_FORCEINLINE bool operator==(const SamplerId& other) const {
                 return eastl::bit_cast<u64>(*this) == eastl::bit_cast<u64>(other);
             }
@@ -309,7 +309,7 @@ namespace PyroshockStudios {
 
         /// @brief Variant type holding either a buffer or image resource view.
         /// Used for SRV/UAV creation
-        using GPUResourceInfo = eastl::variant<BufferResourceInfo, ImageResourceInfo>;
+        using GpuResourceInfo = eastl::variant<BufferResourceInfo, ImageResourceInfo>;
 
     } // namespace RHI
 } // namespace PyroshockStudios
@@ -319,8 +319,8 @@ namespace eastl {
     using namespace PyroshockStudios::RHI;
 
     template <>
-    struct hash<GPUResourceId> {
-        usize operator()(GPUResourceId k) const {
+    struct hash<GpuResourceId> {
+        usize operator()(GpuResourceId k) const {
             return eastl::hash<usize>{}(eastl::bit_cast<u64>(k));
         }
     };

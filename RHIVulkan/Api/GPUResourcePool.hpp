@@ -60,7 +60,7 @@ namespace PyroshockStudios {
         static inline constexpr i32 NOT_OWNED_BY_SWAPCHAIN = -1;
 
         struct ImplResourceViewSlot {
-            GPUResourceInfo info = {};
+            GpuResourceInfo info = {};
             Union<VkDescriptorBufferInfo, VkDescriptorImageInfo> descriptor = {};
             bool zombie = {};
         };
@@ -93,7 +93,7 @@ namespace PyroshockStudios {
         };
 
         struct ImplBlasSlot {
-            BLASInfo info = {};
+            BlasInfo info = {};
             VkAccelerationStructureKHR vkAccelerationStructure = {};
             Buffer bufferId = {};
             VkBuffer vkBuffer = {};
@@ -103,7 +103,7 @@ namespace PyroshockStudios {
         };
 
         struct ImplTlasSlot {
-            TLASInfo info = {};
+            TlasInfo info = {};
             VkAccelerationStructureKHR vkAccelerationStructure = {};
             Buffer bufferId = {};
             VkBuffer vkBuffer = {};
@@ -133,14 +133,14 @@ namespace PyroshockStudios {
 
             eastl::array<eastl::unique_ptr<PageT>, PAGE_COUNT> pages = {};
 
-            void VerifyResourceId(GPUResourceId id) const {
+            void VerifyResourceId(GpuResourceId id) const {
                 usize page = id.index >> PAGE_BITS;
                 assert(page < pages.size() && "detected invalid resource id");
                 assert(pages[page] != nullptr && "detected invalid resource id");
                 assert(id.version != 0 && "detected invalid resource id");
             }
 
-            eastl::pair<GPUResourceId, ResourceT&> NewSlot() {
+            eastl::pair<GpuResourceId, ResourceT&> NewSlot() {
                 std::unique_lock useAfterFreeCheckLock{ mUseAfterFreeChecMtx };
                 std::unique_lock page_alloc_lock{ mPageAllocMtx };
                 u32 index;
@@ -166,10 +166,10 @@ namespace PyroshockStudios {
                 pages[page]->at(offset).second = eastl::max<u8>(pages[page]->at(offset).second, 1); // make sure the version is at least one
 
                 u32 version = pages[page]->at(offset).second;
-                return { GPUResourceId{ .index = index, .version = version }, pages[page]->at(offset).first };
+                return { GpuResourceId{ .index = index, .version = version }, pages[page]->at(offset).first };
             }
 
-            void ReturnSlot(GPUResourceId id) {
+            void ReturnSlot(GpuResourceId id) {
                 usize page = id.index >> PAGE_BITS;
                 usize offset = id.index & PAGE_MASK;
 
@@ -183,7 +183,7 @@ namespace PyroshockStudios {
                 mFreeIndexStack.push_back(id.index);
             }
 
-            bool IsIdValid(GPUResourceId id) const {
+            bool IsIdValid(GpuResourceId id) const {
                 usize page = id.index >> PAGE_BITS;
                 usize offset = id.index & PAGE_MASK;
 
@@ -197,7 +197,7 @@ namespace PyroshockStudios {
                 return true;
             }
 
-            ResourceT& DereferenceId(GPUResourceId id) {
+            ResourceT& DereferenceId(GpuResourceId id) {
                 usize page = id.index >> PAGE_BITS;
                 usize offset = id.index & PAGE_MASK;
 
@@ -208,7 +208,7 @@ namespace PyroshockStudios {
                 return pages[page]->at(offset).first;
             }
 
-            const ResourceT& DereferenceId(GPUResourceId id) const {
+            const ResourceT& DereferenceId(GpuResourceId id) const {
                 usize page = id.index >> PAGE_BITS;
                 usize offset = id.index & PAGE_MASK;
 
@@ -247,6 +247,7 @@ namespace PyroshockStudios {
                 u32 maxImageViews,
                 u32 maxSamplers,
                 u32 maxMemoryBlocks,
+                u32 maxAccelerationStructures,
                 VkDevice device,
                 const VkAllocationCallbacks* allocator,
                 VkBuffer deviceAddressBuffer,

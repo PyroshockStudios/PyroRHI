@@ -23,6 +23,7 @@
 #pragma once
 #include <PyroCommon/Core.hpp>
 
+#include "AccelerationStructure.hpp"
 #include "GPUResource.hpp"
 #include "ICommandBuffer.hpp"
 #include "ICommandQueue.hpp"
@@ -363,12 +364,12 @@ namespace PyroshockStudios {
             /**
              * @brief Retrieves shader resource view description.
              */
-            PYRO_NODISCARD virtual const GPUResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const = 0;
+            PYRO_NODISCARD virtual const GpuResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const = 0;
 
             /**
              * @brief Retrieves unordered access view description.
              */
-            PYRO_NODISCARD virtual const GPUResourceInfo& GetUnorderedAccessInfo(UnorderedAccessId id) const = 0;
+            PYRO_NODISCARD virtual const GpuResourceInfo& GetUnorderedAccessInfo(UnorderedAccessId id) const = 0;
 
             /**
              * @brief Retrieves sampler description.
@@ -398,12 +399,12 @@ namespace PyroshockStudios {
             /**
              * @brief Retrieves BLAS description.
              */
-            PYRO_NODISCARD virtual const BLASInfo& GetBLASInfo(BLASId blas) const = 0;
+            PYRO_NODISCARD virtual const BlasInfo& GetBlasInfo(BlasId blas) const = 0;
 
             /**
              * @brief Retrieves TLAS description.
              */
-            PYRO_NODISCARD virtual const TLASInfo& GetTLASInfo(TLASId tlas) const = 0;
+            PYRO_NODISCARD virtual const TlasInfo& GetTlasInfo(TlasId tlas) const = 0;
 
 
             // ---------------------------------------------------------------------
@@ -455,6 +456,19 @@ namespace PyroshockStudios {
              */
             PYRO_NODISCARD virtual u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice = {}) const = 0;
 
+            /**
+             * @brief - REQUIRES RAY TRACING SUPPORT -
+             *
+             * Returns the size requirements for build, scratch and update buffers for a BLAS
+             */
+            PYRO_NODISCARD virtual AccelerationStructureBuildSizesInfo BlasSizeRequirements(const BlasBuildInfo& info) const = 0;
+            /**
+             * @brief - REQUIRES RAY TRACING SUPPORT -
+             *
+             * Returns the size requirements for build, scratch and update buffers for a TLAS
+             */
+            PYRO_NODISCARD virtual AccelerationStructureBuildSizesInfo TlasSizeRequirements(const TlasBuildInfo& info) const = 0;
+
             // ---------------------------------------------------------------------
             // Resource Creation
             // ---------------------------------------------------------------------
@@ -481,12 +495,12 @@ namespace PyroshockStudios {
              * @brief Creates a shader resource view with the specified parameters. ShaderResourceId::index is an index into
              * the descriptor heap that can be used to index into a bindless heap in a shader.
              */
-            PYRO_NODISCARD virtual ShaderResourceId CreateShaderResource(const GPUResourceInfo& info) = 0;
+            PYRO_NODISCARD virtual ShaderResourceId CreateShaderResource(const GpuResourceInfo& info) = 0;
             /**
              * @brief Creates an unordered access view with the specified parameters. This handle must be bound
              * and cannot be used for bindless shader indexing.
              */
-            PYRO_NODISCARD virtual UnorderedAccessId CreateUnorderedAccess(const GPUResourceInfo& info) = 0;
+            PYRO_NODISCARD virtual UnorderedAccessId CreateUnorderedAccess(const GpuResourceInfo& info) = 0;
             /**
              * @brief Creates a sampler with the specified parameters. SamplerId::index is an index into
              * the descriptor heap that can be used to index into a bindless heap in a shader.
@@ -524,15 +538,15 @@ namespace PyroshockStudios {
 
             /**
              * @brief - REQUIRES RAY TRACING SUPPORT -
-             * Creates a bottom level acceleration structure to be referenced by a TLAS.
+             * Creates a bottom level acceleration structure to be referenced by a Tlas.
              */
-            PYRO_NODISCARD virtual BLASId CreateBLAS(const BLASInfo& info) = 0;
+            PYRO_NODISCARD virtual BlasId CreateBlas(const BlasInfo& info) = 0;
             /**
              * @brief - REQUIRES RAY TRACING SUPPORT -
              * Creates a top level acceleration structure with the given parameters. This returns a handle
-             * that is meant to be passed to a shader, to index into a runtime array of TLAS descriptors
+             * that is meant to be passed to a shader, to index into a runtime array of Tlas descriptors
              */
-            PYRO_NODISCARD virtual TLASId CreateTLAS(const TLASInfo& info) = 0;
+            PYRO_NODISCARD virtual TlasId CreateTlas(const TlasInfo& info) = 0;
 
 
             // ---------------------------------------------------------------------
@@ -619,6 +633,21 @@ namespace PyroshockStudios {
              * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
             virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer = false) = 0;
+            
+            /**
+             * @brief - REQUIRES RAY TRACING SUPPORT -
+             * @brief Destroys the BLAS.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
+             */
+            virtual void DestroyBlas(BlasId& blas, bool bDefer = false) = 0;
+            /**
+             * @brief - REQUIRES RAY TRACING SUPPORT -
+             * @brief Destroys the TLAS.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
+             */
+            virtual void DestroyTlas(TlasId& tlas, bool bDefer = false) = 0;
 
             // Convenience overloads
 
@@ -635,8 +664,8 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE void Destroy(Semaphore& semaphore, bool bDefer = false) { DestroySemaphore(semaphore, bDefer); }
             PYRO_FORCEINLINE void Destroy(IFence*& fence, bool bDefer = false) { DestroyFence(fence, bDefer); }
             PYRO_FORCEINLINE void Destroy(ITimestampQueryPool*& queryPool, bool bDefer = false) { DestroyTimestampQueryPool(queryPool, bDefer); }
-            PYRO_FORCEINLINE void Destroy(BLASId& blas, bool bDefer = false) { DestroyBLAS(blas, bDefer); }
-            PYRO_FORCEINLINE void Destroy(TLASId& tlas, bool bDefer = false) { DestroyTLAS(tlas, bDefer); }
+            PYRO_FORCEINLINE void Destroy(BlasId& blas, bool bDefer = false) { DestroyBlas(blas, bDefer); }
+            PYRO_FORCEINLINE void Destroy(TlasId& tlas, bool bDefer = false) { DestroyTlas(tlas, bDefer); }
 
             PYRO_FORCEINLINE void DestroyImmediately(MemoryBlock memory) { DestroyMemoryBlock(memory, false); }
             PYRO_FORCEINLINE void DestroyImmediately(Buffer buffer) { DestroyBuffer(buffer, false); }
@@ -651,8 +680,8 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE void DestroyImmediately(Semaphore semaphore) { DestroySemaphore(semaphore, false); }
             PYRO_FORCEINLINE void DestroyImmediately(IFence* fence) { DestroyFence(fence, false); }
             PYRO_FORCEINLINE void DestroyImmediately(ITimestampQueryPool* queryPool) { DestroyTimestampQueryPool(queryPool, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(BLASId blas) { DestroyBLAS(tlas, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(TLASId tlas) { DestroyTLAS(tlas, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(BlasId blas) { DestroyBlas(blas, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(TlasId tlas) { DestroyTlas(tlas, false); }
 
             PYRO_FORCEINLINE void DestroyDeferred(MemoryBlock memory) { DestroyMemoryBlock(memory, true); }
             PYRO_FORCEINLINE void DestroyDeferred(Buffer buffer) { DestroyBuffer(buffer, true); }
@@ -667,8 +696,8 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE void DestroyDeferred(Semaphore semaphore) { DestroySemaphore(semaphore, true); }
             PYRO_FORCEINLINE void DestroyDeferred(IFence* fence) { DestroyFence(fence, true); }
             PYRO_FORCEINLINE void DestroyDeferred(ITimestampQueryPool* queryPool) { DestroyTimestampQueryPool(queryPool, true); }
-            PYRO_FORCEINLINE void DestroyDeferred(BLASId blas) { DestroyBLAS(tlas, true); }
-            PYRO_FORCEINLINE void DestroyDeferred(TLASId tlas) { DestroyTLAS(tlas, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(BlasId blas) { DestroyBlas(blas, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(TlasId tlas) { DestroyTlas(tlas, true); }
 
             // ---------------------------------------------------------------------
             // Support Queries
@@ -787,8 +816,8 @@ namespace PyroshockStudios {
             PYRO_NODISCARD PYRO_FORCEINLINE Semaphore Create(const SemaphoreInfo& info) { return CreateSemaphore(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE IFence* Create(const FenceInfo& info) { return CreateFence(info); }
             PYRO_NODISCARD PYRO_FORCEINLINE ITimestampQueryPool* Create(const TimestampQueryPoolInfo& info) { return CreateTimestampQueryPool(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE BLASId Create(const BLASInfo& info) { return CreateBLAS(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE TLASId Create(const TLASInfo& info) { return CreateTLAS(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE BlasId Create(const BlasInfo& info) { return CreateBlas(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE TlasId Create(const TlasInfo& info) { return CreateTlas(info); }
         };
     } // namespace RHI
 } // namespace PyroshockStudios

@@ -101,11 +101,11 @@ namespace PyroshockStudios {
             ASSERT(IsValid(image));
             return mResourcePool->Get(image).info;
         }
-        const GPUResourceInfo& D3DDevice::GetShaderResourceInfo(ShaderResourceId id) const {
+        const GpuResourceInfo& D3DDevice::GetShaderResourceInfo(ShaderResourceId id) const {
             ASSERT(IsValid(id));
             return mResourcePool->mSRVHeap.GetInfo(id);
         }
-        const GPUResourceInfo& D3DDevice::GetUnorderedAccessInfo(UnorderedAccessId id) const {
+        const GpuResourceInfo& D3DDevice::GetUnorderedAccessInfo(UnorderedAccessId id) const {
             ASSERT(IsValid(id));
             return mResourcePool->mUAVHeap.GetInfo(id);
         }
@@ -427,7 +427,7 @@ namespace PyroshockStudios {
 
             return image;
         }
-        ShaderResourceId D3DDevice::CreateShaderResource(const GPUResourceInfo& info) {
+        ShaderResourceId D3DDevice::CreateShaderResource(const GpuResourceInfo& info) {
             auto [handle, data] = mResourcePool->mSRVHeap.AcquireSlot();
             data = info;
 
@@ -541,7 +541,7 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             return ShaderResourceId{ handle };
         }
-        UnorderedAccessId D3DDevice::CreateUnorderedAccess(const GPUResourceInfo& info) {
+        UnorderedAccessId D3DDevice::CreateUnorderedAccess(const GpuResourceInfo& info) {
             auto [handle, data] = mResourcePool->mUAVHeap.AcquireSlot();
             data = info;
 
@@ -782,7 +782,7 @@ namespace PyroshockStudios {
                 return;
             }
             auto& imgSlot = mResourcePool->Get(image);
-            for (GPUResourceId id : imgSlot.blitImageRTVs) {
+            for (GpuResourceId id : imgSlot.blitImageRTVs) {
                 mResourcePool->mRTVHeap.ReleaseSlot(id);
             }
             if (imgSlot.virtualAlloc.AllocHandle != 0) {
@@ -1076,7 +1076,7 @@ namespace PyroshockStudios {
                 for (i32 i = 0; i < data.info.mipLevelCount; ++i) {
                     for (i32 j = 0; j < data.info.arrayLayerCount; ++j) {
                         UINT subresource = D3D12CalcSubresource(i, j, 0, data.info.mipLevelCount, data.info.arrayLayerCount);
-                        GPUResourceId& descriptor = data.blitImageRTVs[subresource];
+                        GpuResourceId& descriptor = data.blitImageRTVs[subresource];
                         descriptor = mResourcePool->mRTVHeap.AcquireSlot().first;
                         D3D12_RENDER_TARGET_VIEW_DESC view = {};
                         view.Format = data.desc.Format;
@@ -1229,7 +1229,7 @@ namespace PyroshockStudios {
             return values;
         }
 
-        void D3DDevice::WriteAllSRVDescriptorHeapCopies(ID3D12Resource* pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GPUResourceId handle) {
+        void D3DDevice::WriteAllSRVDescriptorHeapCopies(ID3D12Resource* pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GpuResourceId handle) {
             UINT incSz = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
             CD3DX12_CPU_DESCRIPTOR_HANDLE h = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDefaultUAVDescriptorTable.cpuDescriptor);
             mDevice->CreateShaderResourceView(pResource, pDesc, h.Offset(handle.index * incSz));

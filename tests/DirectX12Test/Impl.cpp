@@ -10,6 +10,7 @@
 // clang-format on
 
 
+#include <RHITestChassis/ValidateAccelerationStructureImpl.hpp>
 #include <RHITestChassis/ValidateBufferImpl.hpp>
 #include <RHITestChassis/ValidateCommandBufferImpl.hpp>
 #include <RHITestChassis/ValidateCommandQueueImpl.hpp>

@@ -52,8 +52,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
     ICommandQueue** pCopyQueue = eastl::find_if(queues.begin(), queues.end(),
         [pGraphicsQueue](ICommandQueue* q) { return q->Info().flags & CommandQueueFlagBits::TRANSFER && q != *pGraphicsQueue; });
     if (pCopyQueue == queues.end()) {
-        GTEST_LOG_(INFO) << "Device does not support seperate graphics and copy queues, skipping test...";
-        return;
+        GTEST_SKIP() << "Device does not support seperate graphics and copy queues, skipping test...";
     }
     TRACK_RHI_HANDLE(*pCopyQueue); // Track the found copy queue
 
@@ -208,8 +207,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ComputeQueueToGraphicsQueueSyncUAV) {
     ICommandQueue** pComputeQueue = eastl::find_if(queues.begin(), queues.end(),
         [pGraphicsQueue](ICommandQueue* q) { return q->Info().flags & CommandQueueFlagBits::COMPUTE && q != *pGraphicsQueue; });
     if (pComputeQueue == queues.end()) {
-        GTEST_LOG_(INFO) << "Device does not support seperate graphics and compute queues, skipping test...";
-        return;
+        GTEST_SKIP() << "Device does not support seperate graphics and compute queues, skipping test...";
     }
     TRACK_RHI_HANDLE(*pComputeQueue);
 
@@ -455,8 +453,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueDestroyDeferredSuccess) {
         ICommandQueue** pTransferQueue2 = eastl::find_if(queues.begin(), queues.end(),
             [pTransferQueue1](ICommandQueue* q) { return q->Info().flags & CommandQueueFlagBits::TRANSFER && q != *pTransferQueue1; });
         if (pTransferQueue2 == queues.end()) {
-            GTEST_LOG_(INFO) << "Device does not support multiple queues, skipping test...";
-            return;
+            GTEST_SKIP() << "Device does not support multiple queues, skipping test...";
         }
 
 
@@ -577,8 +574,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueResourceTransferSuccess) {
     ICommandQueue** pTransferQueue2 = eastl::find_if(queues.begin(), queues.end(),
         [pTransferQueue1](ICommandQueue* q) { return q->Info().flags & CommandQueueFlagBits::TRANSFER && q != *pTransferQueue1; });
     if (pTransferQueue2 == queues.end()) {
-        GTEST_LOG_(INFO) << "Device does not support multiple queues, skipping test...";
-        return;
+        GTEST_SKIP() << "Device does not support multiple queues, skipping test...";
     }
 
 
