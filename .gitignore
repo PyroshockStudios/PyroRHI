@@ -440,3 +440,7 @@ imgui.ini
 
 # docker
 Dockerfile
+
+# DX12 agility sdk
+
+!vendor/DX12AgilitySDK/**

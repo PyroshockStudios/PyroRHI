@@ -116,7 +116,7 @@ namespace PyroshockStudios {
             eastl::vector<VkExtensionProperties> availableExtensions(extensionCount);
             vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
 
-            auto tryEnableExtension = [&physicalDevice, &lastPhysicalDevicePnext, &extensions](VkExtensionProperties& extension, const char* extensionName, auto& extensionFeatureStruct, const auto& checkFunc, const auto& customFunc) {
+            auto tryEnableExtension = [physicalDevice, &lastPhysicalDevicePnext, &extensions](VkExtensionProperties& extension, const char* extensionName, auto& extensionFeatureStruct, const auto& checkFunc, const auto& customFunc) {
                 if (strcmp(extension.extensionName, extensionName) == 0) {
                     VkPhysicalDeviceFeatures2 features2{
                         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
@@ -151,52 +151,82 @@ namespace PyroshockStudios {
             VkPhysicalDeviceRayTracingPositionFetchFeaturesKHR physicalDeviceRayTracingPositionFetchFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_POSITION_FETCH_FEATURES_KHR };
             VkPhysicalDeviceRayTracingInvocationReorderPropertiesNV physicalDeviceRayTracingInvocationReorderProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_INVOCATION_REORDER_PROPERTIES_NV };
             for (VkExtensionProperties& extension : availableExtensions) {
-                tryEnableExtension(extension, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME, lineFeatures, [&]() { return lineFeatures.smoothLines == VK_TRUE; }, [&]() {
-                    Logger::Info(gVulkanSink, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME " with 'smoothLines' is supported on this device.");
-                    mVulkanCaps.bVK_EXT_line_rasterization = true; });
+                tryEnableExtension(
+                    extension, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME, lineFeatures,
+                    [&]() {
+                        return lineFeatures.smoothLines == VK_TRUE;
+                    },
+                    [&]() {
+                        Logger::Info(gVulkanSink, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME " with 'smoothLines' is supported on this device.");
+                        mVulkanCaps.bVK_EXT_line_rasterization = true;
+                    });
 
-                tryEnableExtension(extension, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, physicalDeviceBufferDeviceAddressFeatures, [&]() { return physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress == VK_TRUE; }, [&]() {
-                    Logger::Info(gVulkanSink, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME " is supported on this device.");
+                tryEnableExtension(
+                    extension, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, physicalDeviceBufferDeviceAddressFeatures,
+                    [&]() { return physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress == VK_TRUE; },
+                    [&]() {
+                        Logger::Info(gVulkanSink, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME " is supported on this device.");
 
-                    physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
-                    physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressCaptureReplay = VK_FALSE;
-                    physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressMultiDevice = VK_FALSE;
+                        physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+                        physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressCaptureReplay = VK_FALSE;
+                        physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressMultiDevice = VK_FALSE;
 
-                    mFeatures.bBufferDeviceAddress = true;
-                    mVulkanCaps.bVK_KHR_buffer_device_address = true; });
+                        mFeatures.bBufferDeviceAddress = true;
+                        mVulkanCaps.bVK_KHR_buffer_device_address = true;
+                    });
 
-                tryEnableExtension(extension, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, physicalDeviceAccelerationStructureFeatures, [&]() { return physicalDeviceAccelerationStructureFeatures.accelerationStructure == VK_TRUE; }, [&]() {
-                    Logger::Info(gVulkanSink, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME " is supported on this device.");
+                tryEnableExtension(
+                    extension, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, physicalDeviceAccelerationStructureFeatures,
+                    [&]() { return physicalDeviceAccelerationStructureFeatures.accelerationStructure == VK_TRUE; },
+                    [&]() {
+                        Logger::Info(gVulkanSink, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME " is supported on this device.");
 
-                    physicalDeviceAccelerationStructureFeatures.accelerationStructureCaptureReplay = VK_FALSE;
-                    
-                    mFeatures.bAccelerationStructureBuild = true;
-                    mVulkanCaps.bVK_KHR_acceleration_structures = true; 
-                    // must also be supported
-                    mVulkanCaps.bVK_KHR_deferred_host_operations = true;
-                    extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME); });
+                        physicalDeviceAccelerationStructureFeatures.accelerationStructureCaptureReplay = VK_FALSE;
 
-                tryEnableExtension(extension, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, physicalDeviceRayTracingPipelineFeatures, [&]() { return physicalDeviceRayTracingPipelineFeatures.rayTracingPipeline == VK_TRUE; }, [&]() {
-                    Logger::Info(gVulkanSink, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME " is supported on this device.");
+                        mFeatures.bAccelerationStructureBuild = true;
+                        mVulkanCaps.bVK_KHR_acceleration_structures = true;
+                        // must also be supported
+                        mVulkanCaps.bVK_KHR_deferred_host_operations = true;
+                        extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+                    });
 
-                    physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplay = VK_FALSE;
-                    physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplayMixed = VK_FALSE;
+                tryEnableExtension(
+                    extension, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, physicalDeviceRayTracingPipelineFeatures,
+                    [&]() { return physicalDeviceRayTracingPipelineFeatures.rayTracingPipeline == VK_TRUE; },
+                    [&]() {
+                        Logger::Info(gVulkanSink, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME " is supported on this device.");
 
-                    mFeatures.bRayTracingPipelines = true;
-                    mVulkanCaps.bVK_KHR_ray_tracing_pipeline = true; });
+                        physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplay = VK_FALSE;
+                        physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplayMixed = VK_FALSE;
 
-                tryEnableExtension(extension, VK_KHR_RAY_QUERY_EXTENSION_NAME, physicalDeviceRayQueryFeatures, [&]() { return physicalDeviceRayQueryFeatures.rayQuery == VK_TRUE; }, [&]() {
-                    Logger::Info(gVulkanSink, VK_KHR_RAY_QUERY_EXTENSION_NAME " is supported on this device.");
-                    mFeatures.bRayQueries = true;
-                    mVulkanCaps.bVK_KHR_ray_query = true; });
+                        mFeatures.bRayTracingPipelines = true;
+                        mVulkanCaps.bVK_KHR_ray_tracing_pipeline = true;
+                    });
 
-                tryEnableExtension(extension, VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME, physicalDeviceRayTracingPositionFetchFeatures, [&]() { return physicalDeviceRayTracingPositionFetchFeatures.rayTracingPositionFetch == VK_TRUE; }, [&]() {
-                    Logger::Info(gVulkanSink, VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME " is supported on this device.");
-                    mVulkanCaps.bVK_KHR_ray_tracing_position_fetch = true; });
+                tryEnableExtension(
+                    extension, VK_KHR_RAY_QUERY_EXTENSION_NAME, physicalDeviceRayQueryFeatures,
+                    [&]() { return physicalDeviceRayQueryFeatures.rayQuery == VK_TRUE; },
+                    [&]() {
+                        Logger::Info(gVulkanSink, VK_KHR_RAY_QUERY_EXTENSION_NAME " is supported on this device.");
+                        mFeatures.bRayQueries = true;
+                        mVulkanCaps.bVK_KHR_ray_query = true;
+                    });
 
-                tryEnableExtension(extension, VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME, physicalDeviceRayTracingInvocationReorderProperties, [&]() { return physicalDeviceRayTracingInvocationReorderProperties.rayTracingInvocationReorderReorderingHint == VK_TRUE; }, [&]() {
-                    Logger::Info(gVulkanSink, VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME " is supported on this device.");
-                    mVulkanCaps.bVK_NV_ray_tracing_invocation_reorder = true; });
+                tryEnableExtension(
+                    extension, VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME, physicalDeviceRayTracingPositionFetchFeatures,
+                    [&]() { return physicalDeviceRayTracingPositionFetchFeatures.rayTracingPositionFetch == VK_TRUE; },
+                    [&]() {
+                        Logger::Info(gVulkanSink, VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME " is supported on this device.");
+                        mVulkanCaps.bVK_KHR_ray_tracing_position_fetch = true;
+                    });
+
+                tryEnableExtension(
+                    extension, VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME, physicalDeviceRayTracingInvocationReorderProperties,
+                    [&]() { return physicalDeviceRayTracingInvocationReorderProperties.rayTracingInvocationReorderReorderingHint == VK_RAY_TRACING_INVOCATION_REORDER_MODE_REORDER_NV; },
+                    [&]() {
+                        Logger::Info(gVulkanSink, VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME " is supported on this device.");
+                        mVulkanCaps.bVK_NV_ray_tracing_invocation_reorder = true;
+                    });
             }
 
             const VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{
