@@ -31,10 +31,6 @@ namespace PyroshockStudios {
     namespace RHIVulkan {
         class VulkanDevice;
         class VulkanCommandQueue;
-        struct CommandBufferZombieInfo {
-            eastl::vector<ZombieDeleter> zombies = {};
-        };
-
         struct CommandBufferPool : DeleteCopy, DeleteMove {
             eastl::pair<VkCommandPool, VkCommandBuffer> Get(VulkanDevice* device, VulkanCommandQueue* queue);
             void PutBack(eastl::pair<VkCommandPool, VkCommandBuffer> poolAndBuffer);
@@ -62,16 +58,6 @@ namespace PyroshockStudios {
             void TransferImageOwnership(Image image, ICommandQueue* dstQueue) override;
             void AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) override;
             void AcquireImageOwnership(Image image, ICommandQueue* srcQueue) override;
-
-            void DestroyMemoryBlockDeferred(MemoryBlock memory) override;
-            void DestroyBufferDeferred(Buffer buffer) override;
-            void DestroyImageDeferred(Image image) override;
-            void DestroyShaderResourceDeferred(ShaderResourceId srv) override;
-            void DestroyUnorderedAccessDeferred(UnorderedAccessId uav) override;
-            void DestroySamplerDeferred(SamplerId sampler) override;
-            void DestroyRenderTargetDeferred(RenderTarget renderTarget) override;
-            void DestroyRasterPipelineDeferred(RasterPipeline pipeline) override;
-            void DestroyComputePipelineDeferred(ComputePipeline pipeline) override;
 
             void InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) override;
             void WriteTimestamp(const WriteTimestampInfo& info) override;
@@ -103,16 +89,11 @@ namespace PyroshockStudios {
                 return mCommandPool;
             }
 
-            eastl::unique_ptr<CommandBufferZombieInfo> TakeZombies() {
-                return eastl::move(mZombieInfo);
-            }
-
         private:
             inline void FlushBarriers();
             // TODO
             // void FlushPipelineLayout();
 
-            eastl::unique_ptr<CommandBufferZombieInfo> mZombieInfo = eastl::make_unique<CommandBufferZombieInfo>();
             eastl::vector<VkBufferMemoryBarrier2> mBufferBarriers = {};
             eastl::vector<VkImageMemoryBarrier2> mImageBarriers = {};
             bool mCompleted = false;

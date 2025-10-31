@@ -344,6 +344,8 @@ namespace PyroshockStudios::RHIVulkan {
         VkBufferMemoryBarrier2 barrier = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
             .buffer = bufferSlot.vkBuffer,
+            .offset = 0,
+            .size = VK_WHOLE_SIZE,
         };
         ASSERT(dstQueue != nullptr && mQueue != dstQueue, "Queue ownerships must define BOTH a correct SRC and DST DIFFERENT ICommandQueue's!!");
         barrier.srcQueueFamilyIndex = mQueue->GetQueueFamily();
@@ -383,6 +385,8 @@ namespace PyroshockStudios::RHIVulkan {
         VkBufferMemoryBarrier2 barrier = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
             .buffer = bufferSlot.vkBuffer,
+            .offset = 0,
+                .size = VK_WHOLE_SIZE,
         };
         ASSERT(srcQueue != nullptr && mQueue != srcQueue, "Queue ownerships must define BOTH a correct SRC and DST DIFFERENT ICommandQueue's!!");
         barrier.srcQueueFamilyIndex = static_cast<VulkanCommandQueue*>(srcQueue)->GetQueueFamily();
@@ -412,96 +416,6 @@ namespace PyroshockStudios::RHIVulkan {
         barrier.dstQueueFamilyIndex = mQueue->GetQueueFamily();
 
         mImageBarriers.push_back(barrier);
-    }
-
-    void VulkanCommandBuffer::DestroyMemoryBlockDeferred(MemoryBlock memory) {
-        mZombieInfo->zombies.push_back({
-            .resource = eastl::bit_cast<void*>(memory),
-            .deleter = [](VulkanDevice* device, void* resource) {
-                auto x = eastl::bit_cast<MemoryBlock>(resource);
-                device->Destroy(x);
-            },
-        });
-    }
-
-    void VulkanCommandBuffer::DestroyBufferDeferred(Buffer buffer) {
-        mZombieInfo->zombies.push_back({
-            .resource = eastl::bit_cast<void*>(buffer),
-            .deleter = [](VulkanDevice* device, void* resource) {
-                auto x = eastl::bit_cast<Buffer>(resource);
-                device->Destroy(x);
-            },
-        });
-    }
-
-    void VulkanCommandBuffer::DestroyImageDeferred(Image image) {
-        mZombieInfo->zombies.push_back({
-            .resource = eastl::bit_cast<void*>(image),
-            .deleter = [](VulkanDevice* device, void* resource) {
-                auto x = eastl::bit_cast<Image>(resource);
-                device->Destroy(x);
-            },
-        });
-    }
-
-    void VulkanCommandBuffer::DestroyShaderResourceDeferred(ShaderResourceId srv) {
-        mZombieInfo->zombies.push_back({
-            .resource = eastl::bit_cast<void*>(srv),
-            .deleter = [](VulkanDevice* device, void* resource) {
-                auto x = eastl::bit_cast<ShaderResourceId>(resource);
-                device->Destroy(x);
-            },
-        });
-    }
-
-    void VulkanCommandBuffer::DestroyUnorderedAccessDeferred(UnorderedAccessId uav) {
-        mZombieInfo->zombies.push_back({
-            .resource = eastl::bit_cast<void*>(uav),
-            .deleter = [](VulkanDevice* device, void* resource) {
-                auto x = eastl::bit_cast<UnorderedAccessId>(resource);
-                device->Destroy(x);
-            },
-        });
-    }
-
-    void VulkanCommandBuffer::DestroySamplerDeferred(SamplerId sampler) {
-        mZombieInfo->zombies.push_back({
-            .resource = eastl::bit_cast<void*>(sampler),
-            .deleter = [](VulkanDevice* device, void* resource) {
-                auto x = eastl::bit_cast<SamplerId>(resource);
-                device->Destroy(x);
-            },
-        });
-    }
-
-    void VulkanCommandBuffer::DestroyRenderTargetDeferred(RenderTarget renderTarget) {
-        mZombieInfo->zombies.push_back({
-            .resource = renderTarget,
-            .deleter = [](VulkanDevice* device, void* resource) {
-                auto x = reinterpret_cast<RenderTarget>(resource);
-                device->Destroy(x);
-            },
-        });
-    }
-
-    void VulkanCommandBuffer::DestroyRasterPipelineDeferred(RasterPipeline pipeline) {
-        mZombieInfo->zombies.push_back({
-            .resource = pipeline,
-            .deleter = [](VulkanDevice* device, void* resource) {
-                auto x = reinterpret_cast<RasterPipeline>(resource);
-                device->Destroy(x);
-            },
-        });
-    }
-
-    void VulkanCommandBuffer::DestroyComputePipelineDeferred(ComputePipeline pipeline) {
-        mZombieInfo->zombies.push_back({
-            .resource = pipeline,
-            .deleter = [](VulkanDevice* device, void* resource) {
-                auto x = reinterpret_cast<ComputePipeline>(resource);
-                device->Destroy(x);
-            },
-        });
     }
 
     void VulkanCommandBuffer::InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) {

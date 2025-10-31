@@ -48,7 +48,6 @@ namespace PyroshockStudios {
         struct CommandListZombie {
             VkCommandBuffer vkCmdBuffer = {};
             VkCommandPool vkCmdPool = {};
-            eastl::unique_ptr<CommandBufferZombieInfo> zombies = {};
             VulkanCommandQueue* queue = nullptr;
         };
 
@@ -57,6 +56,13 @@ namespace PyroshockStudios {
             bool bVK_EXT_buffer_device_address = false;
         };
 
+        struct PendingQueueSubmitZombie {
+            // u64 mainCpuTimelineValue = 0;
+            u64 localCpuTimelineValue = 0;
+            VulkanCommandQueue* queue = nullptr;
+        };
+
+        using QueueTimelineSnapshot = eastl::vector<u64>;
         class VulkanDevice : public IDevice, DeleteCopy, DeleteMove {
         public:
             VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features, bool bHeadlessEnabled);
@@ -101,23 +107,23 @@ namespace PyroshockStudios {
             IFence* CreateFence(const FenceInfo& info) override;
             ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
 
-            virtual void DestroyMemoryBlock(MemoryBlock& memory) override;
-            virtual void DestroyBuffer(Buffer& buffer) override;
-            virtual void DestroyImage(Image& image) override;
-            virtual void DestroyShaderResource(ShaderResourceId& srv) override;
-            virtual void DestroyUnorderedAccess(UnorderedAccessId& uav) override;
-            virtual void DestroySampler(SamplerId& sampler) override;
-
-            virtual void DestroyRenderTarget(RenderTarget& renderTarget) override;
-            virtual void DestroyRasterPipeline(RasterPipeline& pipeline) override;
-            virtual void DestroyComputePipeline(ComputePipeline& pipeline) override;
-            virtual void DestroySwapChain(ISwapChain*& swapChain) override;
-            virtual void DestroySemaphore(Semaphore& semaphore) override;
-            virtual void DestroyFence(IFence*& fence) override;
-            virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) override;
+            virtual void DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) override;
+            virtual void DestroyBuffer(Buffer& buffer, bool bDefer) override;
+            virtual void DestroyImage(Image& image, bool bDefer) override;
+            virtual void DestroyShaderResource(ShaderResourceId& srv, bool bDefer) override;
+            virtual void DestroyUnorderedAccess(UnorderedAccessId& uav, bool bDefer) override;
+            virtual void DestroySampler(SamplerId& sampler, bool bDefer) override;
+            virtual void DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer) override;
+            virtual void DestroyRasterPipeline(RasterPipeline& pipeline, bool bDefer) override;
+            virtual void DestroyComputePipeline(ComputePipeline& pipeline, bool bDefer) override;
+            virtual void DestroySwapChain(ISwapChain*& swapChain, bool bDefer) override;
+            virtual void DestroySemaphore(Semaphore& semaphore, bool bDefer) override;
+            virtual void DestroyFence(IFence*& fence, bool bDefer) override;
+            virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer) override;
 
             eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
 
+            void CollectGarbage() override;
             void WaitIdle() override;
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
             void PresentQueue(const CommandQueuePresentInfo& info) override;
@@ -175,26 +181,23 @@ namespace PyroshockStudios {
             const ImplSamplerSlot& Slot(SamplerId id) const;
 
         public:
-            eastl::atomic<u64> mMainQueueCpuTimeline = {};
-
-            eastl::deque<eastl::pair<u64, ZombieDeleter>> mMainQueueZombies = {};
+            eastl::vector<eastl::pair<QueueTimelineSnapshot, ZombieDeleter>> mResourceZombies = {};
 
             VulkanDeviceCapabilities mVulkanCaps = {};
 
         private:
+            QueueTimelineSnapshot SnapshotQueueTimelineValues() const;
+
             void PopulateDeviceInfo();
             void PopulateDeviceProperties();
             void PopulateDeviceFeatures();
 
         private:
-            eastl::deque<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
+            eastl::vector<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
+            eastl::vector<PendingQueueSubmitZombie> mQueuePendingSubmits = {};
 
             GPUResourceId CreateImageView(const GPUResourceInfo& info, bool uav);
             GPUResourceId CreateBufferView(const GPUResourceInfo& info);
-            void CollectGarbage();
-
-
-            IFence* mMainQueueGpuFence = {};
 
             DeviceInfo mInfo = {};
             DevicePropertiesInfo mProperties = {};

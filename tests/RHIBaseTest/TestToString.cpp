@@ -654,22 +654,22 @@ TEST(RHICommonToStringTests, CommandQueueSubmitInfoToString) {
 
     // Test with indentation
     eastl::string expected_indented =
-        "    CommandQueueSubmitInfo {\n"
-        "      queue: 0x00000000DEADBEEF\n"
-        "      waitSemaphores: [\n"
-        "        SemaphoreSubmitInfo { semaphore=0x0000000011111111, stage=1 }\n"
-        "      ]\n"
-        "      signalSemaphores: [\n"
-        "        SemaphoreSubmitInfo { semaphore=0x0000000022222222, stage=8192 }\n"
-        "      ]\n"
-        "      signalPresentSemaphores: [\n"
-        "        SemaphoreSubmitInfo { semaphore=0x0000000011111111, stage=32768 }\n"
-        "      ]\n"
-        "      signalFences: [\n"
-        "        FenceSubmitInfo { fence=0x0000000033333333, value=3 }\n"
-        "      ]\n"
-        "    }";
-    EXPECT_STREQ(info.ToString(4).c_str(), expected_indented.c_str()); // Direct string comparison with indentation
+        "CommandQueueSubmitInfo {\n"
+        "  queue: 0x00000000DEADBEEF\n"
+        "  waitSemaphores: [\n"
+        "    SemaphoreSubmitInfo { semaphore=0x0000000011111111, stage=1 }\n"
+        "  ]\n"
+        "  signalSemaphores: [\n"
+        "    SemaphoreSubmitInfo { semaphore=0x0000000022222222, stage=8192 }\n"
+        "  ]\n"
+        "  signalPresentSemaphores: [\n"
+        "    SemaphoreSubmitInfo { semaphore=0x0000000011111111, stage=32768 }\n"
+        "  ]\n"
+        "  signalFences: [\n"
+        "    FenceSubmitInfo { fence=0x0000000033333333, value=3 }\n"
+        "  ]\n"
+        "}";
+    EXPECT_STREQ(info.ToString(0).c_str(), expected_indented.c_str()); // Direct string comparison with indentation
 }
 
 TEST(RHICommonToStringTests, CommandQueuePresentInfoToString) {

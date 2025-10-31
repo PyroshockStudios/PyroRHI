@@ -9,6 +9,16 @@ using namespace std::chrono_literals;
 #undef CreateSemaphore
 #endif
 
+// helper function
+template <typename T>
+T HIGHEST_BIT(T x) {
+    for (u64 k = 1ULL << (sizeof(x) * 8 - 1); k != 0; k >>= 1) {
+        if ((static_cast<u64>(x) & k) == k)
+            return static_cast<T>(k);
+    }
+    return static_cast<T>(0);
+}
+
 using namespace PyroshockStudios;
 using namespace PyroshockStudios::RHI;
 using namespace PyroshockStudios::Types;
@@ -643,71 +653,33 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsTimestampQueryPoolResetSetSuccess) {
 }
 
 
-TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
-    static constexpr i32 NUM_DESTROY_DEFERRED_CYCLES = 16;
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsRecycleSuccess) {
+    static constexpr i32 NUM_CYCLES = 16;
 
     ICommandQueue* cq = mDevice->GetCommandQueues()[0];
     TRACK_RHI_HANDLE(cq);
 
-    for (i32 i = 0; i < NUM_DESTROY_DEFERRED_CYCLES; ++i) {
-        ImageInfo srcImageInfo{};
-        srcImageInfo.dimensions = ImageDimensions::e3D;
-        srcImageInfo.size = { 16, 16, 4 };
-        srcImageInfo.format = Format::RGBA8Unorm;
-        srcImageInfo.usage = ImageUsageFlagBits::TRANSFER_SRC;
-        srcImageInfo.name = "src image in flight #" + eastl::to_string(i);
-        TRACK_RHI_PARAMETER(srcImageInfo);
-        Image srcImage = mDevice->CreateImage(srcImageInfo);
-        TRACK_RHI_HANDLE(srcImage);
-        ASSERT_TRUE(mDevice->IsValid(srcImage));
-
-        MemoryBlockInfo blockInfo = {};
-        blockInfo.size = 800000;
-        blockInfo.bufferUsage = BufferUsageFlagBits::TRANSFER_DST;
-        blockInfo.name = "Test Memory Block";
-        TRACK_RHI_PARAMETER(blockInfo);
-
-        MemoryBlock block = mDevice->CreateMemoryBlock(blockInfo);
-        TRACK_RHI_HANDLE(block);
-        ASSERT_TRUE(mDevice->IsValid(block));
-
+    eastl::vector<eastl::function<void()>> toDestroyCb{};
+    for (i32 i = 0; i < NUM_CYCLES; ++i) {
         BufferInfo bufferInfo{};
-        bufferInfo.memoryBlock = block;
         bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
         bufferInfo.name = "dst buffer in flight #" + eastl::to_string(i);
-
-        CopyImageToBufferInfo info{};
-        info.image = srcImage;
-        info.imageExtent = srcImageInfo.size;
-        bufferInfo.size = mDevice->ImageSizeRequirements(srcImage);
-        info.rowPitch = bufferInfo.size / srcImageInfo.size.height / srcImageInfo.size.depth;
-        info.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, info.rowPitch);
-
-        bufferInfo.size = srcImageInfo.size.height * srcImageInfo.size.depth * info.rowPitch;
+        bufferInfo.size = 256;
         TRACK_RHI_PARAMETER(bufferInfo);
-
         Buffer dstBuffer = mDevice->CreateBuffer(bufferInfo);
         TRACK_RHI_HANDLE(dstBuffer);
         ASSERT_TRUE(mDevice->IsValid(dstBuffer));
+        toDestroyCb.emplace_back([=]() { mDevice->DestroyImmediately(dstBuffer); });
 
-        ICommandBuffer* cb = cq->GetCommandBuffer({ .name = "destroy deferred commands #" + eastl::to_string(i) });
+        eastl::vector<u8> data(static_cast<usize>(bufferInfo.size));
+
+        ICommandBuffer* cb = cq->GetCommandBuffer({ .name = "recycled commands #" + eastl::to_string(i) });
         TRACK_RHI_HANDLE(cb);
 
-        // It should still be legal to use these resources after destroying! They are still valid in this frame!
-        cb->DestroyDeferred(srcImage);
-        cb->DestroyDeferred(dstBuffer);
-        cb->DestroyDeferred(block);
         eastl::string framename1 = "Record frame #" + eastl::to_string(i);
         eastl::string framename = "Transition Resources " + eastl::to_string(i);
         cb->BeginLabel({ .name = framename1 });
         cb->BeginLabel({ .name = framename });
-        EXPECT_NO_FATAL_FAILURE(cb->ImageBarrier({
-            .image = srcImage,
-            .srcAccess = AccessConsts::NONE,
-            .dstAccess = AccessConsts::TRANSFER_READ,
-            .srcLayout = ImageLayout::Undefined,
-            .dstLayout = ImageLayout::TransferSrc,
-        }));
         EXPECT_NO_FATAL_FAILURE(cb->BufferBarrier({
             .buffer = dstBuffer,
             .srcAccess = AccessConsts::NONE,
@@ -716,9 +688,13 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
             .dstLayout = BufferLayout::TransferDst,
         }));
         cb->EndLabel();
+
+        UpdateBufferInfo info{};
         info.buffer = dstBuffer;
+        info.data = data.data();
         TRACK_RHI_PARAMETER(info);
-        EXPECT_NO_FATAL_FAILURE(cb->CopyImageToBuffer(info));
+
+        EXPECT_NO_FATAL_FAILURE(cb->UpdateBuffer(info));
         cb->EndLabel();
 
         cb->Complete();
@@ -726,8 +702,10 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsDestroyDeferredSuccess) {
         mDevice->SubmitQueue({ .queue = cq });
     }
     mDevice->WaitIdle();
+    for (auto destroy : toDestroyCb) {
+        destroy();
+    }
 }
-
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsClearColorPass) {
     ICommandQueue* q = mDevice->GetCommandQueues()[0];
@@ -777,8 +755,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsClearColorPass) {
     mDevice->SubmitQueue({ .queue = mDevice->GetCommandQueues()[0] });
     mDevice->WaitIdle();
 
-    mDevice->Destroy(srcTarget);
-    mDevice->Destroy(srcImage);
+    mDevice->DestroyImmediately(srcTarget);
+    mDevice->DestroyImmediately(srcImage);
 }
 
 
@@ -846,8 +824,89 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsClearColorPassThenDontCareLoad) {
     mDevice->SubmitQueue({ .queue = mDevice->GetCommandQueues()[0] });
     mDevice->WaitIdle();
 
-    mDevice->Destroy(srcTarget);
-    mDevice->Destroy(srcImage);
+    mDevice->DestroyImmediately(srcTarget);
+    mDevice->DestroyImmediately(srcImage);
+}
+
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsClearColorPassMSAAResolve) {
+    ICommandQueue* q = mDevice->GetCommandQueues()[0];
+    TRACK_RHI_HANDLE(q);
+
+    ImageInfo srcImageMSInfo{};
+    srcImageMSInfo.dimensions = ImageDimensions::e2D;
+    srcImageMSInfo.size = { 64, 64, 1 };
+    srcImageMSInfo.format = Format::RGBA8Unorm;
+    srcImageMSInfo.usage = ImageUsageFlagBits::RENDER_TARGET;
+    srcImageMSInfo.name = "color target MS";
+    srcImageMSInfo.sampleCount = HIGHEST_BIT(mDevice->Properties().msaaSupportColorTarget);
+    if (srcImageMSInfo.sampleCount == RasterizationSamples::e1) {
+        GTEST_LOG_(INFO) << "Device does not support MSAA, skipping test...";
+        return;
+    }
+    TRACK_RHI_PARAMETER(srcImageMSInfo);
+    Image srcImageMS = mDevice->CreateImage(srcImageMSInfo);
+    TRACK_RHI_HANDLE(srcImageMS);
+    ASSERT_TRUE(mDevice->IsValid(srcImageMS));
+
+    ImageInfo dstImageResolveInfo{};
+    dstImageResolveInfo.dimensions = ImageDimensions::e2D;
+    dstImageResolveInfo.size = { 64, 64, 1 };
+    dstImageResolveInfo.format = Format::RGBA8Unorm;
+    dstImageResolveInfo.usage = ImageUsageFlagBits::RENDER_TARGET;
+    dstImageResolveInfo.name = "color target (resolve)";
+    TRACK_RHI_PARAMETER(dstImageResolveInfo);
+    Image dstImageResolve = mDevice->CreateImage(dstImageResolveInfo);
+    TRACK_RHI_HANDLE(dstImageResolve);
+    ASSERT_TRUE(mDevice->IsValid(dstImageResolve));
+
+    RenderTarget srcTargetMS = mDevice->CreateRenderTarget({ .image = srcImageMS, .flags = RenderTargetFlagBits::COLOR_TARGET, .name = "render target MS" });
+    TRACK_RHI_HANDLE(srcTargetMS);
+    RenderTarget dstTargetResolve = mDevice->CreateRenderTarget({ .image = dstImageResolve, .flags = RenderTargetFlagBits::COLOR_TARGET, .name = "render target Resolve" });
+    TRACK_RHI_HANDLE(dstTargetResolve);
+
+    ICommandBuffer* cb = q->GetCommandBuffer({});
+    TRACK_RHI_HANDLE(cb);
+
+    EXPECT_NO_FATAL_FAILURE(cb->ImageBarrier({
+        .image = srcImageMS,
+        .srcAccess = AccessConsts::NONE,
+        .dstAccess = AccessConsts::COLOR_ATTACHMENT_OUTPUT_WRITE,
+        .srcLayout = ImageLayout::Undefined,
+        .dstLayout = ImageLayout::RenderTarget,
+    }));
+    EXPECT_NO_FATAL_FAILURE(cb->ImageBarrier({
+        .image = dstImageResolve,
+        .srcAccess = AccessConsts::NONE,
+        .dstAccess = AccessConsts::RESOLVE_WRITE,
+        .srcLayout = ImageLayout::Undefined,
+        .dstLayout = ImageLayout::RenderTarget,
+    }));
+
+    RenderPassBeginInfo rpBeginInfo{};
+    rpBeginInfo.colorAttachments = {
+        ColorAttachmentInfo{
+            .target = srcTargetMS,
+            .loadOp = AttachmentLoadOp::Clear,
+            .clearValue = { 0.64f, 0.25f, 0.86f, 1.0f },
+            .resolve = eastl::make_optional(AttachmentResolveInfo{ .target = dstTargetResolve }),
+        },
+    };
+    rpBeginInfo.renderArea = { .x = 0, .y = 0, .width = 64, .height = 64 };
+    TRACK_RHI_PARAMETER(rpBeginInfo);
+
+    EXPECT_NO_FATAL_FAILURE(cb->BeginRenderPass(rpBeginInfo));
+
+    EXPECT_NO_FATAL_FAILURE(cb->EndRenderPass());
+
+    cb->Complete();
+    mDevice->GetCommandQueues()[0]->SubmitCommandBuffer(cb);
+    mDevice->SubmitQueue({ .queue = mDevice->GetCommandQueues()[0] });
+    mDevice->WaitIdle();
+
+    mDevice->DestroyImmediately(srcTargetMS);
+    mDevice->DestroyImmediately(dstTargetResolve);
+    mDevice->DestroyImmediately(srcImageMS);
+    mDevice->DestroyImmediately(dstImageResolve);
 }
 
 

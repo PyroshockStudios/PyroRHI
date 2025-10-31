@@ -232,7 +232,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ComputeQueueToGraphicsQueueSyncUAV) {
     eastl::array waitSemaphores = {
         SemaphoreSubmitInfo{
             .semaphore = waitForComputeQueueSemaphore,
-            .stage = PipelineStageFlagBits::VERTEX_INPUT,
+            .stage = PipelineStageFlagBits::CLEAR,
         }
     };
 
@@ -333,4 +333,342 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, QueueSubmitAgainIsOkay) {
     mDevice->SubmitQueue(submitInfo);
     // Finally wait for queue to finish.
     submitInfo.queue->WaitIdle();
+}
+
+// !!Potential flaky test!!
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, SingleQueueDestroyDeferredSuccess) {
+    // repeat a couple times to make sure this wasn't a fluke!
+    static constexpr i32 NUM_TEST_REPEATS = 4;
+    for (i32 x__ = 0; x__ < NUM_TEST_REPEATS; ++x__) {
+        static constexpr i32 NUM_DESTROY_DEFERRED_CYCLES = 16;
+
+        ICommandQueue* cq = mDevice->GetCommandQueues()[0];
+        TRACK_RHI_HANDLE(cq);
+
+        eastl::vector<ICommandBuffer*> commands = {};
+
+        for (i32 i = 0; i < NUM_DESTROY_DEFERRED_CYCLES; ++i) {
+            commands.emplace_back(cq->GetCommandBuffer({ .name = "destroy deferred commands #" + eastl::to_string(i) }));
+        }
+
+        for (i32 i = 0; i < NUM_DESTROY_DEFERRED_CYCLES; ++i) {
+            ImageInfo srcImageInfo{};
+            srcImageInfo.dimensions = ImageDimensions::e3D;
+            srcImageInfo.size = { 16, 16, 4 };
+            srcImageInfo.format = Format::RGBA8Unorm;
+            srcImageInfo.usage = ImageUsageFlagBits::TRANSFER_SRC;
+            srcImageInfo.name = "src image in flight #" + eastl::to_string(i);
+            TRACK_RHI_PARAMETER(srcImageInfo);
+            Image srcImage = mDevice->CreateImage(srcImageInfo);
+            TRACK_RHI_HANDLE(srcImage);
+            ASSERT_TRUE(mDevice->IsValid(srcImage));
+
+            MemoryBlockInfo blockInfo = {};
+            blockInfo.size = 800000;
+            blockInfo.bufferUsage = BufferUsageFlagBits::TRANSFER_DST;
+            blockInfo.name = "Test Memory Block";
+            TRACK_RHI_PARAMETER(blockInfo);
+
+            MemoryBlock block = mDevice->CreateMemoryBlock(blockInfo);
+            TRACK_RHI_HANDLE(block);
+            ASSERT_TRUE(mDevice->IsValid(block));
+
+            BufferInfo bufferInfo{};
+            bufferInfo.memoryBlock = block;
+            bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
+            bufferInfo.name = "dst buffer in flight #" + eastl::to_string(i);
+
+            CopyImageToBufferInfo info{};
+            info.image = srcImage;
+            info.imageExtent = srcImageInfo.size;
+            bufferInfo.size = mDevice->ImageSizeRequirements(srcImage);
+            info.rowPitch = bufferInfo.size / srcImageInfo.size.height / srcImageInfo.size.depth;
+            info.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, info.rowPitch);
+
+            bufferInfo.size = srcImageInfo.size.height * srcImageInfo.size.depth * info.rowPitch;
+            TRACK_RHI_PARAMETER(bufferInfo);
+
+            Buffer dstBuffer = mDevice->CreateBuffer(bufferInfo);
+            TRACK_RHI_HANDLE(dstBuffer);
+            ASSERT_TRUE(mDevice->IsValid(dstBuffer));
+
+            ICommandBuffer* cb = commands[i];
+            TRACK_RHI_HANDLE(cb);
+
+            // It should still be legal to use these resources after destroying! They are still valid in this frame!
+            mDevice->DestroyDeferred(srcImage);
+            mDevice->DestroyDeferred(dstBuffer);
+            mDevice->DestroyDeferred(block);
+
+            eastl::string framename1 = "Record frame #" + eastl::to_string(i);
+            eastl::string framename = "Transition Resources " + eastl::to_string(i);
+            cb->BeginLabel({ .name = framename1 });
+            cb->BeginLabel({ .name = framename });
+            EXPECT_NO_FATAL_FAILURE(cb->ImageBarrier({
+                .image = srcImage,
+                .srcAccess = AccessConsts::NONE,
+                .dstAccess = AccessConsts::TRANSFER_READ,
+                .srcLayout = ImageLayout::Undefined,
+                .dstLayout = ImageLayout::TransferSrc,
+            }));
+            EXPECT_NO_FATAL_FAILURE(cb->BufferBarrier({
+                .buffer = dstBuffer,
+                .srcAccess = AccessConsts::NONE,
+                .dstAccess = AccessConsts::TRANSFER_WRITE,
+                .srcLayout = BufferLayout::Undefined,
+                .dstLayout = BufferLayout::TransferDst,
+            }));
+            cb->EndLabel();
+            info.buffer = dstBuffer;
+            TRACK_RHI_PARAMETER(info);
+            EXPECT_NO_FATAL_FAILURE(cb->CopyImageToBuffer(info));
+            cb->EndLabel();
+
+            cb->Complete();
+            cq->SubmitCommandBuffer(cb);
+            mDevice->SubmitQueue({ .queue = cq });
+
+            // Clean up anything ready for destruction
+            mDevice->CollectGarbage();
+        }
+        mDevice->WaitIdle();
+    }
+}
+
+// !!Potential flaky test!!
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueDestroyDeferredSuccess) {
+    // repeat a couple times to make sure this wasn't a fluke!
+    static constexpr i32 NUM_TEST_REPEATS = 4;
+    for (i32 x__ = 0; x__ < NUM_TEST_REPEATS; ++x__) {
+        static constexpr i32 NUM_DESTROY_DEFERRED_CYCLES = 16;
+
+        auto queues = mDevice->GetCommandQueues();
+        for (ICommandQueue* queue : queues) {
+            TRACK_RHI_HANDLE(queue);
+        }
+        ASSERT_FALSE(queues.empty());
+
+        ICommandQueue** pTransferQueue1 = eastl::find_if(queues.begin(), queues.end(),
+            [](ICommandQueue* q) { return q->Info().flags & CommandQueueFlagBits::TRANSFER; });
+        ASSERT_NE(pTransferQueue1, nullptr);
+        TRACK_RHI_HANDLE(*pTransferQueue1);
+        ICommandQueue** pTransferQueue2 = eastl::find_if(queues.begin(), queues.end(),
+            [pTransferQueue1](ICommandQueue* q) { return q->Info().flags & CommandQueueFlagBits::TRANSFER && q != *pTransferQueue1; });
+        if (pTransferQueue2 == queues.end()) {
+            GTEST_LOG_(INFO) << "Device does not support multiple queues, skipping test...";
+            return;
+        }
+
+
+        ICommandQueue* tq1 = *pTransferQueue1;
+        ICommandQueue* tq2 = *pTransferQueue2;
+
+        eastl::vector<ICommandBuffer*> commandsQueue1 = {};
+        eastl::vector<ICommandBuffer*> commandsQueue2 = {};
+
+        eastl::vector<Semaphore> signalT2Semaphores = {};
+
+        for (i32 i = 0; i < NUM_DESTROY_DEFERRED_CYCLES; ++i) {
+            commandsQueue1.emplace_back(tq1->GetCommandBuffer({ .name = "ddc transferQueue1 #" + eastl::to_string(i) }));
+            commandsQueue2.emplace_back(tq2->GetCommandBuffer({ .name = "ddc transferQueue1 #" + eastl::to_string(i) }));
+            signalT2Semaphores.emplace_back(mDevice->CreateSemaphore({ .name = "waitForT1Semaphore #" + eastl::to_string(i) }));
+        }
+
+        for (i32 i = 0; i < NUM_DESTROY_DEFERRED_CYCLES; ++i) {
+            ICommandBuffer* cb1 = commandsQueue1[i];
+            TRACK_RHI_HANDLE(cb1);
+            ICommandBuffer* cb2 = commandsQueue2[i];
+            TRACK_RHI_HANDLE(cb2);
+
+            BufferInfo bufferInfo{};
+            bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
+            bufferInfo.name = "dst buffer #" + eastl::to_string(i);
+            bufferInfo.size = 256;
+            TRACK_RHI_PARAMETER(bufferInfo);
+            Buffer dstBuffer = mDevice->CreateBuffer(bufferInfo);
+            TRACK_RHI_HANDLE(dstBuffer);
+            ASSERT_TRUE(mDevice->IsValid(dstBuffer));
+
+            // no matter when this is called, this should work
+            mDevice->DestroyDeferred(dstBuffer);
+            // Interesting functionality, this should be safe to call, since this should only trigger destruction once the second queue is finished executing,
+            // which is *after* the semaphore was used.
+            mDevice->DestroyDeferred(signalT2Semaphores[i]);
+            eastl::vector<u8> data(static_cast<usize>(bufferInfo.size));
+
+            SemaphoreSubmitInfo currFrameSemaphoreSubmit{
+                .semaphore = signalT2Semaphores[i],
+                .stage = PipelineStageFlagBits::BOTTOM_OF_PIPE | PipelineStageFlagBits::TRANSFER,
+            };
+            // Use buffer in Queue 1
+            {
+                eastl::string framename1 = "Record frame TQ1 #" + eastl::to_string(i);
+                eastl::string framename = "Transition Resources TQ1 #" + eastl::to_string(i);
+                eastl::string framenameAqc = "Release Resources TQ1 #" + eastl::to_string(i);
+                cb1->BeginLabel({ .name = framename1 });
+                cb1->BeginLabel({ .name = framename });
+                EXPECT_NO_FATAL_FAILURE(cb1->BufferBarrier({
+                    .buffer = dstBuffer,
+                    .srcAccess = AccessConsts::NONE,
+                    .dstAccess = AccessConsts::TRANSFER_WRITE,
+                    .srcLayout = BufferLayout::Undefined,
+                    .dstLayout = BufferLayout::TransferDst,
+                }));
+                cb1->EndLabel();
+
+                UpdateBufferInfo info{};
+                info.buffer = dstBuffer;
+                info.data = data.data();
+                TRACK_RHI_PARAMETER(info);
+
+                EXPECT_NO_FATAL_FAILURE(cb1->UpdateBuffer(info));
+
+                cb1->BeginLabel({ .name = framename });
+                EXPECT_NO_FATAL_FAILURE(cb1->TransferBufferOwnership(dstBuffer, tq2));
+                cb1->EndLabel();
+
+                cb1->EndLabel();
+
+                cb1->Complete();
+                tq1->SubmitCommandBuffer(cb1);
+                mDevice->SubmitQueue({ .queue = tq1, .signalSemaphores = { &currFrameSemaphoreSubmit, 1 } });
+            }
+
+            // Use buffer in Queue 2
+            {
+                eastl::string framename1 = "Record frame TQ2 #" + eastl::to_string(i);
+                eastl::string framenameAqc = "Acquire Resources TQ2 #" + eastl::to_string(i);
+                cb2->BeginLabel({ .name = framename1 });
+
+                cb2->BeginLabel({ .name = framenameAqc });
+                EXPECT_NO_FATAL_FAILURE(cb2->AcquireBufferOwnership(dstBuffer, tq1));
+                cb2->EndLabel();
+
+                UpdateBufferInfo info{};
+                info.buffer = dstBuffer;
+                info.data = data.data();
+                TRACK_RHI_PARAMETER(info);
+
+                EXPECT_NO_FATAL_FAILURE(cb2->UpdateBuffer(info));
+                cb2->EndLabel();
+
+                cb2->Complete();
+                tq2->SubmitCommandBuffer(cb2);
+                mDevice->SubmitQueue({ .queue = tq2, .waitSemaphores = { &currFrameSemaphoreSubmit, 1 } });
+            }
+            // Clean up anything ready for destruction
+            mDevice->CollectGarbage();
+        }
+        // finally, wait for everything to clean up
+        mDevice->WaitIdle();
+    }
+}
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueResourceTransferSuccess) {
+    auto queues = mDevice->GetCommandQueues();
+    for (ICommandQueue* queue : queues) {
+        TRACK_RHI_HANDLE(queue);
+    }
+    ASSERT_FALSE(queues.empty());
+
+    ICommandQueue** pTransferQueue1 = eastl::find_if(queues.begin(), queues.end(),
+        [](ICommandQueue* q) { return q->Info().flags & CommandQueueFlagBits::TRANSFER; });
+    ASSERT_NE(pTransferQueue1, nullptr);
+    TRACK_RHI_HANDLE(*pTransferQueue1);
+    ICommandQueue** pTransferQueue2 = eastl::find_if(queues.begin(), queues.end(),
+        [pTransferQueue1](ICommandQueue* q) { return q->Info().flags & CommandQueueFlagBits::TRANSFER && q != *pTransferQueue1; });
+    if (pTransferQueue2 == queues.end()) {
+        GTEST_LOG_(INFO) << "Device does not support multiple queues, skipping test...";
+        return;
+    }
+
+
+    ICommandQueue* tq1 = *pTransferQueue1;
+    ICommandQueue* tq2 = *pTransferQueue2;
+
+
+    ICommandBuffer* cb1 = tq1->GetCommandBuffer({ .name = "Cb Queue 1" });
+    TRACK_RHI_HANDLE(cb1);
+    ICommandBuffer* cb2 = tq2->GetCommandBuffer({ .name = "Cb Queue 2" });
+    TRACK_RHI_HANDLE(cb2);
+
+
+    ImageInfo srcImageInfo{};
+    srcImageInfo.dimensions = ImageDimensions::e3D;
+    srcImageInfo.size = { 16, 16, 4 };
+    srcImageInfo.format = Format::RGBA8Unorm;
+    srcImageInfo.usage = ImageUsageFlagBits::TRANSFER_SRC;
+    srcImageInfo.name = "src image";
+    TRACK_RHI_PARAMETER(srcImageInfo);
+    Image srcImage = mDevice->CreateImage(srcImageInfo);
+    TRACK_RHI_HANDLE(srcImage);
+    ASSERT_TRUE(mDevice->IsValid(srcImage));
+
+    BufferInfo bufferInfo{};
+    bufferInfo.initialLayout = BufferLayout::TransferDst;
+    bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
+    bufferInfo.name = "dst buffer";
+
+    CopyImageToBufferInfo copyInfo{};
+    copyInfo.image = srcImage;
+    copyInfo.imageExtent = srcImageInfo.size;
+    bufferInfo.size = mDevice->ImageSizeRequirements(srcImage);
+    copyInfo.rowPitch = bufferInfo.size / srcImageInfo.size.height / srcImageInfo.size.depth;
+    copyInfo.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, copyInfo.rowPitch);
+
+    bufferInfo.size = srcImageInfo.size.height * srcImageInfo.size.depth * copyInfo.rowPitch;
+    TRACK_RHI_PARAMETER(bufferInfo);
+
+    Buffer dstBuffer = mDevice->CreateBuffer(bufferInfo);
+    TRACK_RHI_HANDLE(dstBuffer);
+    ASSERT_TRUE(mDevice->IsValid(dstBuffer));
+
+    copyInfo.buffer = dstBuffer;
+    TRACK_RHI_PARAMETER(copyInfo);
+
+    // Use buffer & image in Queue 1
+    {
+        cb1->BeginLabel({ .name = "Queue 1 usage" });
+        cb1->BeginLabel({ .name = "Init" });
+        EXPECT_NO_FATAL_FAILURE(cb1->ImageBarrier({
+            .image = srcImage,
+            .srcAccess = AccessConsts::NONE,
+            .dstAccess = AccessConsts::TRANSFER_READ,
+            .srcLayout = ImageLayout::Undefined,
+            .dstLayout = ImageLayout::TransferSrc,
+        }));
+        cb1->EndLabel();
+
+        EXPECT_NO_FATAL_FAILURE(cb1->CopyImageToBuffer(copyInfo));
+
+        cb1->BeginLabel({ .name = "Ownership Transfer" });
+        EXPECT_NO_FATAL_FAILURE(cb1->TransferImageOwnership(srcImage, tq2));
+        EXPECT_NO_FATAL_FAILURE(cb1->TransferBufferOwnership(dstBuffer, tq2));
+        cb1->EndLabel();
+
+        cb1->EndLabel();
+
+        cb1->Complete();
+        tq1->SubmitCommandBuffer(cb1);
+        mDevice->SubmitQueue({ .queue = tq1 });
+    }
+    tq1->WaitIdle(); // wait
+    // Use buffer & image in Queue 2
+    {
+        cb2->BeginLabel({ .name = "Queue 2 usage" });
+        cb2->BeginLabel({ .name = "Ownership Transfer" });
+        EXPECT_NO_FATAL_FAILURE(cb2->AcquireImageOwnership(srcImage, tq1));
+        EXPECT_NO_FATAL_FAILURE(cb2->AcquireBufferOwnership(dstBuffer, tq1));
+        cb2->EndLabel();
+
+        EXPECT_NO_FATAL_FAILURE(cb2->CopyImageToBuffer(copyInfo));
+
+        cb2->EndLabel();
+
+        cb2->Complete();
+        tq2->SubmitCommandBuffer(cb2);
+        mDevice->SubmitQueue({ .queue = tq2 });
+    }
+    mDevice->WaitIdle();
+    mDevice->DestroyImmediately(srcImage);
+    mDevice->DestroyImmediately(dstBuffer);
 }

@@ -58,6 +58,17 @@ namespace PyroshockStudios {
             imageViewCreateInfo.image = imageSlot.vkImage;
             VkResult result = vkCreateImageView(mDevice->GetVkDevice(), &imageViewCreateInfo, mDevice->Context()->GetVkAllocator(), &mImageView);
             CheckVkResult(result);
+
+            if (vkSetDebugUtilsObjectNameEXT) {
+                const VkDebugUtilsObjectNameInfoEXT nameInfo = {
+                    .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+                    .pNext = nullptr,
+                    .objectType = VK_OBJECT_TYPE_IMAGE_VIEW,
+                    .objectHandle = eastl::bit_cast<uint64_t>(mImageView),
+                    .pObjectName = info.name.c_str(),
+                };
+                vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &nameInfo);
+            }
         }
         VulkanRenderTarget::~VulkanRenderTarget() {
             vkDestroyImageView(mDevice->GetVkDevice(), mImageView, mDevice->Context()->GetVkAllocator());

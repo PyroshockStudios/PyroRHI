@@ -396,7 +396,7 @@ namespace PyroshockStudios {
                     mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
                     gDx12Context->FlushDebugMessages();
                 }
-             }
+            }
         }
 
         void D3DCommandBuffer::ImageBarrier(const ImageMemoryBarrierInfo& info) {
@@ -482,109 +482,23 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) {
+            /*NOP*/
         }
 
         void D3DCommandBuffer::TransferImageOwnership(Image image, ICommandQueue* dstQueue) {
+            /*NOP*/
         }
 
         void D3DCommandBuffer::AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) {
+            /*NOP*/
         }
 
         void D3DCommandBuffer::AcquireImageOwnership(Image image, ICommandQueue* srcQueue) {
+            /*NOP*/
         }
 
         void D3DCommandBuffer::InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) {
             /*NOP*/
-        }
-
-        void D3DCommandBuffer::DestroyMemoryBlockDeferred(MemoryBlock memory) {
-            mDeferredDeleteOps.push_back({
-                .resource = eastl::bit_cast<void*>(memory),
-                .deleter = [](D3DDevice* device, void* resource) {
-                    auto x = eastl::bit_cast<MemoryBlock>(resource);
-                    device->Destroy(x);
-                },
-            });
-        }
-
-        void D3DCommandBuffer::DestroyBufferDeferred(Buffer buffer) {
-            mDeferredDeleteOps.push_back({
-                .resource = eastl::bit_cast<void*>(buffer),
-                .deleter = [](D3DDevice* device, void* resource) {
-                    auto x = eastl::bit_cast<Buffer>(resource);
-                    device->Destroy(x);
-                },
-            });
-        }
-
-        void D3DCommandBuffer::DestroyImageDeferred(Image image) {
-            mDeferredDeleteOps.push_back({
-                .resource = eastl::bit_cast<void*>(image),
-                .deleter = [](D3DDevice* device, void* resource) {
-                    auto x = eastl::bit_cast<Image>(resource);
-                    device->Destroy(x);
-                },
-            });
-        }
-
-        void D3DCommandBuffer::DestroyShaderResourceDeferred(ShaderResourceId srv) {
-            mDeferredDeleteOps.push_back({
-                .resource = eastl::bit_cast<void*>(srv),
-                .deleter = [](D3DDevice* device, void* resource) {
-                    auto x = eastl::bit_cast<ShaderResourceId>(resource);
-                    device->Destroy(x);
-                },
-            });
-        }
-
-        void D3DCommandBuffer::DestroyUnorderedAccessDeferred(UnorderedAccessId uav) {
-            mDeferredDeleteOps.push_back({
-                .resource = eastl::bit_cast<void*>(uav),
-                .deleter = [](D3DDevice* device, void* resource) {
-                    auto x = eastl::bit_cast<UnorderedAccessId>(resource);
-                    device->Destroy(x);
-                },
-            });
-        }
-
-        void D3DCommandBuffer::DestroySamplerDeferred(SamplerId sampler) {
-            mDeferredDeleteOps.push_back({
-                .resource = eastl::bit_cast<void*>(sampler),
-                .deleter = [](D3DDevice* device, void* resource) {
-                    auto x = eastl::bit_cast<SamplerId>(resource);
-                    device->Destroy(x);
-                },
-            });
-        }
-
-        void D3DCommandBuffer::DestroyRenderTargetDeferred(RenderTarget renderTarget) {
-            mDeferredDeleteOps.push_back({
-                .resource = renderTarget,
-                .deleter = [](D3DDevice* device, void* resource) {
-                    auto x = reinterpret_cast<RenderTarget>(resource);
-                    device->Destroy(x);
-                },
-            });
-        }
-
-        void D3DCommandBuffer::DestroyRasterPipelineDeferred(RasterPipeline pipeline) {
-            mDeferredDeleteOps.push_back({
-                .resource = pipeline,
-                .deleter = [](D3DDevice* device, void* resource) {
-                    auto x = reinterpret_cast<RasterPipeline>(resource);
-                    device->Destroy(x);
-                },
-            });
-        }
-
-        void D3DCommandBuffer::DestroyComputePipelineDeferred(ComputePipeline pipeline) {
-            mDeferredDeleteOps.push_back({
-                .resource = pipeline,
-                .deleter = [](D3DDevice* device, void* resource) {
-                    auto x = reinterpret_cast<ComputePipeline>(resource);
-                    device->Destroy(x);
-                },
-            });
         }
 
         void D3DCommandBuffer::WriteTimestamp(const WriteTimestampInfo& info) {
@@ -668,6 +582,7 @@ namespace PyroshockStudios {
                         .dst = dstImageData.resource.Get(),
                         .dstSubresource = dstRt->GetSubresource(),
                         .format = ToDXGIFormat(dstImageData.info.format),
+                        .extent = { dstImageData.info.size.width, dstImageData.info.size.height },
                     });
                 }
             }
@@ -714,6 +629,15 @@ namespace PyroshockStudios {
 
         void D3DCommandBuffer::EndRenderPass() {
             for (const auto& resolveInfo : mRenderPassResolves) {
+                // discard first for resource optimisation
+                D3D12_RECT resolveArea = ToD3D12Rect(Rect2D::Cut(resolveInfo.extent));
+                D3D12_DISCARD_REGION region;
+                region.FirstSubresource = resolveInfo.dstSubresource;
+                region.NumSubresources = 1;
+                region.NumRects = 1;
+                region.pRects = &resolveArea;
+                mCommandList->DiscardResource(resolveInfo.dst, &region);
+
                 // DX12 uniquely has a resolve state, just opaquely transition them and be done with it
                 D3D12_RESOURCE_BARRIER enterBarriers[2] = {
                     CD3DX12_RESOURCE_BARRIER::Transition(

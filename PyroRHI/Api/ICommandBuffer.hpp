@@ -794,69 +794,6 @@ namespace PyroshockStudios {
             virtual void AcquireImageOwnership(Image image, ICommandQueue* srcQueue) = 0;
 
             // ---------------------------------------------------------------------
-            // Deferred Resource Destruction
-            // ---------------------------------------------------------------------
-
-            /**
-             * @brief Schedules a memory block handle to be destroyed after GPU execution.
-             * @note Make sure all resources making use of this memory handle will have been destroyed prior to this!
-             */
-            virtual void DestroyMemoryBlockDeferred(MemoryBlock memory) = 0;
-
-            /**
-             * @brief Schedules a buffer to be destroyed after GPU execution.
-             */
-            virtual void DestroyBufferDeferred(Buffer buffer) = 0;
-
-            /**
-             * @brief Schedules an image to be destroyed after GPU execution.
-             */
-            virtual void DestroyImageDeferred(Image image) = 0;
-
-            /**
-             * @brief Schedules a shader resource view (SRV) to be destroyed after GPU execution.
-             */
-            virtual void DestroyShaderResourceDeferred(ShaderResourceId srv) = 0;
-
-            /**
-             * @brief Schedules an unordered access view (UAV) to be destroyed after GPU execution.
-             */
-            virtual void DestroyUnorderedAccessDeferred(UnorderedAccessId uav) = 0;
-
-            /**
-             * @brief Schedules a sampler to be destroyed after GPU execution.
-             */
-            virtual void DestroySamplerDeferred(SamplerId sampler) = 0;
-
-            /**
-             * @brief Schedules a render target to be destroyed after GPU execution.
-             */
-            virtual void DestroyRenderTargetDeferred(RenderTarget renderTarget) = 0;
-
-            /**
-             * @brief Schedules a raster pipeline to be destroyed after GPU execution.
-             */
-            virtual void DestroyRasterPipelineDeferred(RasterPipeline pipeline) = 0;
-
-            /**
-             * @brief Schedules a compute pipeline to be destroyed after GPU execution.
-             */
-            virtual void DestroyComputePipelineDeferred(ComputePipeline pipeline) = 0;
-
-            /**
-             * @brief Overloads for DestroyDeferred to simplify deferred destruction calls.
-             */
-            PYRO_FORCEINLINE void DestroyDeferred(MemoryBlock memory) { DestroyMemoryBlockDeferred(memory); }
-            PYRO_FORCEINLINE void DestroyDeferred(Buffer buffer) { DestroyBufferDeferred(buffer); }
-            PYRO_FORCEINLINE void DestroyDeferred(Image image) { DestroyImageDeferred(image); }
-            PYRO_FORCEINLINE void DestroyDeferred(ShaderResourceId srv) { DestroyShaderResourceDeferred(srv); }
-            PYRO_FORCEINLINE void DestroyDeferred(UnorderedAccessId uav) { DestroyUnorderedAccessDeferred(uav); }
-            PYRO_FORCEINLINE void DestroyDeferred(SamplerId sampler) { DestroySamplerDeferred(sampler); }
-            PYRO_FORCEINLINE void DestroyDeferred(RenderTarget renderTarget) { DestroyRenderTargetDeferred(renderTarget); }
-            PYRO_FORCEINLINE void DestroyDeferred(RasterPipeline pipeline) { DestroyRasterPipelineDeferred(pipeline); }
-            PYRO_FORCEINLINE void DestroyDeferred(ComputePipeline pipeline) { DestroyComputePipelineDeferred(pipeline); }
-
-            // ---------------------------------------------------------------------
             // Profiling & Debugging
             // ---------------------------------------------------------------------
 

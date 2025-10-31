@@ -21,12 +21,13 @@
 // SOFTWARE.
 
 #pragma once
-#include <RHIDX12/Core.hpp>
-
-#include <EASTL/hash_set.h>
 #include <PyroRHI/Api/ICommandBuffer.hpp>
 #include <RHIDX12/Api/Device.hpp>
 #include <RHIDX12/Api/GPUResource.hpp>
+#include <RHIDX12/Core.hpp>
+
+#include <EASTL/hash_set.h>
+#include <EASTL/hash_map.h>
 namespace PyroshockStudios {
     namespace RHIDX12 {
         class D3DDevice;
@@ -52,15 +53,6 @@ namespace PyroshockStudios {
             void AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) override;
             void AcquireImageOwnership(Image image, ICommandQueue* srcQueue) override;
             void InvalidateTimestampQuery(const InvalidateTimestampQueryInfo& info) override;
-            void DestroyMemoryBlockDeferred(MemoryBlock memory) override;
-            void DestroyBufferDeferred(Buffer buffer) override;
-            void DestroyImageDeferred(Image image) override;
-            void DestroyShaderResourceDeferred(ShaderResourceId srv) override;
-            void DestroyUnorderedAccessDeferred(UnorderedAccessId uav) override;
-            void DestroySamplerDeferred(SamplerId sampler) override;
-            void DestroyRenderTargetDeferred(RenderTarget renderTarget) override;
-            void DestroyRasterPipelineDeferred(RasterPipeline pipeline) override;
-            void DestroyComputePipelineDeferred(ComputePipeline pipeline) override;
             void WriteTimestamp(const WriteTimestampInfo& info) override;
             void BeginLabel(const CommandLabelInfo& info) override;
             void EndLabel() override;
@@ -117,6 +109,7 @@ namespace PyroshockStudios {
                 ID3D12Resource* dst;
                 UINT dstSubresource;
                 DXGI_FORMAT format;
+                Extent2D extent;
             };
             eastl::fixed_vector<ResolveRenderTargetInfo, 8> mRenderPassResolves = {};
             eastl::vector<D3D12_VERTEX_BUFFER_VIEW> mPendingVertexBufferBinds = {};

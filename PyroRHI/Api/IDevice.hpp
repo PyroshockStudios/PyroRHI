@@ -515,75 +515,129 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
 
             /**
-             * @brief Immediately destroys the memory block, and sets the handle to NULL
+             * @brief Destroys the memory block.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              * @note Make sure all resources making use of this memory handle have been destroyed prior to this!
              */
-            virtual void DestroyMemoryBlock(MemoryBlock& memory) = 0;
+            virtual void DestroyMemoryBlock(MemoryBlock& memory, bool bDefer = false) = 0;
             /**
-             * @brief Immediately destroys the buffer, and sets the handle to NULL
+             * @brief Destroys the buffer.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroyBuffer(Buffer& buffer) = 0;
+            virtual void DestroyBuffer(Buffer& buffer, bool bDefer = false) = 0;
             /**
-             * @brief Immediately destroys the image, and sets the handle to NULL
+             * @brief Destroys the image.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroyImage(Image& image) = 0;
+            virtual void DestroyImage(Image& image, bool bDefer = false) = 0;
             /**
-             * @brief Immediately destroys the shader resource view, and sets the handle to NULL
+             * @brief Destroys the shader resource view.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroyShaderResource(ShaderResourceId& srv) = 0;
+            virtual void DestroyShaderResource(ShaderResourceId& srv, bool bDefer = false) = 0;
             /**
-             * @brief Immediately destroys the unordered access view, and sets the handle to NULL
+             * @brief Destroys the unordered access view.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroyUnorderedAccess(UnorderedAccessId& uav) = 0;
+            virtual void DestroyUnorderedAccess(UnorderedAccessId& uav, bool bDefer = false) = 0;
             /**
-             * @brief Immediately destroys the sampler, and sets the handle to NULL
+             * @brief Destroys the sampler object.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroySampler(SamplerId& sampler) = 0;
+            virtual void DestroySampler(SamplerId& sampler, bool bDefer = false) = 0;
 
             /**
-             * @brief Immediately destroys the render target, and sets the handle to NULL
+             * @brief Destroys the render target.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroyRenderTarget(RenderTarget& renderTarget) = 0;
+            virtual void DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer = false) = 0;
             /**
-             * @brief Immediately destroys the raster pipeline, and sets the handle to NULL
+             * @brief Destroys the pipeline.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroyRasterPipeline(RasterPipeline& pipeline) = 0;
+            virtual void DestroyRasterPipeline(RasterPipeline& pipeline, bool bDefer = false) = 0;
             /**
-             * @brief Immediately destroys the compute pipeline, and sets the handle to NULL
+             * @brief Destroys the pipeline.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroyComputePipeline(ComputePipeline& pipeline) = 0;
+            virtual void DestroyComputePipeline(ComputePipeline& pipeline, bool bDefer = false) = 0;
             /**
-             * @brief Immediately destroys the swap chain, and sets the handle to NULL
+             * @brief Destroys the swap chain.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroySwapChain(ISwapChain*& swapChain) = 0;
+            virtual void DestroySwapChain(ISwapChain*& swapChain, bool bDefer = false) = 0;
             /**
-             * @brief Immediately destroys the semaphore, and sets the handle to NULL
+             * @brief Destroys the semaphore.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroySemaphore(Semaphore& semaphore) = 0;
+            virtual void DestroySemaphore(Semaphore& semaphore, bool bDefer = false) = 0;
             /**
-             * @brief Immediately destroys the fence, and sets the handle to NULL
+             * @brief Destroys the fence.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroyFence(IFence*& fence) = 0;
+            virtual void DestroyFence(IFence*& fence, bool bDefer = false) = 0;
             /**
-             * @brief Immediately destroys the query pool, and sets the handle to NULL
+             * @brief Destroys the query pool.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
-            virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) = 0;
+            virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer = false) = 0;
 
             // Convenience overloads
-            PYRO_FORCEINLINE void Destroy(MemoryBlock& memory) { DestroyMemoryBlock(memory); }
-            PYRO_FORCEINLINE void Destroy(Buffer& buffer) { DestroyBuffer(buffer); }
-            PYRO_FORCEINLINE void Destroy(Image& image) { DestroyImage(image); }
-            PYRO_FORCEINLINE void Destroy(ShaderResourceId& srv) { DestroyShaderResource(srv); }
-            PYRO_FORCEINLINE void Destroy(UnorderedAccessId& uav) { DestroyUnorderedAccess(uav); }
-            PYRO_FORCEINLINE void Destroy(SamplerId& sampler) { DestroySampler(sampler); }
 
-            PYRO_FORCEINLINE void Destroy(RasterPipeline& pipeline) { DestroyRasterPipeline(pipeline); }
-            PYRO_FORCEINLINE void Destroy(ComputePipeline& pipeline) { DestroyComputePipeline(pipeline); }
-            PYRO_FORCEINLINE void Destroy(ISwapChain*& swapChain) { DestroySwapChain(swapChain); }
-            PYRO_FORCEINLINE void Destroy(RenderTarget& renderTarget) { DestroyRenderTarget(renderTarget); }
-            PYRO_FORCEINLINE void Destroy(Semaphore& semaphore) { DestroySemaphore(semaphore); }
-            PYRO_FORCEINLINE void Destroy(IFence*& fence) { DestroyFence(fence); }
-            PYRO_FORCEINLINE void Destroy(ITimestampQueryPool*& queryPool) { DestroyTimestampQueryPool(queryPool); }
+            PYRO_FORCEINLINE void Destroy(MemoryBlock& memory, bool bDefer = false) { DestroyMemoryBlock(memory, bDefer); }
+            PYRO_FORCEINLINE void Destroy(Buffer& buffer, bool bDefer = false) { DestroyBuffer(buffer, bDefer); }
+            PYRO_FORCEINLINE void Destroy(Image& image, bool bDefer = false) { DestroyImage(image, bDefer); }
+            PYRO_FORCEINLINE void Destroy(ShaderResourceId& srv, bool bDefer = false) { DestroyShaderResource(srv, bDefer); }
+            PYRO_FORCEINLINE void Destroy(UnorderedAccessId& uav, bool bDefer = false) { DestroyUnorderedAccess(uav, bDefer); }
+            PYRO_FORCEINLINE void Destroy(SamplerId& sampler, bool bDefer = false) { DestroySampler(sampler, bDefer); }
+            PYRO_FORCEINLINE void Destroy(RasterPipeline& pipeline, bool bDefer = false) { DestroyRasterPipeline(pipeline, bDefer); }
+            PYRO_FORCEINLINE void Destroy(ComputePipeline& pipeline, bool bDefer = false) { DestroyComputePipeline(pipeline, bDefer); }
+            PYRO_FORCEINLINE void Destroy(ISwapChain*& swapChain, bool bDefer = false) { DestroySwapChain(swapChain, bDefer); }
+            PYRO_FORCEINLINE void Destroy(RenderTarget& renderTarget, bool bDefer = false) { DestroyRenderTarget(renderTarget, bDefer); }
+            PYRO_FORCEINLINE void Destroy(Semaphore& semaphore, bool bDefer = false) { DestroySemaphore(semaphore, bDefer); }
+            PYRO_FORCEINLINE void Destroy(IFence*& fence, bool bDefer = false) { DestroyFence(fence, bDefer); }
+            PYRO_FORCEINLINE void Destroy(ITimestampQueryPool*& queryPool, bool bDefer = false) { DestroyTimestampQueryPool(queryPool, bDefer); }
+
+            PYRO_FORCEINLINE void DestroyImmediately(MemoryBlock memory) { DestroyMemoryBlock(memory, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(Buffer buffer) { DestroyBuffer(buffer, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(Image image) { DestroyImage(image, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(ShaderResourceId srv) { DestroyShaderResource(srv, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(UnorderedAccessId uav) { DestroyUnorderedAccess(uav, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(SamplerId sampler) { DestroySampler(sampler, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(RasterPipeline pipeline) { DestroyRasterPipeline(pipeline, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(ComputePipeline pipeline) { DestroyComputePipeline(pipeline, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(ISwapChain* swapChain) { DestroySwapChain(swapChain, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(RenderTarget renderTarget) { DestroyRenderTarget(renderTarget, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(Semaphore semaphore) { DestroySemaphore(semaphore, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(IFence* fence) { DestroyFence(fence, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(ITimestampQueryPool* queryPool) { DestroyTimestampQueryPool(queryPool, false); }
+
+            PYRO_FORCEINLINE void DestroyDeferred(MemoryBlock memory) { DestroyMemoryBlock(memory, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(Buffer buffer) { DestroyBuffer(buffer, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(Image image) { DestroyImage(image, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(ShaderResourceId srv) { DestroyShaderResource(srv, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(UnorderedAccessId uav) { DestroyUnorderedAccess(uav, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(SamplerId sampler) { DestroySampler(sampler, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(RasterPipeline pipeline) { DestroyRasterPipeline(pipeline, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(ComputePipeline pipeline) { DestroyComputePipeline(pipeline, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(ISwapChain* swapChain) { DestroySwapChain(swapChain, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(RenderTarget renderTarget) { DestroyRenderTarget(renderTarget, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(Semaphore semaphore) { DestroySemaphore(semaphore, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(IFence* fence) { DestroyFence(fence, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(ITimestampQueryPool* queryPool) { DestroyTimestampQueryPool(queryPool, true); }
 
             // ---------------------------------------------------------------------
             // Support Queries
@@ -608,6 +662,51 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
             // Submission & Synchronization
             // ---------------------------------------------------------------------
+
+            /**
+             * @brief Destroys all pending objects for deletion. This is required to be called after a deferred destruction call, otherwise resources will be accumulated.
+             * This should ONLY be called AFTER all queues using the resources have been submitted, or the device may assume the resource was never used, and prematurely destroy them.
+             * The following is an example of CORRECT usage: 
+             * 
+             * ======================================================
+             * 
+             * -- Frame 1
+             * 
+             *   - Destroy resources A
+             * 
+             *   - Use resources A
+             * 
+             *   - Submit Queue 1
+             * 
+             *   - Use resources A
+             * 
+             *   - Submit Queue 2
+             * 
+             *   - Collect Garbage
+             * 
+             * -- Frame 2
+             * 
+             *   - Destroy resources B
+             * 
+             *   - Use resources B
+             * 
+             *   - Collect Garbage
+             * 
+             *   - Submit Queue 1
+             * 
+             *   - Destroy resources C
+             * 
+             *   - Use resources C
+             * 
+             *   - Submit Queue 2
+             * 
+             *   - Collect Garbage
+             * 
+             * ======================================================
+             * 
+             * @note this is automatically called upon device destruction.
+             */
+            virtual void CollectGarbage() = 0;
 
             /**
              * @brief Blocks until the device has finished all queued work.

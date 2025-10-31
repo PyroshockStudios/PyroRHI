@@ -81,6 +81,8 @@ namespace PyroshockStudios {
         };
         static_assert(sizeof(CommandSignatureDesc) == sizeof(u64), "Cache Command Signature description is bad");
 
+        using QueueFenceSnapshot = eastl::vector<u64>;
+
         class D3DDevice : public IDevice, DeleteCopy, DeleteMove {
         public:
             D3DDevice(ComPtr<ID3D12Device>&& device, ComPtr<IDXGIFactory4>&& factory, ComPtr<IDXGIAdapter1>&& adapter);
@@ -123,19 +125,19 @@ namespace PyroshockStudios {
             IFence* CreateFence(const FenceInfo& info) override;
             ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
 
-            void DestroyMemoryBlock(MemoryBlock& memory) override;
-            void DestroyBuffer(Buffer& buffer) override;
-            void DestroyImage(Image& image) override;
-            void DestroyShaderResource(ShaderResourceId& srv) override;
-            void DestroyUnorderedAccess(UnorderedAccessId& uav) override;
-            void DestroySampler(SamplerId& sampler) override;
-            void DestroyRenderTarget(RenderTarget& renderTarget) override;
-            void DestroyRasterPipeline(RasterPipeline& pipeline) override;
-            void DestroyComputePipeline(ComputePipeline& pipeline) override;
-            void DestroySwapChain(ISwapChain*& swapChain) override;
-            void DestroySemaphore(Semaphore& semaphore) override;
-            void DestroyFence(IFence*& fence) override;
-            void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) override;
+            virtual void DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) override;
+            virtual void DestroyBuffer(Buffer& buffer, bool bDefer) override;
+            virtual void DestroyImage(Image& image, bool bDefer) override;
+            virtual void DestroyShaderResource(ShaderResourceId& srv, bool bDefer) override;
+            virtual void DestroyUnorderedAccess(UnorderedAccessId& uav, bool bDefer) override;
+            virtual void DestroySampler(SamplerId& sampler, bool bDefer) override;
+            virtual void DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer) override;
+            virtual void DestroyRasterPipeline(RasterPipeline& pipeline, bool bDefer) override;
+            virtual void DestroyComputePipeline(ComputePipeline& pipeline, bool bDefer) override;
+            virtual void DestroySwapChain(ISwapChain*& swapChain, bool bDefer) override;
+            virtual void DestroySemaphore(Semaphore& semaphore, bool bDefer) override;
+            virtual void DestroyFence(IFence*& fence, bool bDefer) override;
+            virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer) override;
 
             virtual eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
             virtual eastl::span<ICommandQueue*> GetCommandQueues() override;
@@ -147,6 +149,8 @@ namespace PyroshockStudios {
             const DevicePropertiesInfo& Properties() const override;
             const DeviceFeaturesInfo& Features() const override;
             DeviceStatusInfo Status() const override;
+
+            void CollectGarbage() override;
 
             void ImageAddIfNecessaryBlitSupport(D3DImageResourceData& data);
             const DescriptorTableInfo& GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc);
@@ -177,10 +181,11 @@ namespace PyroshockStudios {
             }
 
         private:
+            QueueFenceSnapshot SnapshotQueueFenceValues() const;
+
             void WriteAllSRVDescriptorHeapCopies(ID3D12Resource* pResource,
                 const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GPUResourceId handle);
             void DestroyAllUAVDescriptorHeapCopies(UnorderedAccessId handle);
-            void CollectGarbage();
 
         private:
             void CheckFeatureSupport();
@@ -188,7 +193,6 @@ namespace PyroshockStudios {
             void InitializeResourcePool();
             void CreateDescriptorHeaps();
             void CreateGlobalRootSignature();
-            void CreateDeleterFence();
             void CreateBlitImageRootSignature();
             void CreateDefaultSamplerHeaps();
             void CreateCommandSignatures();
@@ -223,11 +227,12 @@ namespace PyroshockStudios {
             eastl::unique_ptr<GPUResourcePool> mResourcePool = {};
 
             eastl::vector<eastl::pair<UINT64 /*frames unused*/, LinearUploadBuffer*>> mAvailableLinearUploadBuffers = {};
-            eastl::vector<eastl::pair<UINT64 /*fence value*/, LinearUploadBuffer*>> mOccupiedLinearUploadBuffers = {};
 
-            ComPtr<ID3D12Fence> mDeferredDeleterFence = {};
-            UINT64 mNextDeferredDeleterValue = 1;
-            eastl::vector<eastl::pair<UINT64 /*fence value*/, ZombieDeleter>> mDeferredDeletes;
+
+            eastl::vector<eastl::pair<UINT64 /* cpu fence value @*/, D3DCommandQueue*>> mQueuePendingSubmits;
+
+            eastl::vector<eastl::pair<QueueFenceSnapshot, ZombieDeleter>>
+                mDeferredDeletes;
 
             DeviceInfo mInfo{};
             DevicePropertiesInfo mProperties{};
