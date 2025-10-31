@@ -38,6 +38,7 @@
 #include <wrl.h>
 #undef CreateSemaphore
 #undef CreateEvent
+#undef OPAQUE
 using Microsoft::WRL::ComPtr;
 
 typedef void(WINAPI* PFN_BeginEventOnCommandList)(ID3D12GraphicsCommandList* commandList, UINT64 color, _In_ PCSTR formatString);

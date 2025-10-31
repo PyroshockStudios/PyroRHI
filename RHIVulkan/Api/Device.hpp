@@ -53,7 +53,7 @@ namespace PyroshockStudios {
 
         struct VulkanDeviceCapabilities {
             bool bVK_EXT_line_rasterization = false;
-            bool bVK_EXT_buffer_device_address = false;
+            bool bVK_KHR_buffer_device_address = false;
             bool bVK_KHR_deferred_host_operations = false;
             bool bVK_KHR_acceleration_structures = false;
             bool bVK_KHR_ray_tracing_pipeline = false;

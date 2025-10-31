@@ -530,8 +530,8 @@ TEST(RHICommonToStringTests, DevicePropertiesInfoToString) {
     info.minUniformBufferOffsetAlignment = 64;
     info.minStorageBufferOffsetAlignment = 32;
     info.graphicsQueueCount = 1;
-    info.computeQueueCount = 1;
-    info.transferQueueCount = 1;
+    info.computeQueueCount = 3;
+    info.transferQueueCount = 2;
     info.bHasDedicatedComputeQueue = true;
     info.bHasDedicatedTransferQueue = false;
     info.maxTextureWidth = 16384;
@@ -552,8 +552,8 @@ TEST(RHICommonToStringTests, DevicePropertiesInfoToString) {
         "  BufferImageCopyOffsetAlignment: 16\n"
         "  MinUniformBufferOffsetAlignment: 64\n"
         "  MinStorageBufferOffsetAlignment: 32\n"
-        "  QueueCounts: G=1 C=1 T=1\n"
-        "  DedicatedQueues: Compute=1 Transfer=0\n"
+        "  QueueCounts: G=1 C=3 T=2\n"
+        "  DedicatedQueues: Compute=TRUE, Transfer=FALSE\n"
         "  TextureLimits: 16384x16384x2048\n"
         "  MaxTextureArrayLayers: 2048\n"
         "  MaxSamplerAnisotropy: 16\n"
@@ -1108,7 +1108,7 @@ TEST(RHICommonToStringTests, DrawInfoToString) {
 
 TEST(RHICommonToStringTests, DrawIndexedInfoToString) {
     DrawIndexedInfo info = { 1000, 1, 0, 0, 0 };
-    eastl::string expected = "DrawIndexedInfo { indexCount: 1000, instanceCount: 1, firstIndex: 0, vertexByteOffset: 0, firstInstance: 0 }";
+    eastl::string expected = "DrawIndexedInfo { indexCount: 1000, instanceCount: 1, firstIndex: 0, vertexOffset: 0, firstInstance: 0 }";
     EXPECT_STREQ(RemoveIndentation(info.ToString(0)).c_str(), RemoveIndentation(expected).c_str());
 }
 

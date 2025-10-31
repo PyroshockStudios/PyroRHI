@@ -673,8 +673,8 @@ namespace PyroshockStudios {
             s += indent + "  QueueCounts: G=" + eastl::to_string(graphicsQueueCount) +
                  " C=" + eastl::to_string(computeQueueCount) +
                  " T=" + eastl::to_string(transferQueueCount) + "\n";
-            s += indent + "  DedicatedQueues: Compute=" + eastl::to_string(bHasDedicatedComputeQueue) +
-                 " Transfer=" + eastl::to_string(bHasDedicatedTransferQueue) + "\n";
+            s += indent + "  DedicatedQueues: Compute=" + (bHasDedicatedComputeQueue ? "TRUE" : "FALSE") +
+                 ", Transfer=" + (bHasDedicatedTransferQueue ? "TRUE" : "FALSE") + "\n";
             s += indent + "  TextureLimits: " + eastl::to_string(maxTextureWidth) + "x" +
                  eastl::to_string(maxTextureHeight) + "x" + eastl::to_string(maxTextureDepth) + "\n";
             s += indent + "  MaxTextureArrayLayers: " + eastl::to_string(maxTextureArrayLayers) + "\n";

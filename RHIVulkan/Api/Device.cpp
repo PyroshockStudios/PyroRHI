@@ -155,15 +155,15 @@ namespace PyroshockStudios {
                     Logger::Info(gVulkanSink, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME " with 'smoothLines' is supported on this device.");
                     mVulkanCaps.bVK_EXT_line_rasterization = true; });
 
-                tryEnableExtension(extension, VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, physicalDeviceBufferDeviceAddressFeatures, [&]() { return features2.features.shaderInt64 == VK_TRUE && physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress == VK_TRUE; }, [&]() {
-                    Logger::Info(gVulkanSink, VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME " is supported on this device.");
+                tryEnableExtension(extension, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, physicalDeviceBufferDeviceAddressFeatures, [&]() { return physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress == VK_TRUE; }, [&]() {
+                    Logger::Info(gVulkanSink, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME " is supported on this device.");
 
                     physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
                     physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressCaptureReplay = VK_FALSE;
                     physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressMultiDevice = VK_FALSE;
 
                     mFeatures.bBufferDeviceAddress = true;
-                    mVulkanCaps.bVK_EXT_buffer_device_address = true; });
+                    mVulkanCaps.bVK_KHR_buffer_device_address = true; });
 
                 tryEnableExtension(extension, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, physicalDeviceAccelerationStructureFeatures, [&]() { return physicalDeviceAccelerationStructureFeatures.accelerationStructure == VK_TRUE; }, [&]() {
                     Logger::Info(gVulkanSink, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME " is supported on this device.");
@@ -380,7 +380,7 @@ namespace PyroshockStudios {
                 .vulkanApiVersion = VK_API_VERSION_1_3,
                 .pTypeExternalMemoryHandleTypes = {},
             };
-            if (mVulkanCaps.bVK_EXT_buffer_device_address) {
+            if (mVulkanCaps.bVK_KHR_buffer_device_address) {
                 vmaAllocatorCreateInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
             }
 
@@ -505,7 +505,7 @@ namespace PyroshockStudios {
             // Zilver - Since vulkan changes certain requirements for memory alignment,
             // I think it still makes sense to add the flags, despite the drivers usually ignoring it for the most part.
             VkBufferUsageFlags VK_BUFFER_USAGE_FLAGS = {};
-            if (info.usage & BufferUsageFlagBits::BUFFER_DEVICE_ADDRESS && mVulkanCaps.bVK_EXT_buffer_device_address) {
+            if (info.usage & BufferUsageFlagBits::BUFFER_DEVICE_ADDRESS && mVulkanCaps.bVK_KHR_buffer_device_address) {
                 VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
             }
             if (info.usage & BufferUsageFlagBits::TRANSFER_SRC) {
@@ -647,7 +647,7 @@ namespace PyroshockStudios {
                 .pNext = nullptr,
                 .buffer = ret.vkBuffer,
             };
-            if ((VK_BUFFER_USAGE_FLAGS & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) && mVulkanCaps.bVK_EXT_buffer_device_address) {
+            if ((VK_BUFFER_USAGE_FLAGS & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) && mVulkanCaps.bVK_KHR_buffer_device_address) {
                 ret.deviceAddress = vkGetBufferDeviceAddress(mDevice, &vkBufferDeviceAddressInfo);
             }
             ret.hostAddress = hostAccessible ? vmaAllocationInfo.pMappedData : nullptr;

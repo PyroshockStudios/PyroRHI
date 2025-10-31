@@ -126,6 +126,16 @@ namespace PyroshockStudios {
             return eastl::bit_cast<D3DSemaphore*>(semaphore)->Info();
         }
 
+        const BlasInfo& D3DDevice::GetBlasInfo(BlasId blas) const {
+            static BlasInfo i;
+            return i;
+        }
+
+        const TlasInfo& D3DDevice::GetTlasInfo(TlasId tlas) const {
+            static TlasInfo i;
+            return i;
+        }
+
         DeviceAddress D3DDevice::BufferDeviceAddress(Buffer buffer) const {
             ASSERT(IsValid(buffer));
             return DeviceAddress();
@@ -133,6 +143,9 @@ namespace PyroshockStudios {
         u8* D3DDevice::BufferHostAddress(Buffer buffer) const {
             ASSERT(IsValid(buffer));
             return mResourcePool->Get(buffer).mappedMemory;
+        }
+        BlasAddress D3DDevice::BlasInstanceAddress(BlasId blas) const {
+            return BlasAddress();
         }
         DeviceSize D3DDevice::ImageSizeRequirements(Image image) const {
             ASSERT(IsValid(image));
@@ -152,6 +165,12 @@ namespace PyroshockStudios {
                 &footprint, &numRows, &rowSizesInBytes, &requiredSize);
             gDx12Context->FlushDebugMessages();
             return footprint.Footprint.RowPitch;
+        }
+        AccelerationStructureBuildSizesInfo D3DDevice::BlasSizeRequirements(const BlasBuildInfo& info) const {
+            return AccelerationStructureBuildSizesInfo();
+        }
+        AccelerationStructureBuildSizesInfo D3DDevice::TlasSizeRequirements(const TlasBuildInfo& info) const {
+            return AccelerationStructureBuildSizesInfo();
         }
         MemoryBlock D3DDevice::CreateMemoryBlock(const MemoryBlockInfo& info) {
             auto [memory, data] = mResourcePool->AllocMemoryBlock();
@@ -728,6 +747,12 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             return qp;
         }
+        BlasId D3DDevice::CreateBlas(const BlasInfo& info) {
+            return BlasId();
+        }
+        TlasId D3DDevice::CreateTlas(const TlasInfo& info) {
+            return TlasId();
+        }
         void D3DDevice::DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) {
             if (bDefer) {
                 ZombieDeleter zombie = {
@@ -931,6 +956,10 @@ namespace PyroshockStudios {
             delete static_cast<D3DTimestampQueryPool*>(queryPool);
             gDx12Context->FlushDebugMessages();
             queryPool = nullptr;
+        }
+        void D3DDevice::DestroyBlas(BlasId& blas, bool bDefer) {
+        }
+        void D3DDevice::DestroyTlas(TlasId& tlas, bool bDefer) {
         }
         eastl::optional<Format> D3DDevice::PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const {
             return eastl::optional<Format>();
@@ -1330,14 +1359,13 @@ namespace PyroshockStudios {
 
         void D3DDevice::CheckFeatureSupport() {
             Logger::Debug(gDX12Sink, "Checking D3D12 Feature support");
-            CD3DX12FeatureSupport featureSupport;
-            featureSupport.Init(mDevice.Get());
+            mDx12FeatureSupport.Init(mDevice.Get());
             gDx12Context->FlushDebugMessages();
 
-            if (featureSupport.ResourceBindingTier() < 2) {
+            if (mDx12FeatureSupport.ResourceBindingTier() < 2) {
                 Logger::Fatal(gDX12Sink, "Insufficient resource binding tier! Resource binding tier 2 or higher is required!");
             }
-            if (featureSupport.HighestShaderModel() < D3D_SHADER_MODEL_5_1) {
+            if (mDx12FeatureSupport.HighestShaderModel() < D3D_SHADER_MODEL_5_1) {
                 Logger::Fatal(gDX12Sink, "Insufficient shader model support! Shader model 5.1 or higher is required!");
             }
         }
@@ -1676,18 +1704,21 @@ namespace PyroshockStudios {
             mProperties.msaaSupportUnorderedAccessView = typicalMSAASupport;
         }
         void D3DDevice::PopulateDeviceFeatures() {
-            CD3DX12FeatureSupport support;
-            CheckD3DResult(support.Init(mDevice.Get()));
-
             mFeatures.bGeometryShaders = true; // Always supported
             mFeatures.bTesselationShaders = true;
             mFeatures.bUint8IndexBuffer = false;
+            mFeatures.bBCnTextureCompression = true;
+            mFeatures.bHeadlessSwapChainWindow = true;
+            mFeatures.bConservativeRasterization = mDx12FeatureSupport.ConservativeRasterizationTier() != D3D12_CONSERVATIVE_RASTERIZATION_TIER_NOT_SUPPORTED;
+            mFeatures.bInt64ShaderOps = mDx12FeatureSupport.Int64ShaderOps();
+            mFeatures.bWaveOps = mDx12FeatureSupport.WaveOps();
 
-            mFeatures.bRayTracingPipelines = support.RaytracingTier() != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
-
-            mFeatures.bMeshShaders = support.MeshShaderTier() != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
-            mFeatures.bVariableRateShading = support.VariableShadingRateTier() != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
-            mFeatures.supportedShaderModel = static_cast<u32>(support.HighestShaderModel());
+            mFeatures.bAccelerationStructureBuild = mDx12FeatureSupport.RaytracingTier() != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+            mFeatures.bRayQueries = mDx12FeatureSupport.RaytracingTier() >= D3D12_RAYTRACING_TIER_1_0;
+            mFeatures.bRayTracingPipelines = mDx12FeatureSupport.RaytracingTier() == D3D12_RAYTRACING_TIER_1_2;
+            mFeatures.bMeshShaders = mDx12FeatureSupport.MeshShaderTier() != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
+            mFeatures.bVariableRateShading = mDx12FeatureSupport.VariableShadingRateTier() != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
+            mFeatures.supportedShaderModel = static_cast<u32>(mDx12FeatureSupport.HighestShaderModel());
         }
 
 

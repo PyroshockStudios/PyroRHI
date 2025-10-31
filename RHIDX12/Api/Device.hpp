@@ -109,6 +109,7 @@ namespace PyroshockStudios {
 
             DeviceAddress BufferDeviceAddress(Buffer buffer) const override;
             u8* BufferHostAddress(Buffer buffer) const override;
+            BlasAddress BlasInstanceAddress(BlasId blas) const override;
             DeviceSize ImageSizeRequirements(Image image) const override;
             u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const override;
 
@@ -128,8 +129,8 @@ namespace PyroshockStudios {
             Semaphore CreateSemaphore(const SemaphoreInfo& info) override;
             IFence* CreateFence(const FenceInfo& info) override;
             ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
-            BlasId CreateBLAS(const BlasInfo& info) override;
-            TlasId CreateTLAS(const TlasInfo& info) override;
+            BlasId CreateBlas(const BlasInfo& info) override;
+            TlasId CreateTlas(const TlasInfo& info) override;
 
             void DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) override;
             void DestroyBuffer(Buffer& buffer, bool bDefer) override;
@@ -144,8 +145,8 @@ namespace PyroshockStudios {
             void DestroySemaphore(Semaphore& semaphore, bool bDefer) override;
             void DestroyFence(IFence*& fence, bool bDefer) override;
             void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer) override;
-            void DestroyBLAS(BlasId& blas, bool bDefer) override;
-            void DestroyTLAS(TlasId& tlas, bool bDefer) override;
+            void DestroyBlas(BlasId& blas, bool bDefer) override;
+            void DestroyTlas(TlasId& tlas, bool bDefer) override;
 
             eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
             eastl::span<ICommandQueue*> GetCommandQueues() override;
@@ -236,11 +237,12 @@ namespace PyroshockStudios {
 
             eastl::vector<eastl::pair<UINT64 /*frames unused*/, LinearUploadBuffer*>> mAvailableLinearUploadBuffers = {};
 
-
             eastl::vector<eastl::pair<UINT64 /* cpu fence value @*/, D3DCommandQueue*>> mQueuePendingSubmits;
 
             eastl::vector<eastl::pair<QueueFenceSnapshot, ZombieDeleter>>
                 mDeferredDeletes;
+
+            CD3DX12FeatureSupport mDx12FeatureSupport{};
 
             DeviceInfo mInfo{};
             DevicePropertiesInfo mProperties{};

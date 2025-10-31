@@ -437,7 +437,7 @@ namespace PyroshockStudios::RHIVulkan {
         mCreatedDevices.push_back(device);
 
         rhiProps = {
-            .bBufferDeviceAddress = device->mVulkanCaps.bVK_EXT_buffer_device_address,
+            .bBufferDeviceAddress = device->mVulkanCaps.bVK_KHR_buffer_device_address,
             .bDrawIndirectCount = true,
             .bUint8IndexBuffer = true,
             .bTesselationShader = vkPhysicalDeviceFeatures.tessellationShader == VK_TRUE,
