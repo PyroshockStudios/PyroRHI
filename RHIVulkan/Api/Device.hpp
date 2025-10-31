@@ -27,10 +27,10 @@
 #include <EASTL/stack.h>
 #include <EASTL/unordered_set.h>
 
+#include <PyroRHI/Api/IDevice.hpp>
 #include <RHIVulkan/Api/CommandBuffer.hpp>
 #include <RHIVulkan/Api/GPUResourcePool.hpp>
 #include <RHIVulkan/Core.hpp>
-#include <PyroRHI/Api/IDevice.hpp>
 
 
 namespace PyroshockStudios {
@@ -48,7 +48,6 @@ namespace PyroshockStudios {
         struct CommandListZombie {
             VkCommandBuffer vkCmdBuffer = {};
             VkCommandPool vkCmdPool = {};
-            eastl::unique_ptr<CommandBufferZombieInfo> zombies = {};
             VulkanCommandQueue* queue = nullptr;
         };
 
@@ -62,6 +61,13 @@ namespace PyroshockStudios {
             bool bVK_NV_ray_tracing_invocation_reorder = false;
         };
 
+        struct PendingQueueSubmitZombie {
+            // u64 mainCpuTimelineValue = 0;
+            u64 localCpuTimelineValue = 0;
+            VulkanCommandQueue* queue = nullptr;
+        };
+
+        using QueueTimelineSnapshot = eastl::vector<u64>;
         class VulkanDevice : public IDevice, DeleteCopy, DeleteMove {
         public:
             VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features, bool bHeadlessEnabled);
@@ -80,9 +86,9 @@ namespace PyroshockStudios {
             const GPUResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const override;
             const GPUResourceInfo& GetUnorderedAccessInfo(UnorderedAccessId id) const override;
             const SamplerInfo& GetSamplerInfo(SamplerId id) const override;
-            const RenderTargetInfo& GetRenderTargetInfo(RenderTarget renderTarget) const       override;
-            const RasterPipelineInfo& GetRasterPipelineInfo(RasterPipeline pipeline) const     override;
-            const ComputePipelineInfo& GetComputePipelineInfo(ComputePipeline pipeline) const  override;
+            const RenderTargetInfo& GetRenderTargetInfo(RenderTarget renderTarget) const override;
+            const RasterPipelineInfo& GetRasterPipelineInfo(RasterPipeline pipeline) const override;
+            const ComputePipelineInfo& GetComputePipelineInfo(ComputePipeline pipeline) const override;
             const SemaphoreInfo& GetSemaphoreInfo(Semaphore semaphore) const override;
             const BLASInfo& GetBLASInfo(BLASId blas) const override;
             const TLASInfo& GetTLASInfo(TLASId tlas) const override;
@@ -91,8 +97,7 @@ namespace PyroshockStudios {
             u8* BufferHostAddress(Buffer buffer) const override;
 
             DeviceSize ImageSizeRequirements(Image image) const override;
-            u32 ImageSubresourceRowPitch(Image image, ImageSlice slice, u32 rowWidth) const override;
-
+            u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const override;
             AccelerationStructureBuildSizesInfo BLASSizeRequirements(const BLASBuildInfo& info) const override;
             AccelerationStructureBuildSizesInfo TLASSizeRequirements(const TLASBuildInfo& info) const override;
 
@@ -102,8 +107,6 @@ namespace PyroshockStudios {
             ShaderResourceId CreateShaderResource(const GPUResourceInfo& info) override;
             UnorderedAccessId CreateUnorderedAccess(const GPUResourceInfo& info) override;
             SamplerId CreateSampler(const SamplerInfo& info) override;
-            BLASId CreateBLAS(const BLASInfo& info) override;
-            TLASId CreateTLAS(const TLASInfo& info) override;
 
             RenderTarget CreateRenderTarget(const RenderTargetInfo& info) override;
             RasterPipeline CreateRasterPipeline(const RasterPipelineInfo& info, const RasterPipelineShaderStages& rasterShaderStages) override;
@@ -113,25 +116,28 @@ namespace PyroshockStudios {
             IFence* CreateFence(const FenceInfo& info) override;
             ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
 
-            virtual void DestroyMemoryBlock(MemoryBlock& memory) override;
-            virtual void DestroyBuffer(Buffer& buffer) override;
-            virtual void DestroyImage(Image& image) override;
-            virtual void DestroyShaderResource(ShaderResourceId& srv) override;
-            virtual void DestroyUnorderedAccess(UnorderedAccessId& uav) override;
-            virtual void DestroySampler(SamplerId& sampler) override;
-            virtual void DestroyBLAS(BLASId& blas) override;
-            virtual void DestroyTLAS(TLASId& tlas) override;
+            BLASId CreateBLAS(const BLASInfo& info) override;
+            TLASId CreateTLAS(const TLASInfo& info) override;
 
-            virtual void DestroyRenderTarget(RenderTarget& renderTarget) override;
-            virtual void DestroyRasterPipeline(RasterPipeline& pipeline) override;
-            virtual void DestroyComputePipeline(ComputePipeline& pipeline) override;
-            virtual void DestroySwapChain(ISwapChain*& swapChain) override;
-            virtual void DestroySemaphore(Semaphore& semaphore) override;
-            virtual void DestroyFence(IFence*& fence) override;
-            virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool) override;
+            void DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) override;
+            void DestroyBuffer(Buffer& buffer, bool bDefer) override;
+            void DestroyImage(Image& image, bool bDefer) override;
+            void DestroyShaderResource(ShaderResourceId& srv, bool bDefer) override;
+            void DestroyUnorderedAccess(UnorderedAccessId& uav, bool bDefer) override;
+            void DestroySampler(SamplerId& sampler, bool bDefer) override;
+            void DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer) override;
+            void DestroyRasterPipeline(RasterPipeline& pipeline, bool bDefer) override;
+            void DestroyBLAS(BLASId& blas, bool bDefer) override;
+            void DestroyTLAS(TLASId& tlas, bool bDefer) override;
+            void DestroyComputePipeline(ComputePipeline& pipeline, bool bDefer) override;
+            void DestroySwapChain(ISwapChain*& swapChain, bool bDefer) override;
+            void DestroySemaphore(Semaphore& semaphore, bool bDefer) override;
+            void DestroyFence(IFence*& fence, bool bDefer) override;
+            void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer) override;
 
-            eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) override;
+            eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
 
+            void CollectGarbage() override;
             void WaitIdle() override;
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
             void PresentQueue(const CommandQueuePresentInfo& info) override;
@@ -139,6 +145,7 @@ namespace PyroshockStudios {
             const VkPhysicalDeviceProperties& GetVkPhysicalDeviceProperties() {
                 return mPhysicalDeviceProperties;
             }
+
         public:
             Image NewSwapChainImage(VkImage swapchainImage, VkFormat format, u32 index, ImageUsageFlags usage, const ImageInfo& imageInfo);
 
@@ -155,8 +162,10 @@ namespace PyroshockStudios {
                 return mPresentQueue;
             }
 
-            const DeviceInfo& GetInfo() override;
-            const DevicePropertiesInfo& GetProperties() override;
+            const DeviceInfo& Info() const override;
+            const DevicePropertiesInfo& Properties() const override;
+            const DeviceFeaturesInfo& Features() const override;
+            DeviceStatusInfo Status() const override;
 
             VulkanContext* Context() {
                 return mContext;
@@ -177,8 +186,6 @@ namespace PyroshockStudios {
             ImplResourceViewSlot& Slot(ShaderResourceId id);
             ImplResourceViewSlot& Slot(UnorderedAccessId id);
             ImplSamplerSlot& Slot(SamplerId id);
-            ImplBlasSlot& Slot(BLASId id);
-            ImplTlasSlot& Slot(TLASId id);
 
             const ImplVmaVirtualBlockSlot& Slot(MemoryBlock block) const;
             const ImplBufferSlot& Slot(Buffer buffer) const;
@@ -186,30 +193,29 @@ namespace PyroshockStudios {
             const ImplResourceViewSlot& Slot(ShaderResourceId id) const;
             const ImplResourceViewSlot& Slot(UnorderedAccessId id) const;
             const ImplSamplerSlot& Slot(SamplerId id) const;
-            const ImplBlasSlot& Slot(BLASId id) const;
-            const ImplTlasSlot& Slot(TLASId id) const;
-
-            void CreateAccelerationStructureBuildInfo(const eastl::span<const TLASBuildInfo>& tlasBuildInfos, const eastl::span<const BLASBuildInfo>& blasBuildInfos, eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR>& vkBuildGeometryInfos, eastl::vector<VkAccelerationStructureGeometryKHR>& vkGeometryInfos, eastl::vector<u32>& primitiveCounts, eastl::vector<const u32*>& primitiveCountsPtrs) const;
 
         public:
-            eastl::atomic<u64> mMainQueueCpuTimeline = {};
-
-            eastl::deque<eastl::pair<u64, ZombieDeleter>> mMainQueueZombies = {};
+            eastl::vector<eastl::pair<QueueTimelineSnapshot, ZombieDeleter>> mResourceZombies = {};
 
             VulkanDeviceCapabilities mVulkanCaps = {};
 
         private:
-            eastl::deque<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
+            QueueTimelineSnapshot SnapshotQueueTimelineValues() const;
+
+            void PopulateDeviceInfo();
+            void PopulateDeviceProperties();
+            void PopulateDeviceFeatures();
+
+        private:
+            eastl::vector<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
+            eastl::vector<PendingQueueSubmitZombie> mQueuePendingSubmits = {};
 
             GPUResourceId CreateImageView(const GPUResourceInfo& info, bool uav);
             GPUResourceId CreateBufferView(const GPUResourceInfo& info);
-            void CollectGarbage();
-
-
-            IFence* mMainQueueGpuFence = {};
 
             DeviceInfo mInfo = {};
             DevicePropertiesInfo mProperties = {};
+            DeviceFeaturesInfo mFeatures = {};
 
             VulkanContext* mContext;
             VkPhysicalDeviceProperties mPhysicalDeviceProperties;
@@ -232,5 +238,5 @@ namespace PyroshockStudios {
 
             usize mNumAllocatedCommandPools = 0;
         };
-    }
-}
+    } // namespace RHIVulkan
+} // namespace PyroshockStudios

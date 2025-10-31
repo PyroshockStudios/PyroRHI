@@ -30,10 +30,27 @@ namespace PyroshockStudios {
               mUAVHeap(device->InternalDevice(), maxUAVs, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, false, "Global UAV Heap"),
               mSamplerHeap(device->InternalDevice(), maxSamplers, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, "Global Sampler Heap"),
               mRTVHeap(device->InternalDevice(), maxRtvs, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false, "Global RTV Heap"),
-              mDSVHeap(device->InternalDevice(), maxDsvs, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false, "Global DSV Heap")
-        {
+              mDSVHeap(device->InternalDevice(), maxDsvs, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false, "Global DSV Heap") {
         }
         GPUResourcePool::~GPUResourcePool() {
+            if (mMemoryBlockResources.size() > 0) {
+                Logger::Warn(gDX12Sink, "Leaked {} memory block resources!", mMemoryBlockResources.size());
+                for (auto& [k, v] : mMemoryBlockResources) {
+                    Logger::Warn(gDX12Sink, "    - memory block {}", v.info.name);
+                }
+            }
+            if (mBufferResources.size() > 0) {
+                Logger::Warn(gDX12Sink, "Leaked {} buffer resources!", mBufferResources.size());
+                for (auto& [k, v] : mBufferResources) {
+                    Logger::Warn(gDX12Sink, "    - buffer {}", v.info.name);
+                }
+            }
+            if (mImageResources.size() > 0) {
+                Logger::Warn(gDX12Sink, "Leaked {} image resources!", mImageResources.size());
+                for (auto& [k, v] : mImageResources) {
+                    Logger::Warn(gDX12Sink, "    - image {}", v.info.name);
+                }
+            }
         }
 
         struct ResourceHandle {
@@ -88,5 +105,5 @@ namespace PyroshockStudios {
             ASSERT(mImageResources.contains(handle), "Invalid handle!");
             return mImageResources.at(handle);
         }
-    }
-}
+    } // namespace RHIDX12
+} // namespace PyroshockStudios

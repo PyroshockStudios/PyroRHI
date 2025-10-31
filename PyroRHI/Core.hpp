@@ -32,6 +32,7 @@
  */
 #define RHI_TYPED_PTR_HANDLE(x) typedef struct x##_T* x;
 
+#define RHI_MOCK_PTR_HANDLE(handleType, x) (handleType)(static_cast<uintptr_t>(x))
 /**
  * @brief Defines a strongly-typed 64-bit handle for a GPU resource type.
  *
@@ -40,6 +41,7 @@
  */
 #ifdef PYRO_PLATFORM_64_BIT
 #define RHI_TYPED_HANDLE64(x) RHI_TYPED_PTR_HANDLE(x);
+#define RHI_MOCK_TYPED_HANDLE64(handleType, x) RHI_MOCK_PTR_HANDLE(handleType, x)
 #else
 #define RHI_TYPED_HANDLE64(x)                                                                    \
     typedef struct x##_T {                                                                       \
@@ -49,4 +51,5 @@
         bool operator==(const x##_T&) const = default; /**< Equality comparison operator. */     \
         bool operator!=(const x##_T&) const = default; /**< Inequality comparison operator. */   \
     } x
+#define RHI_MOCK_TYPED_HANDLE64(handleType, x) x##_T{x}
 #endif

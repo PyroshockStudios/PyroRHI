@@ -20,24 +20,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <RHIDX12/D3DContext.hpp>
 #include "CommandQueue.hpp"
 #include "CommandBuffer.hpp"
 #include "SwapChain.hpp"
+#include <RHIDX12/D3DContext.hpp>
 namespace PyroshockStudios {
     namespace RHIDX12 {
         D3DCommandQueue::D3DCommandQueue(D3DDevice* device, CommandQueueInfo&& info, ComPtr<ID3D12CommandQueue>&& queue)
             : mDevice(device), mInfo(eastl::move(info)), mCommandQueue(eastl::move(queue)) {
             D3DSetDebugName(mCommandQueue, mInfo.name.c_str());
+            CheckD3DResult(mDevice->InternalDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mQueueTracker)));
         }
         D3DCommandQueue::~D3DCommandQueue() {
-            for (auto* cmb : mPooledCommandBuffers) {
+            for (auto& [cmb, fenceVal] : mPooledCommandBuffers) {
                 delete cmb;
             }
         }
         ICommandBuffer* D3DCommandQueue::GetCommandBuffer(const CommandBufferInfo& info) {
             D3DCommandBuffer* commands = nullptr;
-            if (mPooledCommandBuffers.empty()) {
+
+            UINT64 completedVal = mQueueTracker->GetCompletedValue();
+            for (i32 i = 0; i < mPooledCommandBuffers.size(); ++i) {
+                auto& [cmb, fenceVal] = mPooledCommandBuffers[i];
+                if (completedVal > fenceVal) {
+                    commands = cmb;
+                    mPooledCommandBuffers.erase(mPooledCommandBuffers.begin() + i);
+                    break;
+                }
+            }
+            if (!commands) {
                 ComPtr<ID3D12CommandAllocator> commandAllocator = {};
                 ComPtr<ID3D12GraphicsCommandList> commandList = {};
 
@@ -47,9 +58,6 @@ namespace PyroshockStudios {
                 CheckD3DResult(mDevice->InternalDevice()->CreateCommandList(0, type, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
                 commands = new D3DCommandBuffer(mDevice, eastl::move(commandList), eastl::move(commandAllocator));
                 commands->queueFlags = mInfo.flags;
-            } else {
-                commands = mPooledCommandBuffers.back();
-                mPooledCommandBuffers.pop_back();
             }
             D3DSetDebugName(commands->GetCommands(), info.name.c_str());
 
@@ -69,7 +77,6 @@ namespace PyroshockStudios {
 
                 commands->GetCommands()->SetComputeRootDescriptorTable(14, mDevice->mDefaultUAVDescriptorTable.gpuDescriptor);
                 commands->GetCommands()->SetComputeRootDescriptorTable(15, mDevice->ResourcePool().mSamplerHeap.DeviceHandle());
-
             }
             if (mInfo.flags & CommandQueueFlagBits::GRAPHICS) {
                 commands->GetCommands()->SetGraphicsRootSignature(mDevice->mRootSignature.Get());
@@ -98,7 +105,7 @@ namespace PyroshockStudios {
         void D3DCommandQueue::WaitIdle() {
             ComPtr<ID3D12Fence> fence;
             ComPtr<ID3D12Device> device;
-            mCommandQueue->GetDevice(IID_PPV_ARGS(&device));
+            CheckD3DResult(mCommandQueue->GetDevice(IID_PPV_ARGS(&device)));
 
             CheckD3DResult(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 
@@ -107,7 +114,7 @@ namespace PyroshockStudios {
                 return;
 
             UINT64 fenceValue = 1;
-            mCommandQueue->Signal(fence.Get(), fenceValue);
+            CheckD3DResult(mCommandQueue->Signal(fence.Get(), fenceValue));
             if (fence->GetCompletedValue() < fenceValue) {
                 fence->SetEventOnCompletion(fenceValue, eventHandle);
                 WaitForSingleObject(eventHandle, INFINITE);
@@ -122,5 +129,11 @@ namespace PyroshockStudios {
             CheckD3DResult(mCommandQueue->GetTimestampFrequency(&freq));
             return 1e9 / static_cast<f64>(freq);
         }
-    }
-}
+        void D3DCommandQueue::SignalQueueFence(UINT64 value) {
+            mCommandQueue->Signal(mQueueTracker.Get(), value);
+        }
+        UINT64 D3DCommandQueue::GetFenceValue() {
+            return mQueueTracker->GetCompletedValue();
+        }
+    } // namespace RHIDX12
+} // namespace PyroshockStudios

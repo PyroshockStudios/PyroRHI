@@ -34,9 +34,8 @@ set_target_properties(RHIValidationTestVulkan PROPERTIES MSVC_RUNTIME_LIBRARY "M
 
 gtest_discover_tests(RHIValidationTestVulkan)
 
-add_dependencies(RHIValidationTestVulkan RHIVulkan)
-
 target_link_libraries(RHIValidationTestVulkan
+  RHIVulkan
   RHITestChassis
   GTest::gmock
   GTest::gtest_main

@@ -44,6 +44,7 @@ namespace PyroshockStudios {
         struct ZombieDeleter {
             void* resource = {};
             FunctionPtr<void(VulkanDevice* device, void* resource)> deleter = {};
+            eastl::vector<u64> queueTimelineSnapshot {};
         };
 
         struct ImplBufferSlot {

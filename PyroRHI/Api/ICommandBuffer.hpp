@@ -49,6 +49,7 @@ namespace PyroshockStudios {
             eastl::string name = {};
             PYRO_NODISCARD bool operator==(const CommandBufferInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const CommandBufferInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
         /**
          * @brief Parameters for copying a buffer to a buffer.
@@ -78,6 +79,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const CopyBufferToBufferInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const CopyBufferToBufferInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
         /**
          * @brief Parameters for copying a buffer to an image.
@@ -115,6 +117,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const CopyBufferToImageInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const CopyBufferToImageInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -153,6 +156,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const CopyImageToBufferInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const CopyImageToBufferInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -190,10 +194,12 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const CopyImageToImageInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const CopyImageToImageInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
          * @brief Parameters for blitting (scaling/filtering) one image to another.
+         * @note Despite the srcImageBox and dstImageBox being a Box3D, this function currently REQUIRES the images to be 2D/2DArray
          */
         struct BlitImageToImageInfo {
             /**
@@ -209,17 +215,17 @@ namespace PyroshockStudios {
              */
             ImageArraySlice srcImageSlice = {};
             /**
-             * @brief Source rect region in the image.
+             * @brief Source box region in the image.
              */
-            Rect2D srcImageRect = {};
+            Box3D srcImageBox = {};
             /**
              * @brief Destination image slice to blit into.
              */
             ImageArraySlice dstImageSlice = {};
             /**
-             * @brief Destination rect region in the image.
+             * @brief Destination box region in the image.
              */
-            Rect2D dstImageRect = {};
+            Box3D dstImageBox = {};
             /**
              * @brief Filtering mode applied during blit.
              */
@@ -227,6 +233,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const BlitImageToImageInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const BlitImageToImageInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
 
@@ -247,6 +254,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const ClearUnorderedAccessViewInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const ClearUnorderedAccessViewInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -271,6 +279,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const UpdateBufferInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const UpdateBufferInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -299,6 +308,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const BufferMemoryBarrierInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const BufferMemoryBarrierInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -327,6 +337,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const ImageMemoryBarrierInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const ImageMemoryBarrierInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -345,6 +356,7 @@ namespace PyroshockStudios {
              * @brief How many queries to invalidate.
              */
             u32 queryCount = {};
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -363,6 +375,7 @@ namespace PyroshockStudios {
              * @brief Which query should be written to.
              */
             u32 queryIndex = {};
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -380,6 +393,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const CommandLabelInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const CommandLabelInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -408,6 +422,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const AttachmentResolveInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const AttachmentResolveInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -437,6 +452,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const ColorAttachmentInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const ColorAttachmentInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -470,6 +486,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DepthStencilAttachmentInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DepthStencilAttachmentInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -491,6 +508,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const RenderPassBeginInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const RenderPassBeginInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -513,6 +531,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const PushConstantInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const PushConstantInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -538,6 +557,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const SetUniformBufferViewInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const SetUniformBufferViewInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -559,6 +579,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const SetUnorderedAccessViewInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const SetUnorderedAccessViewInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -580,6 +601,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const SetVertexBufferInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const SetVertexBufferInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -601,6 +623,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const SetIndexBufferInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const SetIndexBufferInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct DrawInfo {
@@ -611,6 +634,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DrawInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DrawInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct DrawIndexedInfo {
@@ -622,6 +646,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DrawIndexedInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DrawIndexedInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct DrawIndirectInfo {
@@ -632,6 +657,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DrawIndirectInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DrawIndirectInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct DrawIndexedIndirectInfo {
@@ -642,6 +668,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DrawIndexedIndirectInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DrawIndexedIndirectInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct DispatchInfo {
@@ -651,6 +678,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DispatchInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DispatchInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct DispatchIndirectInfo {
@@ -661,6 +689,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const DispatchIndirectInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const DispatchIndirectInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         struct BuildAccelerationStructuresInfo {
@@ -769,69 +798,6 @@ namespace PyroshockStudios {
              * @param srcQueue The source queue that previously owned the image.
              */
             virtual void AcquireImageOwnership(Image image, ICommandQueue* srcQueue) = 0;
-
-            // ---------------------------------------------------------------------
-            // Deferred Resource Destruction
-            // ---------------------------------------------------------------------
-
-            /**
-             * @brief Schedules a memory block handle to be destroyed after GPU execution.
-             * @note Make sure all resources making use of this memory handle will have been destroyed prior to this!
-             */
-            virtual void DestroyMemoryBlockDeferred(MemoryBlock memory) = 0;
-
-            /**
-             * @brief Schedules a buffer to be destroyed after GPU execution.
-             */
-            virtual void DestroyBufferDeferred(Buffer buffer) = 0;
-
-            /**
-             * @brief Schedules an image to be destroyed after GPU execution.
-             */
-            virtual void DestroyImageDeferred(Image image) = 0;
-
-            /**
-             * @brief Schedules a shader resource view (SRV) to be destroyed after GPU execution.
-             */
-            virtual void DestroyShaderResourceDeferred(ShaderResourceId srv) = 0;
-
-            /**
-             * @brief Schedules an unordered access view (UAV) to be destroyed after GPU execution.
-             */
-            virtual void DestroyUnorderedAccessDeferred(UnorderedAccessId uav) = 0;
-
-            /**
-             * @brief Schedules a sampler to be destroyed after GPU execution.
-             */
-            virtual void DestroySamplerDeferred(SamplerId sampler) = 0;
-
-            /**
-             * @brief Schedules a render target to be destroyed after GPU execution.
-             */
-            virtual void DestroyRenderTargetDeferred(RenderTarget renderTarget) = 0;
-
-            /**
-             * @brief Schedules a raster pipeline to be destroyed after GPU execution.
-             */
-            virtual void DestroyRasterPipelineDeferred(RasterPipeline pipeline) = 0;
-
-            /**
-             * @brief Schedules a compute pipeline to be destroyed after GPU execution.
-             */
-            virtual void DestroyComputePipelineDeferred(ComputePipeline pipeline) = 0;
-
-            /**
-             * @brief Overloads for DestroyDeferred to simplify deferred destruction calls.
-             */
-            PYRO_FORCEINLINE void DestroyDeferred(MemoryBlock memory) { DestroyMemoryBlockDeferred(memory); }
-            PYRO_FORCEINLINE void DestroyDeferred(Buffer buffer) { DestroyBufferDeferred(buffer); }
-            PYRO_FORCEINLINE void DestroyDeferred(Image image) { DestroyImageDeferred(image); }
-            PYRO_FORCEINLINE void DestroyDeferred(ShaderResourceId srv) { DestroyShaderResourceDeferred(srv); }
-            PYRO_FORCEINLINE void DestroyDeferred(UnorderedAccessId uav) { DestroyUnorderedAccessDeferred(uav); }
-            PYRO_FORCEINLINE void DestroyDeferred(SamplerId sampler) { DestroySamplerDeferred(sampler); }
-            PYRO_FORCEINLINE void DestroyDeferred(RenderTarget renderTarget) { DestroyRenderTargetDeferred(renderTarget); }
-            PYRO_FORCEINLINE void DestroyDeferred(RasterPipeline pipeline) { DestroyRasterPipelineDeferred(pipeline); }
-            PYRO_FORCEINLINE void DestroyDeferred(ComputePipeline pipeline) { DestroyComputePipelineDeferred(pipeline); }
 
             // ---------------------------------------------------------------------
             // Profiling & Debugging
@@ -995,6 +961,7 @@ namespace PyroshockStudios {
             virtual ~ICommandBuffer() = default;
             friend struct IDevice;
         };
+
 
     } // namespace RHI
 } // namespace PyroshockStudios

@@ -22,11 +22,13 @@
 
 #pragma once
 
-#include <RHIVulkan/Core.hpp>
 #include <PyroRHI/Api/ICommandQueue.hpp>
+#include <RHIVulkan/Core.hpp>
+#include <EASTL/atomic.h>
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
+        class VulkanFence;
         class VulkanDevice;
         class VulkanCommandBuffer;
         class CommandBufferPool;
@@ -67,6 +69,17 @@ namespace PyroshockStudios {
 
             bool mbPendingSwapPresent = false;
 
+            VulkanFence* GetGpuTimeline() {
+                return gpuTimeline;
+            }
+            u64 GetCpuTimelineValue() {
+                return cpuTimeline;
+            }
+
+            u64 IncGetCpuTimelineValue() {
+                return cpuTimeline.add_fetch(1);
+            }
+
         private:
             VulkanDevice* mDevice;
             VkQueue mQueue;
@@ -76,10 +89,12 @@ namespace PyroshockStudios {
             eastl::vector<VkSemaphore> mSwapChainAcquireSemaphores{};
             eastl::vector<u32> mImageIndices{};
 
-            
             CommandBufferPool* mCommandBufferPool = {};
 
             CommandQueueInfo mInfo{};
+
+            eastl::atomic<u64> cpuTimeline = {};
+            VulkanFence* gpuTimeline = {};
         };
     } // namespace RHIVulkan
 } // namespace PyroshockStudios

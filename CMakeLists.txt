@@ -22,7 +22,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 
-if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS OR PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
+if (PYRO_RHI_BUILD_TESTS)
 enable_testing()
 endif()
 
@@ -43,7 +43,7 @@ if (PYRO_RHI_BUILD_METAL)
 #add_subdirectory(RHIMetal)
 endif()
 
-if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS OR PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
+if (PYRO_RHI_BUILD_TESTS)
 add_subdirectory(tests)
 
 if (PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
@@ -53,6 +53,7 @@ if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS)
 add_coverage_instrumentation(RHIVulkan)
 endif()
 
+add_coverage_instrumentation(RHIBaseTest)
 endif()
 
 

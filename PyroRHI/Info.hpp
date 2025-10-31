@@ -51,7 +51,7 @@ namespace PyroshockStudios {
             i32 optionIndex = -1;
 
             char** strValueArray = nullptr;
-            usize numStrValues = 0;
+            u32 numStrValues = 0;
             bool boolValue = false;
             i64 intValue = 0;
         };

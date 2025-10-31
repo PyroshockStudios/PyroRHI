@@ -55,8 +55,10 @@ namespace PyroshockStudios {
             }
         private:
             void InternalFlushDebugMessages();
-
-            ComPtr<ID3D12InfoQueue> mInfoQueue =nullptr;
+            
+            ComPtr<IDXGIFactory4> mFactory;
+            ComPtr<ID3D12InfoQueue> mInfoQueue = nullptr;
+            ComPtr<ID3D12Debug> mDebugController= nullptr;
             D3DDevice* mDevice = nullptr;
             HMODULE mPixRuntimeDll = {};
             ILogStream* mDebugSink = nullptr;

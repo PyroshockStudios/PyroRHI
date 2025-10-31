@@ -16,5 +16,6 @@
 #include <RHITestChassis/ValidateDeviceCreationImpl.hpp>
 #include <RHITestChassis/ValidateFenceImpl.hpp>
 #include <RHITestChassis/ValidateImageImpl.hpp>
+#include <RHITestChassis/ValidateQueryPoolImpl.hpp>
 #include <RHITestChassis/ValidateSemaphoreImpl.hpp>
 #include <RHITestChassis/ValidateSwapChainImpl.hpp>

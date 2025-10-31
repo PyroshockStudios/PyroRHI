@@ -72,6 +72,7 @@
 // stupid X11
 #undef None
 #undef Always
+#undef Status
 #endif
 
 namespace PyroshockStudios {
@@ -95,7 +96,6 @@ namespace PyroshockStudios {
         PYRO_FORCEINLINE static constexpr VkPrimitiveTopology ToVkPrimitiveTopology(PrimitiveTopology type) { return static_cast<VkPrimitiveTopology>(type); }
         PYRO_FORCEINLINE static constexpr VkPolygonMode ToVkPolygonMode(PolygonMode type) { return static_cast<VkPolygonMode>(type); }
         PYRO_FORCEINLINE static constexpr VkFrontFace ToVkFrontFaceWinding(WindingOrder type) { return static_cast<VkFrontFace>(type); }
-        PYRO_FORCEINLINE static constexpr VkPresentModeKHR ToVkPresentMode(PresentMode type) { return static_cast<VkPresentModeKHR>(type); }
         PYRO_FORCEINLINE static constexpr VkColorSpaceKHR ToVkColorSpace(ColorSpace type) { return static_cast<VkColorSpaceKHR>(type); }
         PYRO_FORCEINLINE static constexpr VkFilter ToVkFilter(Filter type) { return static_cast<VkFilter>(type); }
         PYRO_FORCEINLINE static constexpr VkSamplerReductionMode ToVkReductionMode(ReductionMode type) { return static_cast<VkSamplerReductionMode>(type); }
@@ -105,7 +105,13 @@ namespace PyroshockStudios {
         PYRO_FORCEINLINE static constexpr VkCullModeFlagBits ToVkFaceCull(FaceCull type) { return static_cast<VkCullModeFlagBits>(type); }
         PYRO_FORCEINLINE static constexpr VkColorComponentFlags ToVkColorComponentFlags(ColorComponentFlags type) { return static_cast<VkColorComponentFlags>(type.data); }
         PYRO_FORCEINLINE static constexpr VkAccessFlags2 ToVkAccessTypeFlags(AccessTypeFlags type) { return static_cast<VkAccessFlags2>(type.data); }
-        PYRO_FORCEINLINE static constexpr VkPipelineStageFlags2 ToVkPipelineStageFlags(PipelineStageFlags type) { return static_cast<VkPipelineStageFlags2>(type.data); }
+        PYRO_FORCEINLINE static constexpr VkPipelineStageFlags2 ToVkPipelineStageFlags(PipelineStageFlags type) { 
+            VkPipelineStageFlags2 flags = static_cast<VkPipelineStageFlags2>(type.data);
+            if (type & PipelineStageFlagBits::RESOLVE) { // MSAA resolve requires COLOR_ATTACHMENT_OUTPUT_BIT to be set for some reason...
+                flags |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT; 
+            }
+            return flags;
+        }
 
         PYRO_FORCEINLINE static constexpr VkFormatFeatureFlags ToVkFormatFeatureFlags(FormatFeatureFlags type) { return static_cast<VkFormatFeatureFlags>(type.data); }
         PYRO_FORCEINLINE static constexpr VkAttachmentLoadOp ToVkLoadOp(AttachmentLoadOp type) { return static_cast<VkAttachmentLoadOp>(type); }

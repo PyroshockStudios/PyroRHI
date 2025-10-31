@@ -54,7 +54,7 @@ namespace PyroshockStudios {
 
 
         //-------------------------------------------------------------------------------------------------
-        // Device Memory Creation Structure
+        // Virtual Memory Block Creation Structure
         //-------------------------------------------------------------------------------------------------
 
         /**
@@ -81,6 +81,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const MemoryBlockInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const MemoryBlockInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         //-------------------------------------------------------------------------------------------------
@@ -123,6 +124,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const BufferInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const BufferInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         //-------------------------------------------------------------------------------------------------
@@ -172,6 +174,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const ImageInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const ImageInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         //-------------------------------------------------------------------------------------------------
@@ -193,7 +196,7 @@ namespace PyroshockStudios {
             bool enableAnisotropy = false;                                     /**< Enables anisotropic filtering. */
             u32 maxAnisotropy = 1;                                             /**< Maximum anisotropy if enabled. */
             bool enableCompare = false;                                        /**< Enables depth comparison for shadow mapping. */
-            CompareOp compareOp = CompareOp::Always;                           /**< Comparison operation if enabled. */
+            CompareOp compareOp = CompareOp::Never;                            /**< Comparison operation if enabled. */
             f32 minLod = 0.0f;                                                 /**< Minimum mipmap LOD. */
             f32 maxLod = FLT_MAX;                                              /**< Maximum mipmap LOD. */
             BorderColor borderColor = BorderColor::TransparentBlackFloat;      /**< Border color for texture sampling. */
@@ -201,6 +204,7 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const SamplerInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const SamplerInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         //-------------------------------------------------------------------------------------------------
@@ -272,6 +276,7 @@ namespace PyroshockStudios {
         struct BufferResourceInfo {
             Buffer buffer = PYRO_NULL_BUFFER; /**< Buffer handle. */
             BufferRegion region = {};         /**< Region of the buffer to be used. */
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /**
@@ -299,6 +304,7 @@ namespace PyroshockStudios {
             ImageMipArraySlice slice = {};
             ImageViewType viewType = ImageViewType::e2D; /**< Type of image view. */
             Format format = Format::Inherit;             /**< Format override, if any. */
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
         /// @brief Variant type holding either a buffer or image resource view.

@@ -58,6 +58,21 @@ namespace PyroshockStudios {
             interf->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(strlen(str)), str); \
     } while (false)
 
+        inline eastl::string WideToUTF8(const WCHAR* wideStr) {
+            if (!wideStr)
+                return {};
+
+            int requiredSize = ::WideCharToMultiByte(
+                CP_UTF8, 0, wideStr, -1, nullptr, 0, nullptr, nullptr);
+            if (requiredSize <= 0)
+                return {};
+
+            eastl::string result;
+            result.resize(static_cast<usize>(requiredSize - 1)); // exclude null terminator
+            ::WideCharToMultiByte(
+                CP_UTF8, 0, wideStr, -1, result.data(), requiredSize, nullptr, nullptr);
+            return result;
+        }
 
         void CheckD3DResult(HRESULT result);
 
@@ -163,7 +178,7 @@ namespace PyroshockStudios {
             case Format::D16Unorm:
                 return DXGI_FORMAT_D16_UNORM;
             case Format::D16UnormS8Uint:
-                return DXGI_FORMAT_D24_UNORM_S8_UINT; // No DXGI_FORMAT for D16S8
+                return DXGI_FORMAT_UNKNOWN; // No DXGI_FORMAT for D16S8
             case Format::D24UnormS8Uint:
                 return DXGI_FORMAT_D24_UNORM_S8_UINT;
             case Format::D32Sfloat:
@@ -171,7 +186,7 @@ namespace PyroshockStudios {
             case Format::D32SfloatS8Uint:
                 return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
             case Format::S8Uint:
-                return DXGI_FORMAT_D24_UNORM_S8_UINT; // No DXGI_FORMAT for S8 only
+                return DXGI_FORMAT_UNKNOWN; // No DXGI_FORMAT for S8 only
             case Format::BC1RGBUnormBlock:
             case Format::BC1RGBAUnormBlock:
                 return DXGI_FORMAT_BC1_UNORM;
@@ -351,6 +366,8 @@ namespace PyroshockStudios {
                 return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
             case PrimitiveTopology::TriangleStrip:
                 return D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+            case PrimitiveTopology::TriangleFan:
+                return D3D_PRIMITIVE_TOPOLOGY_TRIANGLEFAN;
             case PrimitiveTopology::LineListWithAdjacency:
                 return D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
             case PrimitiveTopology::LineStripWithAdjacency:
@@ -380,6 +397,7 @@ namespace PyroshockStudios {
             case PrimitiveTopology::TriangleStrip:
             case PrimitiveTopology::TriangleListWithAdjacency:
             case PrimitiveTopology::TriangleStripWithAdjacency:
+            case PrimitiveTopology::TriangleFan:
                 return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             case PrimitiveTopology::PatchList:
                 return D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
