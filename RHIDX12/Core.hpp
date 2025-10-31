@@ -40,7 +40,6 @@
 #undef CreateEvent
 using Microsoft::WRL::ComPtr;
 
-
 typedef void(WINAPI* PFN_BeginEventOnCommandList)(ID3D12GraphicsCommandList* commandList, UINT64 color, _In_ PCSTR formatString);
 typedef void(WINAPI* PFN_EndEventOnCommandList)(ID3D12GraphicsCommandList* commandList);
 typedef void(WINAPI* PFN_SetMarkerOnCommandList)(ID3D12GraphicsCommandList* commandList, UINT64 color, _In_ PCSTR formatString);

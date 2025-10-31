@@ -26,6 +26,9 @@ if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS OR PYRO_RHI_BUILD_DX12_VALIDATION_TES
 enable_testing()
 endif()
 
+if (PYRO_RHI_BUILD_DX12)
+include(DX12AgilitySDK.cmake)
+endif()
 add_subdirectory(vendor)
 
 add_subdirectory(PyroRHI)
