@@ -33,6 +33,8 @@ namespace PyroshockStudios {
         struct D3DContextArgs {
             bool bDebug = false;
             bool bWarpDriver = false;
+            UINT sdkVersion = 618;
+            LPCSTR sdkDllRelativePath = ".\\D3D12\\";
         };
         class D3DContext : public RHIContext {
         public:
@@ -62,8 +64,6 @@ namespace PyroshockStudios {
             ComPtr<ID3D12InfoQueue> mInfoQueue = nullptr;
             ComPtr<ID3D12Debug> mDebugController = nullptr;
             D3DDevice* mDevice = nullptr;
-            // HMODULE mD3D12CoreDll = {};
-            // HMODULE mD3D12SDKLayers = {};
             HMODULE mPixRuntimeDll = {};
             ILogStream* mDebugSink = nullptr;
         };

@@ -42,12 +42,16 @@ static constexpr PyroshockStudios::GUID gDX12RhiGuid = "fc8327de-876c-4239-8cc3-
 enum RhiOptions : i32 {
     eDebug,
     eWarp,
+    eSdkVersion,
+    eSdkPath,
     eMAX_OPTIONS
 };
 
 static const RHIOptionInfo gRhiOptions[PYRO_RHI_MAX_OPTIONS] = {
     { .name = "debug", .valueType = RHIOptionValueType::Flag },
-    { .name = "warp", .valueType = RHIOptionValueType::Flag }
+    { .name = "warp", .valueType = RHIOptionValueType::Flag },
+    { .name = "sdk-version", .valueType = RHIOptionValueType::Integer },
+    { .name = "sdk-path", .valueType = RHIOptionValueType::String }
 };
 
 PYRO_EXPORT void PYRO_CDECL GetCustomRHIInfo(RHIInfo* pInfo) {
@@ -62,13 +66,7 @@ PYRO_EXPORT void PYRO_CDECL GetCustomRHIInfo(RHIInfo* pInfo) {
 }
 
 PYRO_EXPORT void PYRO_CDECL CreateRHIContext(const RHICreateInfo* pCreateInfo, RHIContextApiInfo* pApi) {
-    D3DContextArgs contextArgs{
-        //.appName = pCreateInfo->appName,
-        //.engineName = pCreateInfo->engineName,
-        //.appVersion = pCreateInfo->appVersion,
-        //.engineVersion = pCreateInfo->engineVersion,
-        //.preferredPhysicalDevice = -1,
-    };
+    D3DContextArgs contextArgs{};
 
     for (u32 i = 0; i < PYRO_RHI_MAX_OPTIONS; ++i) {
         const auto& option = pCreateInfo->options[i];
@@ -83,6 +81,15 @@ PYRO_EXPORT void PYRO_CDECL CreateRHIContext(const RHICreateInfo* pCreateInfo, R
         case eWarp:
             Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Enabled WARP driver (CPU Rasteriser)");
             contextArgs.bWarpDriver = true;
+            break;
+        case eSdkVersion:
+            Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Override D3D12 Agility SDK Version: {}", option.intValue);
+            contextArgs.sdkVersion = static_cast<UINT>(option.intValue);
+            break;
+        case eSdkPath:
+            ASSERT(option.numStrValues > 0);
+            Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Override D3D12 Agility SDK Path: {}", option.strValueArray[0]);
+            contextArgs.sdkDllRelativePath = static_cast<LPCSTR>(option.strValueArray[0]);
             break;
         default:
             Logger::Warn(pCreateInfo->pLoggerSink, "Invalid RHI load option ignored!");

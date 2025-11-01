@@ -25,6 +25,7 @@
 #include <PyroCommon/Logger.hpp>
 #include <PyroRHI/Shader/IShaderFeatureSet.hpp>
 #include <RHIDX12/Api/Device.hpp>
+#include <comdef.h>
 #include <iostream>
 #include <wrl.h>
 
@@ -32,26 +33,24 @@ PFN_BeginEventOnCommandList gPixBeginEventOnCommandListFn = nullptr;
 PFN_EndEventOnCommandList gPixEndEventOnCommandListFn = nullptr;
 PFN_SetMarkerOnCommandList gPixSetMarkerOnCommandListFn = nullptr;
 
-//typedef HRESULT(WINAPI* PFN_D3D12_GET_INTERFACE)(REFCLSID rclsid, REFIID riid, void** ppvDebug);
-//
-//eastl::string GetCurrentDllDirectory() {
-//    HMODULE hModule = NULL;
-//    // Get a handle to *this* DLL
-//    GetModuleHandleExA(
-//        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-//        (LPCSTR)&GetCurrentDllDirectory, // Address of a function in this DLL
-//        &hModule);
-//
-//    char path[MAX_PATH];
-//    GetModuleFileNameA(hModule, path, MAX_PATH);
-//
-//    eastl::string dllPath = path;
-//    size_t lastSlash = dllPath.find_last_of("\\/");
-//    if (lastSlash != eastl::string::npos) {
-//        return dllPath.substr(0, lastSlash);
-//    }
-//    return "";
-//}
+eastl::string GetCurrentDllDirectory() {
+    HMODULE hModule = NULL;
+    // Get a handle to *this* DLL
+    GetModuleHandleExA(
+        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)&GetCurrentDllDirectory, // Address of a function in this DLL
+        &hModule);
+
+    char path[MAX_PATH];
+    GetModuleFileNameA(hModule, path, MAX_PATH);
+
+    eastl::string dllPath = path;
+    size_t lastSlash = dllPath.find_last_of("\\/");
+    if (lastSlash != eastl::string::npos) {
+        return dllPath.substr(0, lastSlash);
+    }
+    return "";
+}
 
 namespace PyroshockStudios::RHIDX12 {
     D3DContext* gDx12Context = nullptr;
@@ -60,39 +59,23 @@ namespace PyroshockStudios::RHIDX12 {
         gDx12Context = this;
         D3DContext::InjectLogger(logSink);
 
-        //mD3D12CoreDll = LoadLibraryA((GetCurrentDllDirectory() + "\\D3D12\\D3D12Core.dll").c_str());
-        //mD3D12SDKLayers = LoadLibraryA((GetCurrentDllDirectory() + "\\D3D12\\d3d12SDKLayers.dll").c_str());
-        //ID3D12DeviceFactory* pDeviceFactory = nullptr;
-        //if (mD3D12CoreDll == NULL || mD3D12SDKLayers == NULL) {
-        //    // Failed to load Agility SDK.
-        //    // You could fall back to the system's D3D12.dll
-        //    // by calling D3D12CreateDevice directly.
-        //    Logger::Error(gDX12Sink, "Could not load Agility SDK D3D12Core.dll. Falling back to system D3D12.");
-        //    if (mD3D12CoreDll) {
-        //        FreeLibrary(mD3D12CoreDll);
-        //        mD3D12CoreDll = NULL;
-        //    }
-        //    if (mD3D12SDKLayers) {
-        //        FreeLibrary(mD3D12SDKLayers);
-        //        mD3D12SDKLayers = NULL;
-        //    }
-        //} else {
-        //    // 2. Get the D3D12GetInterface function pointer
-        //    PFN_D3D12_GET_INTERFACE pD3D12GetInterface = (PFN_D3D12_GET_INTERFACE)GetProcAddress(mD3D12CoreDll, "D3D12GetInterface");
+        ID3D12SDKConfiguration1* cfg = nullptr;
+        ID3D12DeviceFactory* pDeviceFactory = nullptr;
 
-        //    if (pD3D12GetInterface == NULL) {
-        //        Logger::Error(gDX12Sink, "Could not get D3D12GetInterface proc address. Falling back to system D3D12.");
-        //        FreeLibrary(mD3D12CoreDll);
-        //        mD3D12CoreDll = NULL;
-        //        FreeLibrary(mD3D12SDKLayers);
-        //        mD3D12SDKLayers = NULL;
-        //    } else {
-        //        ID3D12DeviceFactory* pDeviceFactory = nullptr;
-        //        HRESULT hr = pD3D12GetInterface(CLSID_D3D12DeviceFactory, IID_PPV_ARGS(&pDeviceFactory));
-        //        CheckD3DResult(hr);
-        //    }
-        //}
-
+        HRESULT result = D3D12GetInterface(CLSID_D3D12SDKConfiguration, IID_PPV_ARGS(&cfg));
+        if (FAILED(result)) {
+            Logger::Fatal(gDX12Sink, "Failed to get D3D12 SDK Configuration interface!"
+                                     " Are your drivers and system up to date? Error: {0} ({1})",
+                _com_error(result).ErrorMessage(), (long)result);
+            return;
+        }
+        result = cfg->CreateDeviceFactory(args.sdkVersion, (GetCurrentDllDirectory() + args.sdkDllRelativePath).c_str(), IID_PPV_ARGS(&pDeviceFactory));
+        if (FAILED(result)) {
+            Logger::Fatal(gDX12Sink, "Failed to create D3D12 Device Factory!"
+                                     " Are the D3D12 SDK libraries under the D3D12 directory? Error: {0} ({1})",
+                _com_error(result).ErrorMessage(), (long)result);
+            return;
+        }
 
         mPixRuntimeDll = LoadLibraryA("WinPixEventRuntime.dll");
         if (mPixRuntimeDll) {
@@ -102,7 +85,7 @@ namespace PyroshockStudios::RHIDX12 {
 
             Logger::Info(gDX12Sink, "Found PIX Debugger");
         }
-        
+
         UINT dxgiFactoryFlags = 0;
         if (args.bDebug) {
             Logger::Trace(gDX12Sink, "Requesting Debug Layer");

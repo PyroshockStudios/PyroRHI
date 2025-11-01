@@ -20,9 +20,3 @@
 #include <RHITestChassis/ValidateQueryPoolImpl.hpp>
 #include <RHITestChassis/ValidateSemaphoreImpl.hpp>
 #include <RHITestChassis/ValidateSwapChainImpl.hpp>
-
-// FIXME: this is required to make the agility SDK work on windows 10
-extern "C" {
-__declspec(dllexport) extern const unsigned int D3D12SDKVersion = 618U;
-__declspec(dllexport) extern const char* D3D12SDKPath = ".\\RHI\\D3D12\\";
-}
