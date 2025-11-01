@@ -1,4 +1,4 @@
-name: DirectX 12 Validation (Windows ClangCL)
+ame: DirectX 12 Validation (Windows ClangCL)
 permissions:
   contents: read
 
@@ -162,24 +162,38 @@ jobs:
           }
           Write-Host "HTML coverage generated at $htmlDir"
 
-          # --- 6. Merge and Filter LCOV Reports ---
+          # --- 6. Merge, Filter, and FIX LCOV Reports ---
           $out = Join-Path $buildDir "coverage_rhidx12.info"
           $mergedRecords = @{}
+          $repoRoot = $env:GITHUB_WORKSPACE
 
           # Helper function to parse LCOV records and add to a map
           function Parse-LcovRecords($filePath, $map) {
+              Write-Host "Parsing $filePath..."
               $lines = Get-Content $filePath -Raw -ErrorAction Stop
               $records = $lines -split "(?<=\r?\n)end_of_record\r?\n"
+              
               foreach ($rec in $records) {
                   if ($rec.Trim() -eq "") { continue }
                   $sfLine = $rec -split "\r?\n" | Select-String -Pattern "^SF:"
                   if ($sfLine) {
-                      $fileName = $sfLine.ToString().Substring(3) # Get path after "SF:"
+                      $rawFileName = $sfLine.ToString().Substring(3) # Get path after "SF:"
+                      
+                      # --- NORMALIZE THE KEY ---
+                      # 1. Convert to forward slashes
+                      $normFileName = $rawFileName.Replace("\", "/")
+                      # 2. Get path relative to repo root (case-insensitive replace)
+                      $repoRootRegex = [regex]::Escape($repoRoot.Replace("\", "/"))
+                      $normFileName = $normFileName -replace "(?i)^$repoRootRegex/", ""
+                      # 3. Lowercase for a stable key
+                      $fileKey = $normFileName.ToLower()
+
                       if (-not $rec.TrimEnd().EndsWith("end_of_record")) {
                            $rec = $rec.TrimEnd() + "`nend_of_record`n" 
                       }
-                      # Add or Overwrite the record in the map
-                      $map[$fileName] = $rec
+                      
+                      # Add or Overwrite the record in the map using the normalized key
+                      $map[$fileKey] = $rec
                   }
               }
           }
@@ -189,13 +203,30 @@ jobs:
           Parse-LcovRecords -filePath $coverageInfoAll -map $mergedRecords
           # Add/overwrite with records from the test report (for headers)
           Parse-LcovRecords -filePath $coverageInfoTests -map $mergedRecords
-          Write-Host "Merge complete. Filtering..."
+          Write-Host "Merge complete. Filtering and fixing paths..."
 
           $kept = @()
+          # Define the absolute path prefix to remove (case-insensitive)
+          $repoRootPrefixRegex = [regex]::Escape($env:GITHUB_WORKSPACE) + "[\\/]"
+
           foreach ($rec in $mergedRecords.Values) {
-              # Match paths containing RHIDX12 or PyroRHI (for your headers)
-              if ($rec -match "SF:.*(RHIDX12|PyroRHI)") {
-                  $kept += $rec
+              
+              # --- NEW FILTER ---
+              # 1. Must match our source/header paths
+              $isMatch = $rec -match "SF:.*(RHIDX12|PyroRHI)"
+              # 2. Must NOT match any vendor path
+              $isVendor = $rec -match "vendor"
+              
+              if ($isMatch -and -not $isVendor) {
+                  
+                  # --- PATH FIXING LOGIC ---
+                  # 1. Replace the absolute GITHUB_WORKSPACE path (case-insensitive)
+                  $fixedRec = $rec -replace "(?i)^SF:$repoRootPrefixRegex", "SF:"
+                  
+                  # 2. Convert all Windows backslashes to forward slashes
+                  $fixedRec = $fixedRec.Replace("\", "/")
+                  
+                  $kept += $fixedRec
               }
           }
 
@@ -220,17 +251,18 @@ jobs:
           name: DX12-Coverage-Report
           path: build/coverage_html
           
-      - name: Upload LCOV File
+      - name: Upload LCOV File (for debugging)
         uses: actions/upload-artifact@v4
         with:
           name: DX12-LCOV-Data
           path: build/coverage_rhidx12.info
-
-      - name: Upload to Codecov
+          
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: build/coverage_rhidx12.info
-          flags: dx12
+          filter: dx12
           fail_ci_if_error: true
           verbose: true
+
