@@ -29,6 +29,7 @@
 #include <RHIDX12/D3DContext.hpp>
 
 #include <DirectXMath.h>
+#include <comdef.h>
 #include <libassert/assert.hpp>
 
 namespace PyroshockStudios {
@@ -864,9 +865,16 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::BuildAccelerationStructures(const BuildAccelerationStructuresInfo& info) {
-
+            ID3D12GraphicsCommandList4* rtCommands = nullptr;
+            HRESULT result = mCommandList->QueryInterface(&rtCommands);
+            if (!rtCommands) {
+                Logger::Error(gDX12Sink, "Error,ICommandBuffer::BuildAccelerationStructures() tried to query ID3D12GraphicsCommandList4 but it's not available!"
+                " Error: {} ({})", _com_error(result).ErrorMessage(), (long)result);
+                return;
+            }
+            // TODO: build blas
         }
-        
+
         void D3DCommandBuffer::Complete() {
             for (auto& [pool, minmax] : mPendingQueryPoolMinMaxResolves) {
                 auto [min, max] = minmax;

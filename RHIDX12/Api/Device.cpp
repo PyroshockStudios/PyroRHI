@@ -89,6 +89,13 @@ namespace PyroshockStudios {
         bool D3DDevice::IsSamplerValid(SamplerId id) const {
             return id.index != 0;
         }
+        bool D3DDevice::IsBlasValid(BlasId id) const {
+            return id.index != 0;
+        }
+        bool D3DDevice::IsTlasValid(TlasId id) const {
+            return id.index != 0;
+        }
+
         const MemoryBlockInfo& D3DDevice::GetMemoryBlockInfo(MemoryBlock memory) const {
             ASSERT(IsValid(memory));
             return mResourcePool->Get(memory).info;
@@ -127,25 +134,26 @@ namespace PyroshockStudios {
         }
 
         const BlasInfo& D3DDevice::GetBlasInfo(BlasId blas) const {
-            static BlasInfo i;
-            return i;
+            ASSERT(IsValid(blas));
+            return mResourcePool->Get(blas).info;
         }
 
         const TlasInfo& D3DDevice::GetTlasInfo(TlasId tlas) const {
-            static TlasInfo i;
-            return i;
+            ASSERT(IsValid(tlas));
+            return mResourcePool->Get(tlas).info;
         }
 
         DeviceAddress D3DDevice::BufferDeviceAddress(Buffer buffer) const {
             ASSERT(IsValid(buffer));
             return DeviceAddress();
         }
+
         u8* D3DDevice::BufferHostAddress(Buffer buffer) const {
             ASSERT(IsValid(buffer));
             return mResourcePool->Get(buffer).mappedMemory;
         }
         BlasAddress D3DDevice::BlasInstanceAddress(BlasId blas) const {
-            return BlasAddress();
+            return static_cast<BlasAddress>(mResourcePool->Get(blas).address);
         }
         DeviceSize D3DDevice::ImageSizeRequirements(Image image) const {
             ASSERT(IsValid(image));
@@ -199,8 +207,7 @@ namespace PyroshockStudios {
             heapDec.Properties = CD3DX12_HEAP_PROPERTIES(heapType);
             if (info.bufferUsage == 0) {
                 heapDec.Flags |= D3D12_HEAP_FLAG_DENY_BUFFERS;
-            }
-            else {
+            } else {
                 heapDec.Flags |= D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
             }
             mDevice->CreateHeap(&heapDec, IID_PPV_ARGS(&data.heap));
@@ -292,8 +299,7 @@ namespace PyroshockStudios {
                     IID_PPV_ARGS(&data.resource));
                 CheckD3DResult(hr);
 
-            }
-            else {
+            } else {
                 auto& block = mResourcePool->Get(info.memoryBlock);
                 D3D12MA::VIRTUAL_ALLOCATION_DESC allocDesc = {};
                 D3D12_RESOURCE_ALLOCATION_INFO resourceAllocInfo = mDevice->GetResourceAllocationInfo(0, 1, &bufferDesc);
@@ -401,8 +407,7 @@ namespace PyroshockStudios {
                     data.allocation.GetAddressOf(),
                     IID_PPV_ARGS(&data.resource));
                 CheckD3DResult(hr);
-            }
-            else {
+            } else {
                 auto& block = mResourcePool->Get(info.memoryBlock);
                 D3D12MA::VIRTUAL_ALLOCATION_DESC allocDesc = {};
                 D3D12_RESOURCE_ALLOCATION_INFO resourceAllocInfo = mDevice->GetResourceAllocationInfo(0, 1, &textureDesc);
@@ -464,8 +469,7 @@ namespace PyroshockStudios {
                 srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
                 srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 
-            }
-            else if (eastl::holds_alternative<ImageResourceInfo>(info)) {
+            } else if (eastl::holds_alternative<ImageResourceInfo>(info)) {
                 auto& imgInfo = eastl::get<ImageResourceInfo>(info);
                 auto& srcImg = mResourcePool->Get(imgInfo.image);
                 resource = srcImg.resource.Get();
@@ -500,8 +504,7 @@ namespace PyroshockStudios {
                 case ImageViewType::e2D:
                     if (bMS) {
                         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
-                    }
-                    else {
+                    } else {
                         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
                         srvDesc.Texture2D.MostDetailedMip = slice.baseMipLevel;
                         srvDesc.Texture2D.MipLevels = mipLevels;
@@ -514,8 +517,7 @@ namespace PyroshockStudios {
                         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY;
                         srvDesc.Texture2DMSArray.FirstArraySlice = slice.baseArrayLayer;
                         srvDesc.Texture2DMSArray.ArraySize = arrayLayers;
-                    }
-                    else {
+                    } else {
                         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
                         srvDesc.Texture2DArray.MostDetailedMip = slice.baseMipLevel;
                         srvDesc.Texture2DArray.MipLevels = mipLevels;
@@ -549,8 +551,7 @@ namespace PyroshockStudios {
                     break;
                 }
 
-            }
-            else {
+            } else {
                 ASSERT(false, "BAD VARIANT!");
             }
 
@@ -578,8 +579,7 @@ namespace PyroshockStudios {
                 uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
                 uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
-            }
-            else if (eastl::holds_alternative<ImageResourceInfo>(info)) {
+            } else if (eastl::holds_alternative<ImageResourceInfo>(info)) {
                 auto& imgInfo = eastl::get<ImageResourceInfo>(info);
                 auto& srcImg = mResourcePool->Get(imgInfo.image);
                 resource = srcImg.resource.Get();
@@ -607,8 +607,7 @@ namespace PyroshockStudios {
                 case ImageViewType::e2D:
                     if (bMS) {
                         uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DMS;
-                    }
-                    else {
+                    } else {
                         uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
                         uavDesc.Texture2D.MipSlice = slice.baseMipLevel;
                     }
@@ -619,8 +618,7 @@ namespace PyroshockStudios {
                         uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DMSARRAY;
                         uavDesc.Texture2DMSArray.FirstArraySlice = slice.baseArrayLayer;
                         uavDesc.Texture2DMSArray.ArraySize = arrayLayers;
-                    }
-                    else {
+                    } else {
                         uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
                         uavDesc.Texture2DArray.MipSlice = slice.baseMipLevel;
                         uavDesc.Texture2DArray.FirstArraySlice = slice.baseArrayLayer;
@@ -634,8 +632,7 @@ namespace PyroshockStudios {
                     break;
                 }
 
-            }
-            else {
+            } else {
                 ASSERT(false, "BAD VARIANT!");
             }
 
@@ -647,8 +644,8 @@ namespace PyroshockStudios {
         PYRO_FORCEINLINE static D3D12_FILTER ToD3D12Filter(const SamplerInfo& info) {
             if (info.enableAnisotropy) {
                 return info.enableCompare
-                    ? D3D12_FILTER_COMPARISON_ANISOTROPIC
-                    : D3D12_FILTER_ANISOTROPIC;
+                           ? D3D12_FILTER_COMPARISON_ANISOTROPIC
+                           : D3D12_FILTER_ANISOTROPIC;
             }
 
             const bool minLinear = info.minificationFilter != Filter::Nearest;
@@ -668,8 +665,7 @@ namespace PyroshockStudios {
                     return D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
                 else
                     return D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR; // fallback for invalid mixes
-            }
-            else {
+            } else {
                 if (!minLinear && !magLinear && !mipLinear)
                     return D3D12_FILTER_MIN_MAG_MIP_POINT;
                 else if (!minLinear && magLinear && !mipLinear)
@@ -748,10 +744,14 @@ namespace PyroshockStudios {
             return qp;
         }
         BlasId D3DDevice::CreateBlas(const BlasInfo& info) {
-            return BlasId();
+            auto [id, data] = mResourcePool->AllocBlas();
+            data.info = info;
+            return id;
         }
         TlasId D3DDevice::CreateTlas(const TlasInfo& info) {
-            return TlasId();
+            auto [id, data] = mResourcePool->AllocTlas();
+            data.info = info;
+            return id;
         }
         void D3DDevice::DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) {
             if (bDefer) {
@@ -782,8 +782,7 @@ namespace PyroshockStudios {
                 bool bReadback = false;
                 if (data.info.memoryBlock) {
                     bReadback = mResourcePool->Get(data.info.memoryBlock).info.domain == MemoryAllocationDomain::HostReadback;
-                }
-                else {
+                } else {
                     bReadback = data.info.allocationDomain == MemoryAllocationDomain::HostReadback;
                 }
                 data.resource->Unmap(0, bReadback ? nullptr : &data.range);
@@ -958,8 +957,30 @@ namespace PyroshockStudios {
             queryPool = nullptr;
         }
         void D3DDevice::DestroyBlas(BlasId& blas, bool bDefer) {
+            if (bDefer) {
+                ZombieDeleter zombie = {
+                    .resource = eastl::bit_cast<void*>(blas),
+                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<BlasId>(res)); }
+                };
+                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                return;
+            }
+            mResourcePool->ReleaseBlas(blas);
+            gDx12Context->FlushDebugMessages();
+            blas = PYRO_NULL_BLAS;
         }
         void D3DDevice::DestroyTlas(TlasId& tlas, bool bDefer) {
+            if (bDefer) {
+                ZombieDeleter zombie = {
+                    .resource = eastl::bit_cast<void*>(tlas),
+                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<TlasId>(res)); }
+                };
+                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                return;
+            }
+            mResourcePool->ReleaseTlas(tlas);
+            gDx12Context->FlushDebugMessages();
+            tlas = PYRO_NULL_TLAS;
         }
         eastl::optional<Format> D3DDevice::PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const {
             return eastl::optional<Format>();
@@ -1088,8 +1109,7 @@ namespace PyroshockStudios {
                             srvDesc.Texture2DArray.FirstArraySlice = j;
                             srvDesc.Texture2DArray.ArraySize = 1;
                             srvDesc.Texture2DArray.ResourceMinLODClamp = 0.0f;
-                        }
-                        else {
+                        } else {
                             srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
                             srvDesc.Texture2D.MostDetailedMip = i;
                             srvDesc.Texture2D.MipLevels = 1;
@@ -1114,8 +1134,7 @@ namespace PyroshockStudios {
                             view.Texture2DArray.MipSlice = i;
                             view.Texture2DArray.FirstArraySlice = j;
                             view.Texture2DArray.ArraySize = 1;
-                        }
-                        else {
+                        } else {
                             view.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
                             view.Texture2D.MipSlice = i;
                         }
@@ -1226,7 +1245,7 @@ namespace PyroshockStudios {
             // --- Create PSO ---
             CheckD3DResult(mDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&entry)));
             eastl::string name = eastl::string("Blit image pipeline state DXGI format=") + eastl::to_string((UINT)format) + ", Array=" +
-                (bArray ? "true" : "false");
+                                 (bArray ? "true" : "false");
             D3DSetDebugName(entry, name.c_str());
             gDx12Context->FlushDebugMessages();
 
@@ -1238,8 +1257,7 @@ namespace PyroshockStudios {
                 auto lub = new LinearUploadBuffer(mDevice.Get(), minSize);
                 gDx12Context->FlushDebugMessages();
                 return lub;
-            }
-            else {
+            } else {
                 LinearUploadBuffer* buff = mAvailableLinearUploadBuffers.back().second;
                 mAvailableLinearUploadBuffers.pop_back();
                 buff->Reset();
@@ -1297,8 +1315,7 @@ namespace PyroshockStudios {
                 if (completedValue >= queueTimeline) {
                     mQueuePendingSubmits.erase(mQueuePendingSubmits.begin() + i);
                     --i;
-                }
-                else {
+                } else {
                     for (auto& [oldestTimelineQueue, oldestVal] : oldestQueueTimelines) {
                         if (queue != oldestTimelineQueue)
                             continue;
@@ -1333,7 +1350,7 @@ namespace PyroshockStudios {
 
             // === Miscellaneous garbage collection ===
 
-             // Delete linear upload buffers that haven't been used in a long time
+            // Delete linear upload buffers that haven't been used in a long time
             for (usize i = 0; i < mAvailableLinearUploadBuffers.size(); ++i) {
                 auto& [unusedFrames, zombie] = mAvailableLinearUploadBuffers[i];
                 if (unusedFrames++ > MAX_FRAMES_LINEAR_UPLOAD_BUFFER_UNSUED_LIFETIME) {
@@ -1397,15 +1414,15 @@ namespace PyroshockStudios {
                 switch (queueDesc.Type) {
                 case D3D12_COMMAND_LIST_TYPE_DIRECT:
                     queueDescData.flags = CommandQueueFlagBits::GRAPHICS |
-                        CommandQueueFlagBits::COMPUTE |
-                        CommandQueueFlagBits::TRANSFER;
+                                          CommandQueueFlagBits::COMPUTE |
+                                          CommandQueueFlagBits::TRANSFER;
                     queueDescData.bPresentable = true;
                     queueDescData.name = "Direct Queue";
                     break;
 
                 case D3D12_COMMAND_LIST_TYPE_COMPUTE:
                     queueDescData.flags = CommandQueueFlagBits::COMPUTE |
-                        CommandQueueFlagBits::TRANSFER;
+                                          CommandQueueFlagBits::TRANSFER;
                     queueDescData.bPresentable = false;
                     queueDescData.name = "Compute Queue";
                     break;
@@ -1628,8 +1645,7 @@ namespace PyroshockStudios {
             mInfo.sharedSystemMemory = desc.SharedSystemMemory;
             if (desc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE) {
                 mInfo.deviceType = DeviceType::CPU;
-            }
-            else {
+            } else {
                 mInfo.deviceType = DeviceType::Unknown;
             }
             mInfo.bUnifiedMemory = (desc.DedicatedVideoMemory == 0);
@@ -1730,7 +1746,7 @@ namespace PyroshockStudios {
         }
 
         void D3DDevice::DestroyUploadBuffers() {
-            //ASSERT(mOccupiedLinearUploadBuffers.empty(), "Command buffers must finish execution before device destruction! Linear upload buffers were leaked!");
+            // ASSERT(mOccupiedLinearUploadBuffers.empty(), "Command buffers must finish execution before device destruction! Linear upload buffers were leaked!");
             for (auto [_, buf] : mAvailableLinearUploadBuffers) {
                 delete buf;
                 gDx12Context->FlushDebugMessages();

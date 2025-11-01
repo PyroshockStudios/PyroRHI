@@ -30,7 +30,7 @@ namespace PyroshockStudios {
               mUAVHeap(device->InternalDevice(), maxUAVs, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, false, "Global UAV Heap"),
               mSamplerHeap(device->InternalDevice(), maxSamplers, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, "Global Sampler Heap"),
               mRTVHeap(device->InternalDevice(), maxRtvs, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false, "Global RTV Heap"),
-              mDSVHeap(device->InternalDevice(), maxDsvs, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false, "Global DSV Heap") {
+              mDSVHeap(device->InternalDevice(), maxDsvs, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false, "Global DSV Heap"){
         }
         GPUResourcePool::~GPUResourcePool() {
             if (mMemoryBlockResources.size() > 0) {
@@ -78,6 +78,20 @@ namespace PyroshockStudios {
             Image buff = eastl::bit_cast<Image>(handle);
             return { buff, mImageResources[buff] };
         }
+        eastl::pair<BlasId, D3DBlasData&> GPUResourcePool::AllocBlas() {
+            ResourceHandle handle;
+            handle.unused = 0xDEADBEEF;
+            handle.counter = mBlasCounter++;
+            BlasId blas = eastl::bit_cast<BlasId>(handle);
+            return { blas, mBlasResources[blas] };
+        }
+        eastl::pair<TlasId, D3DTlasData&> GPUResourcePool::AllocTlas() {
+            ResourceHandle handle;
+            handle.unused = 0xDEADBEEF;
+            handle.counter = mTlasCounter++;
+            TlasId tlas = eastl::bit_cast<TlasId>(handle);
+            return { tlas, mTlasResources[tlas] };
+        }
         void GPUResourcePool::ReleaseMemoryBlock(MemoryBlock memory) {
             ASSERT(mMemoryBlockResources.contains(memory), "Double free occurred!");
 
@@ -93,6 +107,16 @@ namespace PyroshockStudios {
 
             mImageResources.erase(image);
         }
+        void GPUResourcePool::ReleaseBlas(BlasId blas) {
+            ASSERT(mBlasResources.contains(blas), "Double free occurred!");
+
+            mBlasResources.erase(blas);
+        }
+        void GPUResourcePool::ReleaseTlas(TlasId tlas) {
+            ASSERT(mTlasResources.contains(tlas), "Double free occurred!");
+
+            mTlasResources.erase(tlas);
+        }
         D3DMemoryBlockResourceData& GPUResourcePool::Get(MemoryBlock handle) {
             ASSERT(mMemoryBlockResources.contains(handle), "Invalid handle!");
             return mMemoryBlockResources.at(handle);
@@ -104,6 +128,14 @@ namespace PyroshockStudios {
         D3DImageResourceData& GPUResourcePool::Get(Image handle) {
             ASSERT(mImageResources.contains(handle), "Invalid handle!");
             return mImageResources.at(handle);
+        }
+        D3DBlasData& GPUResourcePool::Get(BlasId handle) {
+            ASSERT(mBlasResources.contains(handle), "Invalid handle!");
+            return mBlasResources.at(handle);
+        }
+        D3DTlasData& GPUResourcePool::Get(TlasId handle) {
+            ASSERT(mTlasResources.contains(handle), "Invalid handle!");
+            return mTlasResources.at(handle);
         }
     } // namespace RHIDX12
 } // namespace PyroshockStudios

@@ -334,6 +334,18 @@ namespace PyroshockStudios {
              */
             PYRO_NODISCARD virtual bool IsSamplerValid(SamplerId id) const = 0;
 
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * Check whether a BLAS handle is valid.
+             */
+            PYRO_NODISCARD virtual bool IsBlasValid(BlasId id) const = 0;
+
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * Check whether a TLAS handle is valid.
+             */
+            PYRO_NODISCARD virtual bool IsTlasValid(TlasId id) const = 0;
+
             // Convenience overloads
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(MemoryBlock handle) const { return IsMemoryBlockValid(handle); }
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(Buffer handle) const { return IsBufferValid(handle); }
@@ -341,6 +353,8 @@ namespace PyroshockStudios {
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(ShaderResourceId id) const { return IsShaderResourceValid(id); }
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(UnorderedAccessId id) const { return IsUnorderedAccessValid(id); }
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(SamplerId id) const { return IsSamplerValid(id); }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(BlasId id) const { return IsBlasValid(id); }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(TlasId id) const { return IsTlasValid(id); }
 
             // ---------------------------------------------------------------------
             // Resource Info Queries

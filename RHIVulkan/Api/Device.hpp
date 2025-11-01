@@ -80,6 +80,8 @@ namespace PyroshockStudios {
             bool IsShaderResourceValid(ShaderResourceId id) const override;
             bool IsUnorderedAccessValid(UnorderedAccessId id) const override;
             bool IsSamplerValid(SamplerId id) const override;
+            bool IsBlasValid(BlasId id) const override;
+            bool IsTlasValid(TlasId id) const override;
 
             const MemoryBlockInfo& GetMemoryBlockInfo(MemoryBlock memory) const override;
             const BufferInfo& GetBufferInfo(Buffer buffer) const override;
@@ -202,9 +204,9 @@ namespace PyroshockStudios {
 
             void CreateAccelerationStructureBuildInfo(const eastl::span<const TlasBuildInfo>& tlasBuildInfos, const eastl::span<const BlasBuildInfo>& blasBuildInfos,
                 eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR>& vkBuildGeometryInfos,
-                eastl::vector<VkAccelerationStructureGeometryKHR>& vkGeometryInfos ,
+                eastl::vector<VkAccelerationStructureGeometryKHR>& vkGeometryInfos,
                 eastl::vector<u32>& primitiveCounts,
-                eastl::vector<const u32*>&  primitiveCountsPtrs) const;
+                eastl::vector<const u32*>& primitiveCountsPtrs) const;
 
         public:
             eastl::vector<eastl::pair<QueueTimelineSnapshot, ZombieDeleter>> mResourceZombies = {};

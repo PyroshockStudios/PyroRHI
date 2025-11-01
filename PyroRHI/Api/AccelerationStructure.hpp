@@ -182,3 +182,21 @@ namespace PyroshockStudios {
 
     } // namespace RHI
 } // namespace PyroshockStudios
+
+namespace eastl {
+    using namespace PyroshockStudios;
+    using namespace PyroshockStudios::RHI;
+
+    template <>
+    struct hash<BlasId> {
+        usize operator()(BlasId k) const {
+            return eastl::hash<usize>{}(eastl::bit_cast<u64>(k));
+        }
+    };
+    template <>
+    struct hash<TlasId> {
+        usize operator()(TlasId k) const {
+            return eastl::hash<usize>{}(eastl::bit_cast<u64>(k));
+        }
+    };
+} // namespace eastl

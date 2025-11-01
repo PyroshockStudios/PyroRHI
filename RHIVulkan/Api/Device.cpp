@@ -1516,6 +1516,14 @@ namespace PyroshockStudios {
             return mResourceTable.mSamplerSlots.IsIdValid(id);
         }
 
+        bool VulkanDevice::IsBlasValid(BlasId id) const {
+            return mResourceTable.mBlasSlots.IsIdValid(id);
+        }
+
+        bool VulkanDevice::IsTlasValid(TlasId id) const {
+            return mResourceTable.mTlasSlots.IsIdValid(id);
+        }
+
         void VulkanDevice::DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer) {
             if (bDefer) {
                 ZombieDeleter zombie = {

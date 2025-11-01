@@ -21,13 +21,15 @@
 // SOFTWARE.
 
 #pragma once
-#include <EASTL/hash_map.h>
+#include <D3D12MemAlloc.h>
 #include <EASTL/atomic.h>
+#include <EASTL/hash_map.h>
 #include <EASTL/vector.h>
 #include <PyroCommon/Logger.hpp>
+#undef OPAQUE
+#include <PyroRHI/Api/AccelerationStructure.hpp>
 #include <PyroRHI/Api/GPUResource.hpp>
 #include <RHIDX12/Core.hpp>
-#include <D3D12MemAlloc.h>
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
@@ -71,21 +73,23 @@ namespace PyroshockStudios {
                 }
             }
             eastl::pair<GpuResourceId, TInfo&> AcquireSlot() {
-                UINT slot = 0;
+                UINT slot, version = 0;
                 if (mTombstones.size() == 1) {
                     slot = mHeapCounter++;
                     mSlots.push_back({});
                 } else {
-                    slot = mTombstones.back();
+                    auto kv = mTombstones.back();
+                    slot = kv.first;
+                    version = kv.second;
                     mTombstones.pop_back();
                 }
-                return { { .index = slot, .version = 0 }, mSlots[slot] };
+                return { { .index = slot, .version = version }, mSlots[slot] };
             }
             void ReleaseSlot(GpuResourceId handle) {
-                mTombstones.emplace_back(handle.index);
+                mTombstones.emplace_back(handle.index, ++handle.version);
             }
             void ReleaseSlot(D3D12_CPU_DESCRIPTOR_HANDLE handle) {
-                mTombstones.emplace_back(static_cast<UINT>((handle.ptr - mDescriptorBase.ptr) / mIncSz));
+                mTombstones.emplace_back(static_cast<UINT>((handle.ptr - mDescriptorBase.ptr) / mIncSz), 0);
             }
 
             D3D12_CPU_DESCRIPTOR_HANDLE Resolve(GpuResourceId slot) {
@@ -109,7 +113,7 @@ namespace PyroshockStudios {
             }
 
         private:
-            eastl::vector<UINT> mTombstones = { 1 };
+            eastl::vector<eastl::pair<UINT, UINT>> mTombstones = { { 1, 0 } };
             eastl::vector<TInfo> mSlots = { TInfo{} };
             D3D12_CPU_DESCRIPTOR_HANDLE mDescriptorBase = {};
             UINT mHeapCounter = 1;
@@ -144,6 +148,15 @@ namespace PyroshockStudios {
             eastl::vector<DescriptorTableInfo> blitImageSRVHeaps = {};
         };
 
+        struct D3DBlasData {
+            BlasInfo info = {};
+            D3D12_GPU_VIRTUAL_ADDRESS address = {};
+        };
+
+        struct D3DTlasData {
+            TlasInfo info = {};
+        };
+
         struct D3DRenderTargetData {
             u64 x;
         };
@@ -156,14 +169,20 @@ namespace PyroshockStudios {
             eastl::pair<MemoryBlock, D3DMemoryBlockResourceData&> AllocMemoryBlock();
             eastl::pair<Buffer, D3DBufferResourceData&> AllocBuffer();
             eastl::pair<Image, D3DImageResourceData&> AllocImage();
+            eastl::pair<BlasId, D3DBlasData&> AllocBlas();
+            eastl::pair<TlasId, D3DTlasData&> AllocTlas();
 
             void ReleaseMemoryBlock(MemoryBlock buffer);
             void ReleaseBuffer(Buffer buffer);
             void ReleaseImage(Image image);
+            void ReleaseBlas(BlasId blas);
+            void ReleaseTlas(TlasId blas);
 
             D3DMemoryBlockResourceData& Get(MemoryBlock handle);
             D3DBufferResourceData& Get(Buffer handle);
             D3DImageResourceData& Get(Image handle);
+            D3DBlasData& Get(BlasId handle);
+            D3DTlasData& Get(TlasId handle);
 
             D3DHeapManager<GpuResourceInfo> mSRVHeap;
             D3DHeapManager<GpuResourceInfo> mUAVHeap;
@@ -175,10 +194,14 @@ namespace PyroshockStudios {
             eastl::hash_map<MemoryBlock, D3DMemoryBlockResourceData> mMemoryBlockResources = {};
             eastl::hash_map<Buffer, D3DBufferResourceData> mBufferResources = {};
             eastl::hash_map<Image, D3DImageResourceData> mImageResources = {};
+            eastl::hash_map<BlasId, D3DBlasData> mBlasResources = {};
+            eastl::hash_map<TlasId, D3DTlasData> mTlasResources = {};
 
             eastl::atomic<u32> mMemoryBlockCounter = 1;
             eastl::atomic<u32> mBufferCounter = 1;
             eastl::atomic<u32> mImageCounter = 1;
+            eastl::atomic<u32> mBlasCounter = 1;
+            eastl::atomic<u32> mTlasCounter = 1;
         };
     } // namespace RHIDX12
 } // namespace PyroshockStudios
