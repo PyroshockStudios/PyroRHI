@@ -42,7 +42,7 @@ jobs:
           cmake -G "Ninja" -B build -S . `
             -DCMAKE_C_COMPILER=clang-cl `
             -DCMAKE_CXX_COMPILER=clang-cl `
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
+            -DCMAKE_BUILD_TYPE=Debug `
             -DPYRO_COMMON_BUILD_TESTS=OFF `
             -DPYRO_COMMON_SHARED_LIBRARY=OFF `
             -DPYRO_RHI_BUILD_TESTS=ON `
@@ -55,29 +55,26 @@ jobs:
       - name: Build (Ninja)
         shell: pwsh
         run: |
-          cmake --build build --parallel 4
+          cmake --build build --parallel 16
           
-      - name: Run Tests
+      - name: Run Tests and Generate Coverage
         shell: pwsh
         run: |
           # Set the build directory (assuming 'build' is in the current location)
-          $buildDir = (Join-Path (Get-Location) "build")
+          $buildDir = (Join-Path $env:GITHUB_WORKSPACE "build")
           $env:LLVM_PROFILE_FILE = "$buildDir\%p.profraw"
           Write-Host "LLVM_PROFILE_FILE = $env:LLVM_PROFILE_FILE"
-          
+
           # Run tests
           Push-Location $buildDir
-          ctest --build-config ${{ matrix.build_type }} --output-on-failure --rerun-failed
+          ctest --build-config Debug --output-on-failure --rerun-failed
           $ctestExitCode = $LASTEXITCODE
           Pop-Location
-          
+
           if ($ctestExitCode -ne 0) {
               Write-Host "ctest returned non-zero exit code ($ctestExitCode) — tests may have failed. Continuing..."
           }
-          
-      - name: Generate LCOV Coverage
-        shell: pwsh
-        run: |
+
           # --- 1. Merge .profraw files ---
           $profraw = Get-ChildItem -Path $buildDir -Recurse -Filter '*.profraw' -File -ErrorAction SilentlyContinue
           if (-not $profraw -or $profraw.Count -eq 0) {
@@ -86,15 +83,15 @@ jobs:
           }
           Write-Host "Found profraw files:"
           $profraw | ForEach-Object { Write-Host "  $($_.FullName)" }
-          
+
           $profrawFiles = $profraw | ForEach-Object { $_.FullName }
           $profdataCmd = "llvm-profdata.exe" # Assumes llvm-profdata is in PATH
           $profdataOut = Join-Path $buildDir "coverage.profdata"
           $profrawListFile = Join-Path $buildDir "profraw_files.list.txt"
-          
+
           # Write all profraw files to a response file to avoid "filename too long" error
           $profrawFiles | Set-Content -Path $profrawListFile -Encoding Ascii
-          
+
           Write-Host "Merging profraw files using response file -> $profdataOut"
           # Use -f to read the list from the file, bypassing command line length limits
           & $profdataCmd merge -sparse -f $profrawListFile -o $profdataOut
@@ -102,17 +99,17 @@ jobs:
               Write-Error "llvm-profdata merge failed."
               Exit 1
           }
-          
+
           # --- 2. Define Binaries and Generate Reports ---
           $llvmCovCmd = "llvm-cov.exe" # Assumes llvm-cov is in PATH
           $profdata = $profdataOut
-          
+
           # We MUST include all binaries:
           # - The .dll files (like RHIDX12.dll) contain the library code being tested.
           # - The .exe files (like RHIValidationTestDX12.exe) contain the tests AND the executed copies of inline header functions.
           $allBins = Get-ChildItem -Path $buildDir -Recurse -Include 'RHIBaseTest.exe','RHIValidationTestDX12.exe','RHIDX12.dll' -File | Select-Object -ExpandProperty FullName
           $testBins = Get-ChildItem -Path $buildDir -Recurse -Include 'RHIBaseTest.exe','RHIValidationTestDX12.exe' -File | Select-Object -ExpandProperty FullName
-          
+
           if ($allBins.Count -eq 0) {
               Write-Error "No instrumented binaries found (.dll or .exe)."
               Exit 1
@@ -121,11 +118,11 @@ jobs:
               Write-Error "No instrumented test binaries found (.exe)."
               Exit 1
           }
-          
+
           # --- 3. Generate LCOV Report (from ALL binaries) ---
           $coverageInfoAll = Join-Path $buildDir "coverage.all.info"
           Write-Host "Generating LCOV coverage from all binaries -> $coverageInfoAll"
-          
+
           & $llvmCovCmd export ("-instr-profile=$profdata") ("-format=lcov") @allBins > $coverageInfoAll
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $coverageInfoAll)) {
               Write-Error "llvm-cov export failed for all binaries."
@@ -134,7 +131,7 @@ jobs:
           } else {
               Write-Host "Generated LCOV-format coverage.all.info"
           }
-          
+
           # --- 3.5 Generate LCOV Report (from TEST binaries only) ---
           $coverageInfoTests = Join-Path $buildDir "coverage.tests.info"
           Write-Host "Generating LCOV coverage from test binaries -> $coverageInfoTests"
