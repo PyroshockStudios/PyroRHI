@@ -1318,7 +1318,7 @@ namespace PyroshockStudios {
             primitiveCounts.reserve(blasBuildInfos.size() + tlasBuildInfos.size());
             usize geometryInfoCount = 0;
             for (const auto& tlasBuildInfo : tlasBuildInfos) {
-                geometryInfoCount += tlasBuildInfo.instances.size();
+                geometryInfoCount += 1;
             }
             for (const auto& blasBuildInfo : blasBuildInfos) {
                 if (auto* triangleGeometryInfos = eastl::get_if<eastl::span<const BlasTriangleGeometryInfo>>(&blasBuildInfo.geometries)) {
@@ -1337,21 +1337,19 @@ namespace PyroshockStudios {
                 const VkAccelerationStructureGeometryKHR* vkGeometryArrayPtr = vkGeometryInfos.data() + vkGeometryInfos.size();
                 const u32* primitiveCountsPtr = primitiveCounts.data() + primitiveCounts.size();
 
-                for (const auto& instance : tlasBuildInfo.instances) {
-                    VkAccelerationStructureGeometryInstancesDataKHR vkInstanceData = {
-                        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR,
-                        .pNext = nullptr,
-                        .arrayOfPointers = instance.bDataArrayOfPointers ? VK_TRUE : VK_FALSE,
-                        .data = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(instance.data).deviceAddress)
-                    };
-                    vkGeometryInfos.push_back(VkAccelerationStructureGeometryKHR{
-                        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
-                        .pNext = nullptr,
-                        .geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR,
-                        .geometry = VkAccelerationStructureGeometryDataKHR{
-                            .instances = vkInstanceData } });
-                    primitiveCounts.push_back(instance.count);
-                }
+                VkAccelerationStructureGeometryInstancesDataKHR vkInstanceData = {
+                    .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR,
+                    .pNext = nullptr,
+                    .arrayOfPointers = /* tlasBuildInfo.instances.bDataArrayOfPointers ? VK_TRUE :*/ VK_FALSE,
+                    .data = eastl::bit_cast<VkDeviceOrHostAddressConstKHR>(Slot(tlasBuildInfo.instances.data).deviceAddress)
+                };
+                vkGeometryInfos.push_back(VkAccelerationStructureGeometryKHR{
+                    .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+                    .pNext = nullptr,
+                    .geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR,
+                    .geometry = VkAccelerationStructureGeometryDataKHR{
+                        .instances = vkInstanceData } });
+                primitiveCounts.push_back(tlasBuildInfo.instances.count);
 
                 vkBuildGeometryInfos.push_back({
                     .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
@@ -1361,7 +1359,7 @@ namespace PyroshockStudios {
                     .mode = tlasBuildInfo.update ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
                     .srcAccelerationStructure = tlasBuildInfo.srcTlas != PYRO_NULL_TLAS ? Slot(tlasBuildInfo.srcTlas).vkAccelerationStructure : nullptr,
                     .dstAccelerationStructure = tlasBuildInfo.dstTlas != PYRO_NULL_TLAS ? Slot(tlasBuildInfo.dstTlas).vkAccelerationStructure : nullptr,
-                    .geometryCount = static_cast<u32>(tlasBuildInfo.instances.size()),
+                    .geometryCount = 1,
                     .pGeometries = vkGeometryArrayPtr,
                     .ppGeometries = nullptr,
                     .scratchData = tlasBuildInfo.scratchBuffer == PYRO_NULL_BUFFER

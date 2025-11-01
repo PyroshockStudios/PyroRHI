@@ -134,7 +134,7 @@ namespace PyroshockStudios {
         struct TlasInstanceInfo {
             Buffer data = {};
             u32 count = {};
-            bool bDataArrayOfPointers = {};
+            //bool bDataArrayOfPointers = {};
             AccelerationStructureGeometryFlags flags = AccelerationStructureGeometryFlagBits::OPAQUE; ///< Attribute for opaque/transparent instance
         };
 
@@ -171,7 +171,7 @@ namespace PyroshockStudios {
             bool update = false;
             TlasId srcTlas = PYRO_NULL_TLAS;
             TlasId dstTlas = PYRO_NULL_TLAS;
-            eastl::span<const TlasInstanceInfo> instances = {};
+            TlasInstanceInfo instances = {};
             Buffer scratchBuffer = PYRO_NULL_BUFFER;
         };
 

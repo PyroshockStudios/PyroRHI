@@ -208,10 +208,8 @@ namespace PyroshockStudios {
                 inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
             }
 
-            // Your RHI only supports one instance description per build info
-            ASSERT(info.instances.size() == 1);
-            inputs.NumDescs = info.instances[0].count;
-            inputs.InstanceDescs = mResourcePool->Get(info.instances[0].data).resource->GetGPUVirtualAddress();
+            inputs.NumDescs = info.instances.count;
+            inputs.InstanceDescs = mResourcePool->Get(info.instances.data).resource->GetGPUVirtualAddress();
 
             D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
             mDevice5->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &prebuildInfo);

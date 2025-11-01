@@ -914,11 +914,9 @@ namespace PyroshockStudios {
                 // Fill inputs
                 buildDesc.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
                 buildDesc.Inputs.Flags = ToD3D12ASBuildFlags(tlasInfo.flags);
-
-                // TODO: DX12 only supports one of these descriptions
-                ASSERT(tlasInfo.instances.size() == 1);
-                buildDesc.Inputs.NumDescs = tlasInfo.instances[0].count;
-                buildDesc.Inputs.InstanceDescs = mDevice->ResourcePool().Get(tlasInfo.instances[0].data).resource->GetGPUVirtualAddress();
+                
+                buildDesc.Inputs.NumDescs = tlasInfo.instances.count;
+                buildDesc.Inputs.InstanceDescs = mDevice->ResourcePool().Get(tlasInfo.instances.data).resource->GetGPUVirtualAddress();
 
                 // Handle update
                 if (tlasInfo.update) {

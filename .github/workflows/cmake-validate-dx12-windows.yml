@@ -262,7 +262,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: build/coverage_rhidx12.info
-          filter: dx12
+          flags: dx12
           fail_ci_if_error: true
-          verbose: true
-
+          
