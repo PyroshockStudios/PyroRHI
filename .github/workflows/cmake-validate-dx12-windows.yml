@@ -134,22 +134,21 @@ jobs:
               Write-Error "No instrumented binaries found"
               Exit 1
           }
-          $objectArgs = $bins | ForEach-Object { "-object", $_ }
           
           $coverageInfo = Join-Path (Get-Location) "coverage.info"
           Write-Host "Generating LCOV coverage from all binaries -> $coverageInfo"
           
           # Export coverage for all binaries
-          & $llvmCovCmd export ("-instr-profile=$profdata") ("-format=lcov") $objectArgs > $coverageInfo
+          & $llvmCovCmd export ("-instr-profile=$profdata") ("-format=lcov") @bins > $coverageInfo
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $coverageInfo)) {
             Write-Warning "llvm-cov export failed (maybe older llvm). Falling back to 'llvm-cov show -format=text' (NOT true LCOV)."
             # remove possibly partial file
             if (Test-Path $coverageInfo) { Remove-Item $coverageInfo -Force }
-            & $llvmCovCmd show $objectArgs ("-instr-profile=$profdata") ("-format=text") > $coverageInfo
+            & $llvmCovCmd show @bins ("-instr-profile=$profdata") ("-format=text") > $coverageInfo
             if ($LASTEXITCODE -ne 0 -or -not (Test-Path $coverageInfo)) {
               Write-Error "Both llvm-cov export and fallback show (text) failed. Inspect llvm-cov output above for details."
               # print a textual report for debugging
-              & $llvmCovCmd report $objectArgs ("-instr-profile=$profdata") 2>&1 | ForEach-Object { Write-Host $_ }
+              & $llvmCovCmd report @bins ("-instr-profile=$profdata") 2>&1 | ForEach-Object { Write-Host $_ }
               Exit 1
             } else {
               Write-Warning "Fallback produced a text-format coverage file at $coverageInfo (not LCOV). Consider installing a newer LLVM with 'llvm-cov export'."
@@ -159,12 +158,12 @@ jobs:
           }
         
           # Print short textual summary (always useful)
-          & $llvmCovCmd report $objectArgs ("-instr-profile=$profdata") | ForEach-Object { Write-Host $_ }
+          & $llvmCovCmd report @bins ("-instr-profile=$profdata") | ForEach-Object { Write-Host $_ }
         
           # Generate HTML using show (still correct)
           $htmlDir = Join-Path (Get-Location) "coverage_html"
           Write-Host "Generating HTML -> $htmlDir"
-          & $llvmCovCmd show $objectArgs ("-instr-profile=$profdata") ("-format=html") ("-output-dir=$htmlDir")
+          & $llvmCovCmd show @bins ("-instr-profile=$profdata") ("-format=html") ("-output-dir=$htmlDir")
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path $htmlDir)) {
             Write-Error "llvm-cov html generation failed."
             Exit 1
@@ -183,7 +182,7 @@ jobs:
           $lcovCmd = (Get-Command lcov -ErrorAction SilentlyContinue).Path
           if ($lcovCmd) {
             Write-Host "Using lcov to extract RHIDX12 files"
-            & $lcovCmd --extract $raw "*/RHIDX12/*" -o $out
+            & $lcovCmd --extract $raw "*/RHIDX12/*" --extract $raw "*/DirectX12Test/*" -o $out
             if ($LASTEXITCODE -ne 0 -or -not (Test-Path $out)) {
               Write-Warning "lcov extract failed; falling back to PowerShell filter"
               Remove-Item -ErrorAction SilentlyContinue $out
