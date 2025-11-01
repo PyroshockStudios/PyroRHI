@@ -1,4 +1,4 @@
-ame: DirectX 12 Validation (Windows ClangCL)
+name: DirectX 12 Validation (Windows ClangCL)
 permissions:
   contents: read
 
