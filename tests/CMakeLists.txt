@@ -25,9 +25,9 @@ add_subdirectory(RHITestChassis)
 add_subdirectory(RHIBaseTest)
 
 if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS)
-    add_subdirectory(VulkanVVLTest)
+    add_subdirectory(RHIValidationTestVulkan)
 endif()
 
 if (PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
-    add_subdirectory(DirectX12Test)
+    add_subdirectory(RHIValidationTestDX12)
 endif()
