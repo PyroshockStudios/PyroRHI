@@ -1878,8 +1878,8 @@ namespace PyroshockStudios {
             mFeatures.bWaveOps = mDx12FeatureSupport.WaveOps();
 
             mFeatures.bAccelerationStructureBuild = mDx12FeatureSupport.RaytracingTier() != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
-            mFeatures.bRayQueries = mDx12FeatureSupport.RaytracingTier() >= D3D12_RAYTRACING_TIER_1_0;
-            mFeatures.bRayTracingPipelines = mDx12FeatureSupport.RaytracingTier() == D3D12_RAYTRACING_TIER_1_2;
+            mFeatures.bRayTracingPipelines = mDx12FeatureSupport.RaytracingTier() >= D3D12_RAYTRACING_TIER_1_0;
+            mFeatures.bRayQueries = mDx12FeatureSupport.RaytracingTier() >= D3D12_RAYTRACING_TIER_1_1;
             mFeatures.bMeshShaders = mDx12FeatureSupport.MeshShaderTier() != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
             mFeatures.bVariableRateShading = mDx12FeatureSupport.VariableShadingRateTier() != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
             mFeatures.supportedShaderModel = static_cast<u32>(mDx12FeatureSupport.HighestShaderModel());

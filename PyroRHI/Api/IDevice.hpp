@@ -98,9 +98,9 @@ namespace PyroshockStudios {
             bool bTaskShaders = false;
 
             // --- Ray Tracing ---
-            bool bRayQueries = false;
-            bool bRayTracingPipelines = false;
             bool bAccelerationStructureBuild = false;
+            bool bRayTracingPipelines = false;
+            bool bRayQueries = false;
 
             // --- Resource / Memory ---
             bool bBufferDeviceAddress = false; ///< VK_KHR_buffer_device_address / D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT

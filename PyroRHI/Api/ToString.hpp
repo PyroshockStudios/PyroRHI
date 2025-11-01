@@ -639,9 +639,9 @@ namespace PyroshockStudios {
             BOOL_FIELD(bTesselationShaders);
             BOOL_FIELD(bMeshShaders);
             BOOL_FIELD(bTaskShaders);
-            BOOL_FIELD(bRayQueries);
-            BOOL_FIELD(bRayTracingPipelines);
             BOOL_FIELD(bAccelerationStructureBuild);
+            BOOL_FIELD(bRayTracingPipelines);
+            BOOL_FIELD(bRayQueries);
             BOOL_FIELD(bBufferDeviceAddress);
             BOOL_FIELD(bBCnTextureCompression);
             BOOL_FIELD(bUint8IndexBuffer);

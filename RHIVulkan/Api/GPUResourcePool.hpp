@@ -100,6 +100,7 @@ namespace PyroshockStudios {
             u64 offset = {};
             VkDeviceAddress deviceAddress = {};
             bool ownsBuffer = {};
+            bool zombie = {};
         };
 
         struct ImplTlasSlot {
@@ -110,6 +111,7 @@ namespace PyroshockStudios {
             u64 offset = {};
             VkDeviceAddress deviceAddress = {};
             bool ownsBuffer = {};
+            bool zombie = {};
         };
 
         template <typename ResourceT>
