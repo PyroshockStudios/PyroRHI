@@ -150,11 +150,15 @@ namespace PyroshockStudios {
 
         struct D3DBlasData {
             BlasInfo info = {};
-            D3D12_GPU_VIRTUAL_ADDRESS address = {};
+            ComPtr<ID3D12Resource> resource = {};        // The buffer containing the AS
+            ComPtr<D3D12MA::Allocation> allocation = {}; // The D3D12MA allocation
+            D3D12_GPU_VIRTUAL_ADDRESS address = 0;       // The GPU address
         };
 
         struct D3DTlasData {
             TlasInfo info = {};
+            ComPtr<ID3D12Resource> resource = {};        // The buffer containing the AS
+            ComPtr<D3D12MA::Allocation> allocation = {}; // The D3D12MA allocation
         };
 
         struct D3DRenderTargetData {
@@ -170,21 +174,19 @@ namespace PyroshockStudios {
             eastl::pair<Buffer, D3DBufferResourceData&> AllocBuffer();
             eastl::pair<Image, D3DImageResourceData&> AllocImage();
             eastl::pair<BlasId, D3DBlasData&> AllocBlas();
-            eastl::pair<TlasId, D3DTlasData&> AllocTlas();
 
             void ReleaseMemoryBlock(MemoryBlock buffer);
             void ReleaseBuffer(Buffer buffer);
             void ReleaseImage(Image image);
             void ReleaseBlas(BlasId blas);
-            void ReleaseTlas(TlasId blas);
 
             D3DMemoryBlockResourceData& Get(MemoryBlock handle);
             D3DBufferResourceData& Get(Buffer handle);
             D3DImageResourceData& Get(Image handle);
             D3DBlasData& Get(BlasId handle);
-            D3DTlasData& Get(TlasId handle);
 
-            D3DHeapManager<GpuResourceInfo> mSRVHeap;
+            // includes TLAS
+            D3DHeapManager<eastl::variant<GpuResourceInfo, D3DTlasData>> mSRVHeap;
             D3DHeapManager<GpuResourceInfo> mUAVHeap;
             D3DHeapManager<SamplerInfo> mSamplerHeap;
             D3DHeapManager<D3DRenderTargetData> mRTVHeap;
@@ -195,13 +197,11 @@ namespace PyroshockStudios {
             eastl::hash_map<Buffer, D3DBufferResourceData> mBufferResources = {};
             eastl::hash_map<Image, D3DImageResourceData> mImageResources = {};
             eastl::hash_map<BlasId, D3DBlasData> mBlasResources = {};
-            eastl::hash_map<TlasId, D3DTlasData> mTlasResources = {};
 
             eastl::atomic<u32> mMemoryBlockCounter = 1;
             eastl::atomic<u32> mBufferCounter = 1;
             eastl::atomic<u32> mImageCounter = 1;
             eastl::atomic<u32> mBlasCounter = 1;
-            eastl::atomic<u32> mTlasCounter = 1;
         };
     } // namespace RHIDX12
 } // namespace PyroshockStudios

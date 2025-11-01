@@ -102,6 +102,7 @@ namespace PyroshockStudios {
             bool bBlitImageState = false;
             eastl::hash_set<u32> mInvalidatedVertexBufferBindings = {};
             ComPtr<ID3D12GraphicsCommandList> mCommandList = {};
+            ComPtr<ID3D12GraphicsCommandList4> mCommandList4 = {};
             ComPtr<ID3D12CommandAllocator> mAllocator = {};
 
             struct ResolveRenderTargetInfo {

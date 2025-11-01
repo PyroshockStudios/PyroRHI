@@ -170,6 +170,9 @@ namespace PyroshockStudios {
 
             LinearUploadBuffer* GetLinearBufferAllocation(UINT64 minSize = 65536ULL);
 
+            void FillBlasInputs(D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& inputs, const BlasBuildInfo& info,
+                eastl::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& scratchGeomDescs) const;
+
             ID3D12CommandSignature* GetDrawCommandSignature() {
                 return mIndirectDrawSignature.Get();
             }
@@ -222,6 +225,7 @@ namespace PyroshockStudios {
             ComPtr<IDXGIAdapter1> mAdapter = {};
             ComPtr<IDXGIFactory4> mFactory = {};
             ComPtr<ID3D12Device> mDevice = {};
+            ComPtr<ID3D12Device5> mDevice5 = {}; 
             ComPtr<D3D12MA::Allocator> mAllocator = {};
 
         public:

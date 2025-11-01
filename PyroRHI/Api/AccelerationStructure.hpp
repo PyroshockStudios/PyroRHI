@@ -29,6 +29,7 @@
 #include <PyroRHI/Api/GPUResource.hpp>
 #include <PyroRHI/Api/Types.hpp>
 
+
 namespace PyroshockStudios {
     inline namespace RHI {
 
