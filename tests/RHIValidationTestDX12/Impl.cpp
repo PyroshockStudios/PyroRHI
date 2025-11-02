@@ -11,14 +11,14 @@
                     mCreateInfo.options[1] = { .optionIndex = -1 };
 // clang-format on
 
-//#include <RHITestChassis/ValidatePipelineImpl.hpp>
-//#include <RHITestChassis/ValidateAccelerationStructureImpl.hpp>
-//#include <RHITestChassis/ValidateBufferImpl.hpp>
+#include <RHITestChassis/ValidateAccelerationStructureImpl.hpp>
+#include <RHITestChassis/ValidateBufferImpl.hpp>
 #include <RHITestChassis/ValidateCommandBufferImpl.hpp>
-//#include <RHITestChassis/ValidateCommandQueueImpl.hpp>
-//#include <RHITestChassis/ValidateDeviceCreationImpl.hpp>
-//#include <RHITestChassis/ValidateFenceImpl.hpp>
-//#include <RHITestChassis/ValidateImageImpl.hpp>
-//#include <RHITestChassis/ValidateQueryPoolImpl.hpp>
-//#include <RHITestChassis/ValidateSemaphoreImpl.hpp>
-//#include <RHITestChassis/ValidateSwapChainImpl.hpp>
+#include <RHITestChassis/ValidateCommandQueueImpl.hpp>
+#include <RHITestChassis/ValidateDeviceCreationImpl.hpp>
+#include <RHITestChassis/ValidateFenceImpl.hpp>
+#include <RHITestChassis/ValidateImageImpl.hpp>
+#include <RHITestChassis/ValidatePipelineImpl.hpp>
+#include <RHITestChassis/ValidateQueryPoolImpl.hpp>
+#include <RHITestChassis/ValidateSemaphoreImpl.hpp>
+#include <RHITestChassis/ValidateSwapChainImpl.hpp>
