@@ -646,11 +646,11 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateTlas_Success) {
     ASSERT_NE(tlasId, PYRO_NULL_TLAS);
 
     // 5. Create TLAS Scratch Buffers
-    BufferInfo tlasBuildScratchInfo = { .size = tlasSizeInfo.buildScratchSize, .usage = BufferUsageFlagBits::ACCELERATION_STRUCTURE_SCRATCH_BUFFER, .allocationDomain = MemoryAllocationDomain::DeviceLocal };
+    BufferInfo tlasBuildScratchInfo = { .size = tlasSizeInfo.buildScratchSize, .usage = BufferUsageFlagBits::ACCELERATION_STRUCTURE_SCRATCH_BUFFER, .allocationDomain = MemoryAllocationDomain::DeviceLocal, };
     Buffer tlasBuildScratchBuffer = mDevice->CreateBuffer(tlasBuildScratchInfo);
     ASSERT_NE(tlasBuildScratchBuffer, PYRO_NULL_BUFFER);
 
-    BufferInfo tlasUpdateScratchInfo = { .size = tlasSizeInfo.updateScratchSize, .usage = BufferUsageFlagBits::ACCELERATION_STRUCTURE_SCRATCH_BUFFER, .allocationDomain = MemoryAllocationDomain::DeviceLocal };
+    BufferInfo tlasUpdateScratchInfo = { .size = tlasSizeInfo.updateScratchSize, .usage = BufferUsageFlagBits::ACCELERATION_STRUCTURE_SCRATCH_BUFFER, .allocationDomain = MemoryAllocationDomain::DeviceLocal, };
     Buffer tlasUpdateScratchBuffer = mDevice->CreateBuffer(tlasUpdateScratchInfo);
     ASSERT_NE(tlasUpdateScratchBuffer, PYRO_NULL_BUFFER);
 
@@ -693,7 +693,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateTlas_Success) {
         .srcTlas = tlasId,
         .dstTlas = tlasId,
         .instances = updatedTlasInstanceInfo,
-        .scratchBuffer = tlasUpdateScratchBuffer
+        .scratchBuffer = tlasUpdateScratchBuffer,
     };
 
     // 9. Record Update Command

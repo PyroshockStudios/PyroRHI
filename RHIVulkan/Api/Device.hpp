@@ -171,6 +171,8 @@ namespace PyroshockStudios {
             const DeviceFeaturesInfo& Features() const override;
             DeviceStatusInfo Status() const override;
 
+            void SetShaderModel(u32 shaderModel) override;
+
             VulkanContext* Context() {
                 return mContext;
             }
@@ -213,6 +215,7 @@ namespace PyroshockStudios {
 
             VulkanDeviceCapabilities mVulkanCaps = {};
 
+            u32 mActiveShaderModel = 0x14;
         private:
             QueueTimelineSnapshot SnapshotQueueTimelineValues() const;
 
@@ -251,6 +254,7 @@ namespace PyroshockStudios {
             eastl::unordered_set<VulkanCommandBuffer*> mAllocatedCommandBuffers = {};
 
             usize mNumAllocatedCommandPools = 0;
+
         };
     } // namespace RHIVulkan
 } // namespace PyroshockStudios

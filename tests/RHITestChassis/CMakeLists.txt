@@ -1,8 +1,9 @@
 set(SH_SRC ${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB_RECURSE ENDF6_SRC
-      "${SH_SRC}/*.hpp")
+      "${SH_SRC}/*.hpp"
+      "${SH_SRC}/*.cpp")
 
-add_library(RHITestChassis INTERFACE)
+add_library(RHITestChassis STATIC ${ENDF6_SRC})
 
 foreach(_source IN ITEMS ${ENDF6_SRC})
     get_filename_component(_source_path "${_source}" PATH)
@@ -22,6 +23,6 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     FILES_MATCHING PATTERN "*.hpp"
 )
 
-target_compile_features(RHITestChassis INTERFACE cxx_std_23)
+target_compile_features(RHITestChassis PUBLIC cxx_std_23)
 
-target_link_libraries(RHITestChassis INTERFACE PyroRHI::PyroRHI)
+target_link_libraries(RHITestChassis PUBLIC PyroRHI::PyroRHI)

@@ -42,3 +42,5 @@ target_link_libraries(RHIValidationTestDX12
   GTest::gtest_main
   GTest::gmock_main
   )
+
+addSlangDependencies(RHIValidationTestDX12)

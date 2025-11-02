@@ -1002,9 +1002,9 @@ namespace PyroshockStudios {
 
             // Infer SPIR-V version as RHI numeric code
             if (VulkanVersionAtLeast(1, 4, major, minor)) {
-                mFeatures.supportedShaderModel = 0x16; // SPIR-V 1.6
+                mFeatures.maxSupportedShaderModel = 0x16; // SPIR-V 1.6
             } else if (VulkanVersionAtLeast(1, 3, major, minor)) {
-                mFeatures.supportedShaderModel = 0x15; // SPIR-V 1.5
+                mFeatures.maxSupportedShaderModel = 0x15; // SPIR-V 1.5
             } else if (VulkanVersionAtLeast(1, 1, major, minor)) {
                 // Query optional extension for SPIR-V 1.4
                 uint32_t extCount = 0;
@@ -1019,9 +1019,9 @@ namespace PyroshockStudios {
                         break;
                     }
                 }
-                mFeatures.supportedShaderModel = bSupportsSPIRV14 ? 0x14 : 0x13; // SPIR-V 1.4 or 1.3
+                mFeatures.maxSupportedShaderModel = bSupportsSPIRV14 ? 0x14 : 0x13; // SPIR-V 1.4 or 1.3
             } else {
-                mFeatures.supportedShaderModel = 0x10; // SPIR-V 1.0
+                mFeatures.maxSupportedShaderModel = 0x10; // SPIR-V 1.0
             }
         }
 
@@ -2104,6 +2104,11 @@ namespace PyroshockStudios {
 
         DeviceStatusInfo VulkanDevice::Status() const {
             return {};
+        }
+
+        void VulkanDevice::SetShaderModel(u32 shaderModel) {
+            ASSERT(shaderModel <= mFeatures.maxSupportedShaderModel, "Shader model used is unsupported!");
+            mActiveShaderModel = shaderModel;
         }
 
         Image VulkanDevice::NewSwapChainImage(VkImage swapchainImage, VkFormat format, u32 index, ImageUsageFlags usage, const ImageInfo& imageInfo) {

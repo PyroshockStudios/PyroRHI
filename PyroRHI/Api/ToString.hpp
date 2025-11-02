@@ -653,7 +653,7 @@ namespace PyroshockStudios {
             BOOL_FIELD(bVariableRateShading);
             BOOL_FIELD(bConservativeRasterization);
 #undef BOOL_FIELD
-            s += indent + "  SupportedShaderModel: " + eastl::string().sprintf("0x%X", supportedShaderModel) + "\n";
+            s += indent + "  MaxSupportedShaderModel: " + eastl::string().sprintf("0x%X", maxSupportedShaderModel) + "\n";
             s += indent + "}";
             return s;
         }

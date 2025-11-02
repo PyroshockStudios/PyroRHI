@@ -112,7 +112,7 @@ namespace PyroshockStudios {
             bool bUint8IndexBuffer = false;
 
             // --- Shader Model / SPIR-V Level ---
-            u32 supportedShaderModel = 0; ///< e.g., HLSL Shader Model or Vulkan's SPIR-V version, format of 0xMAJOR_MINOR
+            u32 maxSupportedShaderModel = 0; ///< e.g., Max HLSL Shader Model or Vulkan's SPIR-V version, format of 0xMAJOR_MINOR
 
             // --- Compute and Atomics ---
             bool bInt64ShaderOps = false;
@@ -570,6 +570,21 @@ namespace PyroshockStudios {
             PYRO_NODISCARD virtual TlasId CreateTlas(const TlasInfo& info) = 0;
 
 
+            // Convenience create overloads
+            PYRO_NODISCARD PYRO_FORCEINLINE MemoryBlock Create(const MemoryBlockInfo& info) { return CreateMemoryBlock(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE Buffer Create(const BufferInfo& info) { return CreateBuffer(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE Image Create(const ImageInfo& info) { return CreateImage(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE SamplerId Create(const SamplerInfo& info) { return CreateSampler(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE RasterPipeline Create(const RasterPipelineInfo& info, const RasterPipelineShaderStages& stages) { return CreateRasterPipeline(info, stages); }
+            PYRO_NODISCARD PYRO_FORCEINLINE ComputePipeline Create(const ComputePipelineInfo& info, const ShaderInfo& shader) { return CreateComputePipeline(info, shader); }
+            PYRO_NODISCARD PYRO_FORCEINLINE ISwapChain* Create(const SwapChainInfo& info) { return CreateSwapChain(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE RenderTarget Create(const RenderTargetInfo& info) { return CreateRenderTarget(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE Semaphore Create(const SemaphoreInfo& info) { return CreateSemaphore(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE IFence* Create(const FenceInfo& info) { return CreateFence(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE ITimestampQueryPool* Create(const TimestampQueryPoolInfo& info) { return CreateTimestampQueryPool(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE BlasId Create(const BlasInfo& info) { return CreateBlas(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE TlasId Create(const TlasInfo& info) { return CreateTlas(info); }
+
             // ---------------------------------------------------------------------
             // Resource Destruction
             // ---------------------------------------------------------------------
@@ -825,20 +840,18 @@ namespace PyroshockStudios {
              */
             PYRO_NODISCARD virtual DeviceStatusInfo Status() const = 0;
 
-            // Convenience create overloads
-            PYRO_NODISCARD PYRO_FORCEINLINE MemoryBlock Create(const MemoryBlockInfo& info) { return CreateMemoryBlock(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE Buffer Create(const BufferInfo& info) { return CreateBuffer(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE Image Create(const ImageInfo& info) { return CreateImage(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE SamplerId Create(const SamplerInfo& info) { return CreateSampler(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE RasterPipeline Create(const RasterPipelineInfo& info, const RasterPipelineShaderStages& stages) { return CreateRasterPipeline(info, stages); }
-            PYRO_NODISCARD PYRO_FORCEINLINE ComputePipeline Create(const ComputePipelineInfo& info, const ShaderInfo& shader) { return CreateComputePipeline(info, shader); }
-            PYRO_NODISCARD PYRO_FORCEINLINE ISwapChain* Create(const SwapChainInfo& info) { return CreateSwapChain(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE RenderTarget Create(const RenderTargetInfo& info) { return CreateRenderTarget(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE Semaphore Create(const SemaphoreInfo& info) { return CreateSemaphore(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE IFence* Create(const FenceInfo& info) { return CreateFence(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE ITimestampQueryPool* Create(const TimestampQueryPoolInfo& info) { return CreateTimestampQueryPool(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE BlasId Create(const BlasInfo& info) { return CreateBlas(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE TlasId Create(const TlasInfo& info) { return CreateTlas(info); }
+            
+            // ---------------------------------------------------------------------
+            // Device configuration
+            // ---------------------------------------------------------------------
+
+            /**
+            * @brief Sets the shader model version that the device will be expecting from now on. 
+            * FORMAT: 0xMAJORMINOR
+            * e.g. for DirectX ShaderModel 5.1 -> 0x51
+            * e.g. for Vulkan SPIR-V 1.3 -> 0x13
+            */
+            virtual void SetShaderModel(u32 shaderModel) = 0;
         };
     } // namespace RHI
 } // namespace PyroshockStudios

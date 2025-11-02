@@ -23,10 +23,10 @@
 #include "D3DContext.hpp"
 #include <EASTL/vector.h>
 #include <PyroCommon/Logger.hpp>
-#include <PyroRHI/Shader/IShaderFeatureSet.hpp>
 #include <RHIDX12/Api/Device.hpp>
 #include <comdef.h>
 #include <iostream>
+#include <libassert/assert.hpp>
 #include <wrl.h>
 
 PFN_BeginEventOnCommandList gPixBeginEventOnCommandListFn = nullptr;
@@ -224,39 +224,77 @@ namespace PyroshockStudios::RHIDX12 {
     }
 
     IShaderFeatureSet* D3DContext::ShaderFeatureSet() {
-        struct ShaderFeatureSetD3D12 : public IShaderFeatureSet {
-            ShaderFeatureSetD3D12() = default;
-            ShaderCompileTarget GetTarget() const override {
-                return ShaderCompileTarget::Dxbc;
-            }
-            const char* GetProfileName(ShaderStage shaderStage) const override {
-                return "sm5_1";
-            }
-            const char* GetFileExtension() const override {
-                return "cso";
-            }
-            const ShaderFeatureInfo& Features() const override {
-                static auto features = ShaderFeatureInfo{
-                    .bDescriptorIndexing = true,
-                    .bBufferDeviceAddress = false,
-                    .bScalarLayout = true,
-                    .bDrawParameters = false,
-                    .bGLSL = false,
-                };
-                return features;
-            }
-            const eastl::span<eastl::pair<const char*, const char*>>& GlobalPreprocessorDefines() const override {
-                static eastl::vector<eastl::pair<const char*, const char*>> preprocesor = {
-                    { "PYRO_SHADER_FLAG_RHI_D3D12", "1" }
-                };
-                static auto span = eastl::span(preprocesor.data(), preprocesor.size());
-                return span;
-            }
-        };
-        // for now
-        static ShaderFeatureSetD3D12 stub{};
-        return &stub;
+        return this;
     }
+
+
+    ShaderCompileTarget D3DContext::GetTarget() const {
+        return mDevice->mActiveShaderModel == 0x51 ? ShaderCompileTarget::Dxbc : ShaderCompileTarget::Dxil;
+    }
+
+    const char* D3DContext::GetProfileName(ShaderStage shaderStage) const {
+        u32 sm = mDevice->mActiveShaderModel;
+        u32 maj = (sm & 0xF0) >> 4;
+        u32 min = (sm & 0x0F) >> 0;
+
+        ASSERT(maj <= 9 && min <= 9, "Badly formatted version!");
+        ASSERT(sm <= 0x70, "Application bug! If this is a legitimate shader model, the application has not added support yet!");
+        switch (sm) {
+        case 0x51:
+            return "sm_5_1";
+        case 0x60:
+            return "sm_6_0";
+        case 0x61:
+            return "sm_6_1";
+        case 0x62:
+            return "sm_6_2";
+        case 0x63:
+            return "sm_6_3";
+        case 0x64:
+            return "sm_6_4";
+        case 0x65:
+            return "sm_6_5";
+        case 0x66:
+            return "sm_6_6";
+        case 0x67:
+            return "sm_6_7";
+        case 0x68:
+            return "sm_6_8";
+        case 0x69:
+            return "sm_6_9";
+        case 0x70:
+            return "sm_7_0";
+        default:
+            return nullptr;
+        }
+        return nullptr;
+    }
+
+    const char* D3DContext::GetFileExtension() const {
+        return mDevice->mActiveShaderModel == 0x51 ? "cso" : "dxil";
+    }
+
+    const ShaderFeatureInfo& D3DContext::Features() const {
+        static auto features = ShaderFeatureInfo{
+            .bDescriptorIndexing = true,
+            .bBufferDeviceAddress = false,
+            .bScalarLayout = true,
+            .bDrawParameters = false,
+            .bGLSL = false,
+        };
+        return features;
+    }
+
+    const eastl::span<eastl::pair<const char*, const char*>>& D3DContext::GlobalPreprocessorDefines() const {
+        static eastl::vector<eastl::pair<const char*, const char*>> preprocesor = {
+            { "PYRO_SHADER_FLAG_RHI_D3D12", "1" }
+        };
+        static auto span = eastl::span(preprocesor.data(), preprocesor.size());
+        return span;
+    }
+
+
+
     void D3DContext::InjectLogger(ILogStream* stream) {
         gDX12Sink = stream;
     }

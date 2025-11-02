@@ -19,17 +19,13 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+#include <RHIVulkan/Variables.hpp>
 
 #include "GPUResourcePool.hpp"
 #include <PyroCommon/Logger.hpp>
 #include <PyroRHI/Api/ICommandBuffer.hpp>
 #include <format>
 #include <libassert/assert.hpp>
-
-#define STORAGE_BUFFER_BINDING 0         /*SRV/UAV buffer*/
-#define SAMPLED_IMAGE_BINDING 1          /*SRV texture*/
-#define SAMPLER_BINDING 2                /*Sampler State*/
-#define ACCELERATION_STRUCTURE_BINDING 3 /*Sampler State*/
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
@@ -75,7 +71,7 @@ namespace PyroshockStudios {
                 .descriptorCount = mTlasSlots.mMaxResources,
             };
 
-            
+
             eastl::vector poolSizes = {
                 storageBufferDescriptorPoolSize,
                 uniformBufferDescriptorPoolSize,
@@ -229,7 +225,7 @@ namespace PyroshockStudios {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .pNext = nullptr,
                 .dstSet = vkDescriptorSet,
-                .dstBinding = SAMPLER_BINDING,
+                .dstBinding = RHIVULKAN_SAMPLER_BINDING,
                 .dstArrayElement = index,
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
@@ -252,7 +248,7 @@ namespace PyroshockStudios {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .pNext = nullptr,
                 .dstSet = vkDescriptorSet,
-                .dstBinding = STORAGE_BUFFER_BINDING,
+                .dstBinding = RHIVULKAN_STORAGE_BUFFER_BINDING,
                 .dstArrayElement = index,
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
@@ -284,7 +280,7 @@ namespace PyroshockStudios {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .pNext = nullptr,
                 .dstSet = vkDescriptorSet,
-                .dstBinding = SAMPLED_IMAGE_BINDING,
+                .dstBinding = RHIVULKAN_SAMPLED_IMAGE_BINDING,
                 .dstArrayElement = index,
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
@@ -312,7 +308,7 @@ namespace PyroshockStudios {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .pNext = &vkWriteDescriptorSet_AS,
                 .dstSet = vkDescriptorSet,
-                .dstBinding = ACCELERATION_STRUCTURE_BINDING,
+                .dstBinding = RHIVULKAN_ACCELERATION_STRUCTURE_BINDING,
                 .dstArrayElement = index,
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
@@ -327,7 +323,7 @@ namespace PyroshockStudios {
 
         void GPUShaderResourceTable::CreateBindlessDescriptorSetLayout(VkDevice device, const VkAllocationCallbacks* allocator) {
             const VkDescriptorSetLayoutBinding bufferDescriptorSetLayoutBinding = {
-                .binding = STORAGE_BUFFER_BINDING,
+                .binding = RHIVULKAN_STORAGE_BUFFER_BINDING,
                 .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .descriptorCount = static_cast<u32>(mBufferSlots.mMaxResources),
                 .stageFlags = VK_SHADER_STAGE_ALL,
@@ -335,7 +331,7 @@ namespace PyroshockStudios {
             };
 
             const VkDescriptorSetLayoutBinding sampledImageDescriptorSetLayoutBinding = {
-                .binding = SAMPLED_IMAGE_BINDING,
+                .binding = RHIVULKAN_SAMPLED_IMAGE_BINDING,
                 .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
                 .descriptorCount = static_cast<u32>(mImageSlots.mMaxResources),
                 .stageFlags = VK_SHADER_STAGE_ALL,
@@ -343,7 +339,7 @@ namespace PyroshockStudios {
             };
 
             const VkDescriptorSetLayoutBinding samplerDescriptorSetLayoutBinding = {
-                .binding = SAMPLER_BINDING,
+                .binding = RHIVULKAN_SAMPLER_BINDING,
                 .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
                 .descriptorCount = static_cast<u32>(mSamplerSlots.mMaxResources),
                 .stageFlags = VK_SHADER_STAGE_ALL,
@@ -351,7 +347,7 @@ namespace PyroshockStudios {
             };
 
             const VkDescriptorSetLayoutBinding asDescriptorSetLayoutBinding = {
-                .binding = ACCELERATION_STRUCTURE_BINDING,
+                .binding = RHIVULKAN_ACCELERATION_STRUCTURE_BINDING,
                 .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
                 .descriptorCount = static_cast<u32>(mTlasSlots.mMaxResources),
                 .stageFlags = VK_SHADER_STAGE_ALL,

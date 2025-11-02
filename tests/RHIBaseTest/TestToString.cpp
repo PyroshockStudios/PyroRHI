@@ -492,7 +492,7 @@ TEST(RHICommonToStringTests, DeviceFeaturesInfoToString) {
     info.bHeadlessSwapChainWindow = true;
     info.bVariableRateShading = false;
     info.bConservativeRasterization = true;
-    info.supportedShaderModel = 0x61;
+    info.maxSupportedShaderModel = 0x61;
 
     eastl::string expected =
         "DeviceFeaturesInfo {\n"
@@ -513,7 +513,7 @@ TEST(RHICommonToStringTests, DeviceFeaturesInfoToString) {
         "  HeadlessSwapChainWindow: true\n"
         "  VariableRateShading: false\n"
         "  ConservativeRasterization: true\n"
-        "  SupportedShaderModel: 0x61\n"
+        "  MaxSupportedShaderModel: 0x61\n"
         "}";
 
     EXPECT_STREQ(RemoveIndentation(info.ToString(0)).c_str(), RemoveIndentation(expected).c_str());

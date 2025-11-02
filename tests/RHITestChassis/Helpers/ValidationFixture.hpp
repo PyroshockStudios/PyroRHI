@@ -20,6 +20,13 @@
 #error Missing RHI_TEST_CHASSIS_RHI_OPTIONS
 #endif
 
+#define MIN_HLSL_SM_FOR_RAY_TRACING_PIPELINES 0x63
+#define MIN_SPIRV_SM_FOR_RAY_TRACING_PIPELINES 0x14
+
+#define MIN_HLSL_SM_FOR_RAY_QUERIES 0x65
+#define MIN_SPIRV_SM_FOR_RAY_QUERIES 0x14
+
+#include "ShaderCompiler.hpp"
 #include <PyroCommon/Logger.hpp>
 #include <PyroRHI/Api/IDevice.hpp>
 #include <PyroRHI/Api/ToString.hpp>
@@ -120,6 +127,8 @@ protected:
     PFN_CreateRHIContext fpCreateContext = nullptr;
     PFN_DestroyRHIContext fpDestroyContext = nullptr;
 
+    ShaderCompiler* mShaderCompiler = {};
+
     eastl::vector<UsedMemberInfo> mUsedData;
 
     void SetUp() override {
@@ -189,6 +198,8 @@ protected:
         mDevice = mApi.loadedContext->CreateDevice();
         ASSERT_NE(mDevice, nullptr) << "Failed to create " RHI_TEST_CHASSIS_API_LOG_NAME " Device";
 
+        mShaderCompiler = new ShaderCompiler(mApi.loadedContext->ShaderFeatureSet());
+        mShaderCompiler->InjectLogger(&mLogStream2);
         mUsedData.emplace_back("Device Info", mDevice->Info().ToString());
         mUsedData.emplace_back("Device Properties", mDevice->Properties().ToString());
         mUsedData.emplace_back("Device Features", mDevice->Features().ToString());
@@ -205,6 +216,7 @@ protected:
         }
         // Do not wait idle, some tests also have an extra check where device idle shouldn't be necessary!
         // mDevice->WaitIdle();
+        delete mShaderCompiler;
         mDevice = nullptr;
         if (fpDestroyContext && mApi.loadedContext)
             fpDestroyContext(&mApi);

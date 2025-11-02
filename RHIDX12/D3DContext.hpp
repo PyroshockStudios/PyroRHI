@@ -24,6 +24,7 @@
 #include "Core.hpp"
 #include <PyroCommon/Version.hpp>
 #include <PyroRHI/Context.hpp>
+#include <PyroRHI/Shader/IShaderFeatureSet.hpp>
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
@@ -36,7 +37,7 @@ namespace PyroshockStudios {
             UINT sdkVersion = 618;
             LPCSTR sdkDllRelativePath = ".\\D3D12\\";
         };
-        class D3DContext : public RHIContext {
+        class D3DContext : public RHIContext, public IShaderFeatureSet {
         public:
             D3DContext(const D3DContextArgs& args, ILogStream* logSink, ILogStream* debugSink);
             ~D3DContext();
@@ -47,6 +48,12 @@ namespace PyroshockStudios {
             IDevice* CreateDevice() override;
             const RHIProperties& Properties() override;
             IShaderFeatureSet* ShaderFeatureSet() override;
+
+            ShaderCompileTarget GetTarget() const override;
+            const char* GetProfileName(ShaderStage shaderStage) const override;
+            const char* GetFileExtension() const override;
+            const ShaderFeatureInfo& Features() const override;
+            const eastl::span<eastl::pair<const char*, const char*>>& GlobalPreprocessorDefines() const override;
 
             void InjectLogger(ILogStream* stream) override;
 

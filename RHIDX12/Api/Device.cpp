@@ -30,6 +30,7 @@
 #include "SwapChain.hpp"
 #include "Sync.hpp"
 #include <PyroCommon/Logger.hpp>
+#include <RHIDX12/Variables.hpp>
 #include <RHIDX12/D3DContext.hpp>
 #include <RHIDX12/InternalShaders.hpp>
 
@@ -304,6 +305,7 @@ namespace PyroshockStudios {
                 bMap = true;
                 break;
             case MemoryAllocationDomain::HostReadback:
+                ASSERT(info.initialLayout == BufferLayout::TransferDst);
                 bMap = true;
                 break;
             default:
@@ -839,11 +841,11 @@ namespace PyroshockStudios {
 
             D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = mResourcePool->mSRVHeap.Resolve(id);
             mDevice->CreateShaderResourceView(nullptr, &srvDesc, cpuHandle); // Resource is nullptr for AS SRV
-            
+
             WriteAllSRVDescriptorHeapCopies(nullptr, &srvDesc, id);
             gDx12Context->FlushDebugMessages();
 
-            return static_cast < TlasId>(id);
+            return static_cast<TlasId>(id);
         }
         void D3DDevice::DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) {
             if (bDefer) {
@@ -1520,6 +1522,11 @@ namespace PyroshockStudios {
             }
         }
 
+        void D3DDevice::SetShaderModel(u32 shaderModel) {
+            ASSERT(shaderModel <= mFeatures.maxSupportedShaderModel, "Shader model used is unsupported!");
+            mActiveShaderModel = shaderModel;
+        }
+
         void D3DDevice::CheckFeatureSupport() {
             Logger::Debug(gDX12Sink, "Checking D3D12 Feature support");
             mDx12FeatureSupport.Init(mDevice.Get());
@@ -1620,31 +1627,31 @@ namespace PyroshockStudios {
                 CD3DX12_ROOT_PARAMETER rootparams[18]{};
                 // push constants
                 // 32 * 1 = 32 DWORDS
-                rootparams[0].InitAsConstants(32, 13);
+                rootparams[0].InitAsConstants(32, RHIDX12_ROOT_CONSTANT_CBV_REGISTER);
                 // "specialisation constants"
                 // because dx12 doesn't support them, we have to emulate them through these views
                 // 5 * 2 = 10 DWORDS
-                rootparams[1].InitAsConstantBufferView(8);
-                rootparams[2].InitAsConstantBufferView(9);
-                rootparams[3].InitAsConstantBufferView(10);
-                rootparams[4].InitAsConstantBufferView(11);
-                rootparams[5].InitAsConstantBufferView(12);
+                rootparams[1].InitAsConstantBufferView(RHIDX12_EMU_SPECCONST_CBV_VS_REGISTER);
+                rootparams[2].InitAsConstantBufferView(RHIDX12_EMU_SPECCONST_CBV_HS_REGISTER);
+                rootparams[3].InitAsConstantBufferView(RHIDX12_EMU_SPECCONST_CBV_DS_REGISTER);
+                rootparams[4].InitAsConstantBufferView(RHIDX12_EMU_SPECCONST_CBV_GS_REGISTER);
+                rootparams[5].InitAsConstantBufferView(RHIDX12_EMU_SPECCONST_CBV_PS_REGISTER);
                 // finally, our uniform buffers
                 // 8 * 2 = 16 DWORDS
-                rootparams[6].InitAsConstantBufferView(0);
-                rootparams[7].InitAsConstantBufferView(1);
-                rootparams[8].InitAsConstantBufferView(2);
-                rootparams[9].InitAsConstantBufferView(3);
-                rootparams[10].InitAsConstantBufferView(4);
-                rootparams[11].InitAsConstantBufferView(5);
-                rootparams[12].InitAsConstantBufferView(6);
-                rootparams[13].InitAsConstantBufferView(7);
+                rootparams[6].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_0);
+                rootparams[7].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_1);
+                rootparams[8].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_2);
+                rootparams[9].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_3);
+                rootparams[10].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_4);
+                rootparams[11].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_5);
+                rootparams[12].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_6);
+                rootparams[13].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_7);
 
                 CD3DX12_DESCRIPTOR_RANGE srvDescriptorRange{};
                 CD3DX12_DESCRIPTOR_RANGE samplerDescriptorRange{};
                 CD3DX12_DESCRIPTOR_RANGE uavDescriptorRange{};
-                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, NUM_CRV_SRV_UAV, 0, 1);
-                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, NUM_SAMPLERS, 0, 1);
+                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, NUM_CRV_SRV_UAV, RHIDX12_SRV_REGISTER, RHIDX12_BINDLESS_DESCRIPTOR_SPACE);
+                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, NUM_SAMPLERS, RHIDX12_SAMPLER_STATE_REGISTER, RHIDX12_BINDLESS_DESCRIPTOR_SPACE);
                 // Offset is NUM_CRV_SRV_UAV because we are copying it to end of an SRV heap.
                 uavDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, Limits::MAX_UNORDERED_ACCESS_VIEW_SLOTS, 0, 1, NUM_CRV_SRV_UAV);
 
@@ -1656,7 +1663,7 @@ namespace PyroshockStudios {
                 // DrawID constant
                 // 3 * 1 = 3 DWORDS
                 // SV_DrawIndex
-                rootparams[17].InitAsConstants(1, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
+                rootparams[17].InitAsConstants(1, RHIDX12_EMU_DRAWINDEX_CBV_VS_REGISTER, RHIDX12_EMU_DRAWINDEX_CBV_VS_DESCRIPTOR_SPACE, D3D12_SHADER_VISIBILITY_VERTEX);
 
                 // TOTAL = 62 out of 64 DWORDS
 
@@ -1686,11 +1693,11 @@ namespace PyroshockStudios {
                 rootparams[0].InitAsConstants(4 * sizeof(eastl::array<f32, 2>) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
                 // Blit image srv
                 CD3DX12_DESCRIPTOR_RANGE srvDescriptorRange{};
-                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, RHIDX12_EMU_BLITIMAGE_SRV_REGISTER, RHIDX12_EMU_BLITIMAGE_DESCRIPTOR_SPACE);
                 rootparams[1].InitAsDescriptorTable(1, &srvDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
                 // Blit image sampler
                 CD3DX12_DESCRIPTOR_RANGE samplerDescriptorRange{};
-                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0, 0);
+                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, RHIDX12_EMU_BLITIMAGE_SAMPLER_STATE_REGISTER, RHIDX12_EMU_BLITIMAGE_DESCRIPTOR_SPACE);
                 rootparams[2].InitAsDescriptorTable(1, &samplerDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
                 const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
@@ -1880,7 +1887,7 @@ namespace PyroshockStudios {
             mFeatures.bRayQueries = mDx12FeatureSupport.RaytracingTier() >= D3D12_RAYTRACING_TIER_1_1;
             mFeatures.bMeshShaders = mDx12FeatureSupport.MeshShaderTier() != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
             mFeatures.bVariableRateShading = mDx12FeatureSupport.VariableShadingRateTier() != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
-            mFeatures.supportedShaderModel = static_cast<u32>(mDx12FeatureSupport.HighestShaderModel());
+            mFeatures.maxSupportedShaderModel = static_cast<u32>(mDx12FeatureSupport.HighestShaderModel());
         }
 
 

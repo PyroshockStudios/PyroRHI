@@ -2,6 +2,8 @@
 #define RHI_TEST_CHASSIS_API_LOG_NAME "VULKAN"
 #define RHI_TEST_CHASSIS_API_VALIDATOR_NAME "VVL"
 #define RHI_CONTEXT_FIXTURE_NAME VulkanValidationChassis
+#define RHI_IMPL_VULKAN 1
+
 // clang-format off
 #define RHI_TEST_CHASSIS_RHI_OPTIONS                                \
 /*"debug"*/         mCreateInfo.options[0] = { .optionIndex = 0 };  \
@@ -10,13 +12,14 @@
 // clang-format on
 
 
-#include <RHITestChassis/ValidateAccelerationStructureImpl.hpp>
-#include <RHITestChassis/ValidateBufferImpl.hpp>
-#include <RHITestChassis/ValidateCommandBufferImpl.hpp>
-#include <RHITestChassis/ValidateCommandQueueImpl.hpp>
-#include <RHITestChassis/ValidateDeviceCreationImpl.hpp>
-#include <RHITestChassis/ValidateFenceImpl.hpp>
-#include <RHITestChassis/ValidateImageImpl.hpp>
-#include <RHITestChassis/ValidateQueryPoolImpl.hpp>
-#include <RHITestChassis/ValidateSemaphoreImpl.hpp>
-#include <RHITestChassis/ValidateSwapChainImpl.hpp>
+#include <RHITestChassis/ValidatePipelineImpl.hpp>
+// #include <RHITestChassis/ValidateAccelerationStructureImpl.hpp>
+// #include <RHITestChassis/ValidateBufferImpl.hpp>
+// #include <RHITestChassis/ValidateCommandBufferImpl.hpp>
+// #include <RHITestChassis/ValidateCommandQueueImpl.hpp>
+// #include <RHITestChassis/ValidateDeviceCreationImpl.hpp>
+// #include <RHITestChassis/ValidateFenceImpl.hpp>
+// #include <RHITestChassis/ValidateImageImpl.hpp>
+// #include <RHITestChassis/ValidateQueryPoolImpl.hpp>
+// #include <RHITestChassis/ValidateSemaphoreImpl.hpp>
+// #include <RHITestChassis/ValidateSwapChainImpl.hpp>

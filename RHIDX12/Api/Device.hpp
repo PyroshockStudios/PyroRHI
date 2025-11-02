@@ -164,6 +164,8 @@ namespace PyroshockStudios {
 
             void CollectGarbage() override;
 
+            void SetShaderModel(u32 shaderModel) override;
+
             void ImageAddIfNecessaryBlitSupport(D3DImageResourceData& data);
             const DescriptorTableInfo& GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc);
             ID3D12PipelineState* GetBlitImagePipeline(DXGI_FORMAT format, bool bArray);
@@ -237,6 +239,7 @@ namespace PyroshockStudios {
             DescriptorTableInfo mNearestSamplerDescriptorTable = {};
             DescriptorTableInfo mLinearSamplerDescriptorTable = {};
 
+            u32 mActiveShaderModel = 0x51;
         private:
             eastl::vector<ICommandQueue*> mCommandQueueList = {};
             D3DCommandQueue* mCommandQueue = {};

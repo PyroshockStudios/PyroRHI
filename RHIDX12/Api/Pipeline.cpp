@@ -42,6 +42,7 @@ namespace PyroshockStudios {
             eastl::vector<D3D12_SIGNATURE_PARAMETER_DESC> list{};
 
             // Create reflection interface
+            // This works for both DXBC and DXIL (for signature reflection)
             CheckD3DResult(D3DReflect(shaderBytecode, bytecodeLength, IID_PPV_ARGS(&reflector)));
             // Get shader description
             D3D12_SHADER_DESC shaderDesc = {};
@@ -57,7 +58,8 @@ namespace PyroshockStudios {
             return list;
         }
 
-        void PopulateSpecialisationConstants(eastl::span<const u8> code, const eastl::span<const SpecializationConstantInfo>& list, ID3D12Device* device, ComPtr<ID3D12Resource>& outResource) {
+        // MODIFIED: Added bDxil flag
+        void PopulateSpecialisationConstants(eastl::span<const u8> code, const eastl::span<const SpecializationConstantInfo>& list, ID3D12Device* device, ComPtr<ID3D12Resource>& outResource, bool bDxil) {
             eastl::vector<OWORD> shaderSpecializationData{};
             for (const auto& info : list) {
                 if ((shaderSpecializationData.size()) < (info.location + 1)) {
@@ -67,11 +69,11 @@ namespace PyroshockStudios {
                 shaderSpecializationData[info.location][1] = 1;
             }
 
-            // HACK:
-            // There is no clean way to get the variable names originally declared,
-            // FXC seems to emit CB0[BINDING][OWORD offset], so we can safely search for this string
-            // So we need to reflect the raw instructions
-            {
+            // FIXME: specialisation consants still need to be implemented for DXIL
+            if (!bDxil) {
+                // HACK: There is no clean way to get the variable names originally declared,
+                // FXC seems to emit CB0[BINDING][OWORD offset], so we can safely search for this string
+                // So we need to reflect the raw instructions
                 ComPtr<ID3DBlob> disasmBlob = nullptr;
                 CheckD3DResult(D3DDisassemble(
                     reinterpret_cast<const void*>(code.data()),
@@ -89,6 +91,7 @@ namespace PyroshockStudios {
                     }
                 }
             }
+
             if (shaderSpecializationData.size() > 0) {
                 D3D12_RESOURCE_DESC desc = {};
                 desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -120,35 +123,30 @@ namespace PyroshockStudios {
         D3DRasterPipeline::D3DRasterPipeline(D3DDevice* device, const RasterPipelineInfo& info, ID3D12RootSignature* rootSig, const RasterPipelineShaderStages& stages)
             : mDevice(device), mInfo(info) {
 
-            D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-            psoDesc.pRootSignature = rootSig;
+            const bool bDxil = mDevice->mActiveShaderModel >= 0x60;
 
-            // --- Shader stages ---
             if (stages.vertexShaderInfo) {
-                psoDesc.VS = { stages.vertexShaderInfo->program.data(), stages.vertexShaderInfo->program.size() };
                 PopulateSpecialisationConstants(stages.vertexShaderInfo->program, stages.vertexShaderInfo->specializationConstants,
-                    mDevice->InternalDevice(), mEmulatedSpecialisationConstants[0]);
+                    mDevice->InternalDevice(), mEmulatedSpecialisationConstants[0], bDxil);
             }
             if (stages.hullShaderInfo) {
-                psoDesc.HS = { stages.hullShaderInfo->program.data(), stages.hullShaderInfo->program.size() };
                 PopulateSpecialisationConstants(stages.hullShaderInfo->program, stages.hullShaderInfo->specializationConstants,
-                    mDevice->InternalDevice(), mEmulatedSpecialisationConstants[1]);
+                    mDevice->InternalDevice(), mEmulatedSpecialisationConstants[1], bDxil);
             }
             if (stages.domainShaderInfo) {
-                psoDesc.DS = { stages.domainShaderInfo->program.data(), stages.domainShaderInfo->program.size() };
                 PopulateSpecialisationConstants(stages.domainShaderInfo->program, stages.domainShaderInfo->specializationConstants,
-                    mDevice->InternalDevice(), mEmulatedSpecialisationConstants[2]);
+                    mDevice->InternalDevice(), mEmulatedSpecialisationConstants[2], bDxil);
             }
             if (stages.geometryShaderInfo) {
-                psoDesc.GS = { stages.geometryShaderInfo->program.data(), stages.geometryShaderInfo->program.size() };
                 PopulateSpecialisationConstants(stages.geometryShaderInfo->program, stages.geometryShaderInfo->specializationConstants,
-                    mDevice->InternalDevice(), mEmulatedSpecialisationConstants[3]);
+                    mDevice->InternalDevice(), mEmulatedSpecialisationConstants[3], bDxil);
             }
             if (stages.fragmentShaderInfo) {
-                psoDesc.PS = { stages.fragmentShaderInfo->program.data(), stages.fragmentShaderInfo->program.size() };
                 PopulateSpecialisationConstants(stages.fragmentShaderInfo->program, stages.fragmentShaderInfo->specializationConstants,
-                    mDevice->InternalDevice(), mEmulatedSpecialisationConstants[4]);
+                    mDevice->InternalDevice(), mEmulatedSpecialisationConstants[4], bDxil);
             }
+
+
             // --- Input Layout ---
             eastl::vector<D3D12_SIGNATURE_PARAMETER_DESC> semantics{};
             ComPtr<ID3D12ShaderReflection> reflector = nullptr;
@@ -179,17 +177,20 @@ namespace PyroshockStudios {
                 mVertexBufferStrides[attr.binding] = bind.stride;
             }
 
+            D3D12_INPUT_LAYOUT_DESC inputLayoutDesc = {};
             if (!inputElements.empty()) {
-                psoDesc.InputLayout = {
+                inputLayoutDesc = {
                     .pInputElementDescs = inputElements.data(),
                     .NumElements = (UINT)inputElements.size(),
                 };
             }
+
+            D3D12_INDEX_BUFFER_STRIP_CUT_VALUE ibStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
             if (info.inputAssemblyState.bPrimitiveRestart) {
-                psoDesc.IBStripCutValue = info.inputAssemblyState.indexType ==
-                                                  IndexType::Uint16
-                                              ? D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF
-                                              : D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFFFFFF;
+                ibStripCutValue = info.inputAssemblyState.indexType ==
+                                          IndexType::Uint16
+                                      ? D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFF
+                                      : D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_0xFFFFFFFF;
             }
 
             // --- Rasterizer State ---
@@ -206,8 +207,7 @@ namespace PyroshockStudios {
             rastDesc.AntialiasedLineEnable = (!rastDesc.MultisampleEnable && info.rasterizerState.lineMode == LineMode::Smooth) ? TRUE : FALSE;
             rastDesc.ForcedSampleCount = 0;
             rastDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-            psoDesc.RasterizerState = rastDesc;
-            psoDesc.SampleMask = 0xFFFFFFFFU;
+
             // --- Blend State ---
             D3D12_BLEND_DESC blendDesc = {};
             blendDesc.AlphaToCoverageEnable = info.multiSampleState.bAlphaToCoverage;
@@ -230,7 +230,6 @@ namespace PyroshockStudios {
                     rtBlend.BlendEnable = FALSE;
                 }
             }
-            psoDesc.BlendState = blendDesc;
 
             // --- Depth Stencil ---
             D3D12_DEPTH_STENCIL_DESC dsDesc = {};
@@ -251,42 +250,77 @@ namespace PyroshockStudios {
                 dsDesc.BackFace.StencilPassOp = ToD3D12StencilOp(ds.backStencilTest.passOp);
                 dsDesc.BackFace.StencilFunc = ToD3D12CompareOp(ds.backStencilTest.compareOp);
             }
-            psoDesc.DepthStencilState = dsDesc;
+
             // --- Topology ---
-            psoDesc.PrimitiveTopologyType = ToD3D12PrimitiveTopologyType(info.inputAssemblyState.primitiveTopology);
+            D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType = ToD3D12PrimitiveTopologyType(info.inputAssemblyState.primitiveTopology);
             // For some reason this is set as a dynamic PSO
             mTopology = ToD3D12PrimitiveTopology(info.inputAssemblyState.primitiveTopology, info.tesselationState ? info.tesselationState->controlPoints : 0);
 
             // --- Render Targets ---
-            psoDesc.NumRenderTargets = (UINT)info.colorTargetStates.size();
+            D3D12_RT_FORMAT_ARRAY rtvFormats = {};
+            rtvFormats.NumRenderTargets = (UINT)info.colorTargetStates.size();
             for (size_t i = 0; i < info.colorTargetStates.size(); ++i) {
-                psoDesc.RTVFormats[i] = ToDXGIFormat(info.colorTargetStates[i].format);
+                rtvFormats.RTFormats[i] = ToDXGIFormat(info.colorTargetStates[i].format);
             }
-            psoDesc.DSVFormat = info.depthStencilState.has_value() ? ToDXGIFormat(info.depthStencilState->depthStencilFormat) : DXGI_FORMAT_UNKNOWN;
+            DXGI_FORMAT dsvFormat = info.depthStencilState.has_value() ? ToDXGIFormat(info.depthStencilState->depthStencilFormat) : DXGI_FORMAT_UNKNOWN;
 
             // --- Multisampling ---
-            psoDesc.SampleDesc.Count = (UINT)info.multiSampleState.sampleCount;
-            psoDesc.SampleDesc.Quality = 0;
+            DXGI_SAMPLE_DESC sampleDesc = {};
+            sampleDesc.Count = (UINT)info.multiSampleState.sampleCount;
+            sampleDesc.Quality = 0;
 
-            // --- Create PSO ---
+
+            D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+            psoDesc.pRootSignature = rootSig;
+            if (stages.vertexShaderInfo) {
+                psoDesc.VS = { stages.vertexShaderInfo->program.data(), stages.vertexShaderInfo->program.size() };
+            }
+            if (stages.hullShaderInfo) {
+                psoDesc.HS = { stages.hullShaderInfo->program.data(), stages.hullShaderInfo->program.size() };
+            }
+            if (stages.domainShaderInfo) {
+                psoDesc.DS = { stages.domainShaderInfo->program.data(), stages.domainShaderInfo->program.size() };
+            }
+            if (stages.geometryShaderInfo) {
+                psoDesc.GS = { stages.geometryShaderInfo->program.data(), stages.geometryShaderInfo->program.size() };
+            }
+            if (stages.fragmentShaderInfo) {
+                psoDesc.PS = { stages.fragmentShaderInfo->program.data(), stages.fragmentShaderInfo->program.size() };
+            }
+            psoDesc.InputLayout = inputLayoutDesc;
+            psoDesc.IBStripCutValue = ibStripCutValue;
+            psoDesc.RasterizerState = rastDesc;
+            psoDesc.SampleMask = 0xFFFFFFFFU;
+            psoDesc.BlendState = blendDesc;
+            psoDesc.DepthStencilState = dsDesc;
+            psoDesc.PrimitiveTopologyType = topologyType;
+            psoDesc.NumRenderTargets = rtvFormats.NumRenderTargets;
+            memcpy(psoDesc.RTVFormats, rtvFormats.RTFormats, sizeof(psoDesc.RTVFormats));
+            psoDesc.DSVFormat = dsvFormat;
+            psoDesc.SampleDesc = sampleDesc;
+
             CheckD3DResult(mDevice->InternalDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)));
+
             D3DSetDebugName(mPipelineState, info.name.c_str());
         }
         D3DRasterPipeline::~D3DRasterPipeline() {
         }
 
-        D3DComputePipeline::D3DComputePipeline(D3DDevice* device, const ComputePipelineInfo& info, ID3D12RootSignature* rootSig, const ShaderInfo& stage) 
-        : mDevice(device), mInfo(info){
+        D3DComputePipeline::D3DComputePipeline(D3DDevice* device, const ComputePipelineInfo& info, ID3D12RootSignature* rootSig, const ShaderInfo& stage)
+            : mDevice(device), mInfo(info) {
+
+            const bool bDxil = mDevice->mActiveShaderModel >= 0x60;
 
             PopulateSpecialisationConstants(stage.program, stage.specializationConstants,
-                mDevice->InternalDevice(), mEmulatedSpecialisationConstant);
+                mDevice->InternalDevice(), mEmulatedSpecialisationConstant, bDxil);
+
 
             D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{};
             psoDesc.CS = { stage.program.data(), stage.program.size() };
             psoDesc.pRootSignature = rootSig;
 
-            // --- Create PSO ---
             CheckD3DResult(mDevice->InternalDevice()->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)));
+
             D3DSetDebugName(mPipelineState, info.name.c_str());
         }
 

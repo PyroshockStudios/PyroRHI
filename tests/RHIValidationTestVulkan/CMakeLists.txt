@@ -41,3 +41,5 @@ target_link_libraries(RHIValidationTestVulkan
   GTest::gtest_main
   GTest::gmock_main
   )
+
+addSlangDependencies(RHIValidationTestVulkan)
