@@ -736,6 +736,38 @@ namespace PyroshockStudios::RHIVulkan {
             info.indirectBufferOffset);
     }
 
+    void VulkanCommandBuffer::BuildAccelerationStructures(const BuildAccelerationStructuresInfo& info) {
+        ASSERT(mCompleted == false, "can not record commands to completed command list");
+        FlushBarriers();
+
+        eastl::vector<VkAccelerationStructureBuildGeometryInfoKHR> vkBuildGeometryInfos;
+        eastl::vector<VkAccelerationStructureGeometryKHR> vkGeometryInfos;
+        eastl::vector<u32> primitiveCounts;
+        eastl::vector<const u32*> primitiveCountsPtrs;
+        
+        mDevice->CreateAccelerationStructureBuildInfo(info.tlasBuildInfos, info.blasBuildInfos, vkBuildGeometryInfos, vkGeometryInfos, primitiveCounts, primitiveCountsPtrs);
+        
+        eastl::vector<VkAccelerationStructureBuildRangeInfoKHR> vkBuildRanges;
+        vkBuildRanges.reserve(primitiveCounts.size());
+        for (auto primitiveCount : primitiveCounts) {
+            vkBuildRanges.push_back(VkAccelerationStructureBuildRangeInfoKHR{
+                .primitiveCount = primitiveCount,
+                .primitiveOffset = {},
+                .firstVertex = {},
+                .transformOffset = {},
+            });
+        }
+        
+        eastl::vector<const VkAccelerationStructureBuildRangeInfoKHR*> vkBuildRangesPtrs;
+        vkBuildRangesPtrs.reserve(primitiveCountsPtrs.size());
+        for (const auto* primCountsPtr : primitiveCountsPtrs) {
+            const u64 primitiveCountsStartIndex = static_cast<u64>(primCountsPtr - primitiveCounts.data());
+            vkBuildRangesPtrs.push_back(vkBuildRanges.data() + primitiveCountsStartIndex);
+        }
+
+        vkCmdBuildAccelerationStructuresKHR(mCommandBuffer, static_cast<u32>(vkBuildGeometryInfos.size()), vkBuildGeometryInfos.data(), vkBuildRangesPtrs.data());
+    }
+
     void VulkanCommandBuffer::Complete() {
         ASSERT(mCompleted == false, "can only complete uncompleted command list");
         FlushBarriers();

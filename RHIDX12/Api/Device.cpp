@@ -30,6 +30,7 @@
 #include "SwapChain.hpp"
 #include "Sync.hpp"
 #include <PyroCommon/Logger.hpp>
+#include <RHIDX12/Variables.hpp>
 #include <RHIDX12/D3DContext.hpp>
 #include <RHIDX12/InternalShaders.hpp>
 
@@ -46,6 +47,8 @@ namespace PyroshockStudios {
 
         D3DDevice::D3DDevice(ComPtr<ID3D12Device>&& device, ComPtr<IDXGIFactory4>&& factory, ComPtr<IDXGIAdapter1>&& adapter)
             : mDevice(eastl::move(device)), mFactory(eastl::move(factory)), mAdapter(eastl::move(adapter)) {
+
+            mDevice->QueryInterface(IID_PPV_ARGS(&mDevice5));
 
             CheckFeatureSupport();
             CreateCommandQueues();
@@ -89,6 +92,13 @@ namespace PyroshockStudios {
         bool D3DDevice::IsSamplerValid(SamplerId id) const {
             return id.index != 0;
         }
+        bool D3DDevice::IsBlasValid(BlasId id) const {
+            return id.index != 0;
+        }
+        bool D3DDevice::IsTlasValid(TlasId id) const {
+            return id.index != 0;
+        }
+
         const MemoryBlockInfo& D3DDevice::GetMemoryBlockInfo(MemoryBlock memory) const {
             ASSERT(IsValid(memory));
             return mResourcePool->Get(memory).info;
@@ -101,11 +111,11 @@ namespace PyroshockStudios {
             ASSERT(IsValid(image));
             return mResourcePool->Get(image).info;
         }
-        const GPUResourceInfo& D3DDevice::GetShaderResourceInfo(ShaderResourceId id) const {
+        const GpuResourceInfo& D3DDevice::GetShaderResourceInfo(ShaderResourceId id) const {
             ASSERT(IsValid(id));
-            return mResourcePool->mSRVHeap.GetInfo(id);
+            return eastl::get<GpuResourceInfo>(mResourcePool->mSRVHeap.GetInfo(id));
         }
-        const GPUResourceInfo& D3DDevice::GetUnorderedAccessInfo(UnorderedAccessId id) const {
+        const GpuResourceInfo& D3DDevice::GetUnorderedAccessInfo(UnorderedAccessId id) const {
             ASSERT(IsValid(id));
             return mResourcePool->mUAVHeap.GetInfo(id);
         }
@@ -126,13 +136,27 @@ namespace PyroshockStudios {
             return eastl::bit_cast<D3DSemaphore*>(semaphore)->Info();
         }
 
+        const BlasInfo& D3DDevice::GetBlasInfo(BlasId blas) const {
+            ASSERT(IsValid(blas));
+            return mResourcePool->Get(blas).info;
+        }
+
+        const TlasInfo& D3DDevice::GetTlasInfo(TlasId tlas) const {
+            ASSERT(IsValid(tlas));
+            return eastl::get<D3DTlasData>(mResourcePool->mSRVHeap.GetInfo(tlas)).info;
+        }
+
         DeviceAddress D3DDevice::BufferDeviceAddress(Buffer buffer) const {
             ASSERT(IsValid(buffer));
             return DeviceAddress();
         }
+
         u8* D3DDevice::BufferHostAddress(Buffer buffer) const {
             ASSERT(IsValid(buffer));
             return mResourcePool->Get(buffer).mappedMemory;
+        }
+        BlasAddress D3DDevice::BlasInstanceAddress(BlasId blas) const {
+            return static_cast<BlasAddress>(mResourcePool->Get(blas).address);
         }
         DeviceSize D3DDevice::ImageSizeRequirements(Image image) const {
             ASSERT(IsValid(image));
@@ -152,6 +176,50 @@ namespace PyroshockStudios {
                 &footprint, &numRows, &rowSizesInBytes, &requiredSize);
             gDx12Context->FlushDebugMessages();
             return footprint.Footprint.RowPitch;
+        }
+        AccelerationStructureBuildSizesInfo D3DDevice::BlasSizeRequirements(const BlasBuildInfo& info) const {
+            if (!mDevice5) {
+                Logger::Error(gDX12Sink, "Cannot get BLAS size requirements: ID3D12Device5 is not available.");
+                return {};
+            }
+
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = {};
+            eastl::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geomDescs; // Scratch space
+            FillBlasInputs(inputs, info, geomDescs);
+
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
+            mDevice5->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &prebuildInfo);
+
+            return {
+                .accelerationStructureSize = prebuildInfo.ResultDataMaxSizeInBytes,
+                .updateScratchSize = prebuildInfo.UpdateScratchDataSizeInBytes,
+                .buildScratchSize = prebuildInfo.ScratchDataSizeInBytes
+            };
+        }
+        AccelerationStructureBuildSizesInfo D3DDevice::TlasSizeRequirements(const TlasBuildInfo& info) const {
+            if (!mDevice5) {
+                Logger::Error(gDX12Sink, "Cannot get TLAS size requirements: ID3D12Device5 is not available.");
+                return {};
+            }
+
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = {};
+            inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+            inputs.Flags = ToD3D12ASBuildFlags(info.flags);
+            if (info.update) {
+                inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+            }
+
+            inputs.NumDescs = info.instances.count;
+            inputs.InstanceDescs = mResourcePool->Get(info.instances.data).resource->GetGPUVirtualAddress();
+
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
+            mDevice5->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &prebuildInfo);
+
+            return {
+                .accelerationStructureSize = prebuildInfo.ResultDataMaxSizeInBytes,
+                .updateScratchSize = prebuildInfo.UpdateScratchDataSizeInBytes,
+                .buildScratchSize = prebuildInfo.ScratchDataSizeInBytes
+            };
         }
         MemoryBlock D3DDevice::CreateMemoryBlock(const MemoryBlockInfo& info) {
             auto [memory, data] = mResourcePool->AllocMemoryBlock();
@@ -237,6 +305,7 @@ namespace PyroshockStudios {
                 bMap = true;
                 break;
             case MemoryAllocationDomain::HostReadback:
+                ASSERT(info.initialLayout == BufferLayout::TransferDst);
                 bMap = true;
                 break;
             default:
@@ -424,7 +493,7 @@ namespace PyroshockStudios {
 
             return image;
         }
-        ShaderResourceId D3DDevice::CreateShaderResource(const GPUResourceInfo& info) {
+        ShaderResourceId D3DDevice::CreateShaderResource(const GpuResourceInfo& info) {
             auto [handle, data] = mResourcePool->mSRVHeap.AcquireSlot();
             data = info;
 
@@ -534,7 +603,7 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             return ShaderResourceId{ handle };
         }
-        UnorderedAccessId D3DDevice::CreateUnorderedAccess(const GPUResourceInfo& info) {
+        UnorderedAccessId D3DDevice::CreateUnorderedAccess(const GpuResourceInfo& info) {
             auto [handle, data] = mResourcePool->mUAVHeap.AcquireSlot();
             data = info;
 
@@ -716,6 +785,68 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             return qp;
         }
+        BlasId D3DDevice::CreateBlas(const BlasInfo& info) {
+            auto [id, data] = mResourcePool->AllocBlas();
+            data.info = info;
+
+            D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
+                info.size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+            D3D12MA::ALLOCATION_DESC allocDesc = {};
+            allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+
+            CheckD3DResult(mAllocator->CreateResource(
+                &allocDesc,
+                &bufferDesc,
+                D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+                nullptr,
+                &data.allocation,
+                IID_PPV_ARGS(&data.resource)));
+
+            D3DSetDebugName(data.resource, info.name.c_str());
+            data.address = data.resource->GetGPUVirtualAddress();
+            gDx12Context->FlushDebugMessages();
+
+            return id;
+        }
+        TlasId D3DDevice::CreateTlas(const TlasInfo& info) {
+            auto [id, data_] = mResourcePool->mSRVHeap.AcquireSlot();
+            data_ = D3DTlasData{};
+            auto& data = eastl::get<D3DTlasData>(data_);
+            data.info = info;
+            D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
+                info.size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+            D3D12MA::ALLOCATION_DESC allocDesc = {};
+            allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
+
+            CheckD3DResult(mAllocator->CreateResource(
+                &allocDesc,
+                &bufferDesc,
+                D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+                nullptr,
+                &data.allocation,
+                IID_PPV_ARGS(&data.resource)));
+
+            D3DSetDebugName(data.resource, info.name.c_str());
+
+            // This is a "variant" just for tracking in the RHI,
+            // we don't need to fill it for this internal-only SRV.
+
+            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+            srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            srvDesc.RaytracingAccelerationStructure.Location = data.resource->GetGPUVirtualAddress();
+
+            D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = mResourcePool->mSRVHeap.Resolve(id);
+            mDevice->CreateShaderResourceView(nullptr, &srvDesc, cpuHandle); // Resource is nullptr for AS SRV
+
+            WriteAllSRVDescriptorHeapCopies(nullptr, &srvDesc, id);
+            gDx12Context->FlushDebugMessages();
+
+            return static_cast<TlasId>(id);
+        }
         void D3DDevice::DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) {
             if (bDefer) {
                 ZombieDeleter zombie = {
@@ -769,7 +900,7 @@ namespace PyroshockStudios {
                 return;
             }
             auto& imgSlot = mResourcePool->Get(image);
-            for (GPUResourceId id : imgSlot.blitImageRTVs) {
+            for (GpuResourceId id : imgSlot.blitImageRTVs) {
                 mResourcePool->mRTVHeap.ReleaseSlot(id);
             }
             if (imgSlot.virtualAlloc.AllocHandle != 0) {
@@ -919,6 +1050,33 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             queryPool = nullptr;
         }
+        void D3DDevice::DestroyBlas(BlasId& blas, bool bDefer) {
+            if (bDefer) {
+                ZombieDeleter zombie = {
+                    .resource = eastl::bit_cast<void*>(blas),
+                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<BlasId>(res)); }
+                };
+                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                return;
+            }
+            mResourcePool->ReleaseBlas(blas);
+            gDx12Context->FlushDebugMessages();
+            blas = PYRO_NULL_BLAS;
+        }
+        void D3DDevice::DestroyTlas(TlasId& tlas, bool bDefer) {
+            if (bDefer) {
+                ZombieDeleter zombie = {
+                    .resource = eastl::bit_cast<void*>(tlas),
+                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<TlasId>(res)); }
+                };
+                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                return;
+            }
+
+            mResourcePool->mSRVHeap.ReleaseSlot(tlas);
+            gDx12Context->FlushDebugMessages();
+            tlas = PYRO_NULL_TLAS;
+        }
         eastl::optional<Format> D3DDevice::PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const {
             return eastl::optional<Format>();
         }
@@ -1062,7 +1220,7 @@ namespace PyroshockStudios {
                 for (i32 i = 0; i < data.info.mipLevelCount; ++i) {
                     for (i32 j = 0; j < data.info.arrayLayerCount; ++j) {
                         UINT subresource = D3D12CalcSubresource(i, j, 0, data.info.mipLevelCount, data.info.arrayLayerCount);
-                        GPUResourceId& descriptor = data.blitImageRTVs[subresource];
+                        GpuResourceId& descriptor = data.blitImageRTVs[subresource];
                         descriptor = mResourcePool->mRTVHeap.AcquireSlot().first;
                         D3D12_RENDER_TARGET_VIEW_DESC view = {};
                         view.Format = data.desc.Format;
@@ -1213,7 +1371,7 @@ namespace PyroshockStudios {
             return values;
         }
 
-        void D3DDevice::WriteAllSRVDescriptorHeapCopies(ID3D12Resource* pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GPUResourceId handle) {
+        void D3DDevice::WriteAllSRVDescriptorHeapCopies(ID3D12Resource* pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GpuResourceId handle) {
             UINT incSz = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
             CD3DX12_CPU_DESCRIPTOR_HANDLE h = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDefaultUAVDescriptorTable.cpuDescriptor);
             mDevice->CreateShaderResourceView(pResource, pDesc, h.Offset(handle.index * incSz));
@@ -1235,6 +1393,59 @@ namespace PyroshockStudios {
             }
             for (const auto& cache : destroyCaches) {
                 mUAVDescriptorTableCache.erase(cache);
+            }
+        }
+
+        void D3DDevice::FillBlasInputs(D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& inputs, const BlasBuildInfo& info, eastl::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& scratchGeomDescs) const {
+            inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+            inputs.Flags = ToD3D12ASBuildFlags(info.flags);
+            if (info.bUpdate) {
+                inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+            }
+
+            if (auto* triangleGeos = eastl::get_if<eastl::span<const BlasTriangleGeometryInfo>>(&info.geometries)) {
+                scratchGeomDescs.resize(triangleGeos->size());
+                for (usize i = 0; i < triangleGeos->size(); ++i) {
+                    const auto& geo = (*triangleGeos)[i];
+                    auto& desc = scratchGeomDescs[i];
+                    desc = {};
+                    desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+                    desc.Flags = ToD3D12ASGeometryFlags(geo.flags);
+
+                    desc.Triangles.VertexBuffer.StartAddress = mResourcePool->Get(geo.vertexBuffer).resource->GetGPUVirtualAddress() + geo.vertexByteOffset;
+                    desc.Triangles.VertexBuffer.StrideInBytes = geo.vertexStride;
+                    desc.Triangles.VertexFormat = ToDXGIFormat(geo.vertexFormat);
+                    desc.Triangles.VertexCount = geo.vertexCount;
+
+                    if (geo.indexType != IndexType::None) {
+                        u32 indexSize = (geo.indexType == IndexType::Uint16) ? 2 : 4;
+                        desc.Triangles.IndexBuffer = mResourcePool->Get(geo.indexBuffer).resource->GetGPUVirtualAddress() + (geo.indexOffset * indexSize);
+                        desc.Triangles.IndexFormat = ToDXGIFormat(geo.indexType);
+                        desc.Triangles.IndexCount = geo.indexCount;
+                    } else {
+                        desc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
+                    }
+
+                    if (geo.transformData != PYRO_NULL_BUFFER) {
+                        desc.Triangles.Transform3x4 = mResourcePool->Get(geo.transformData).resource->GetGPUVirtualAddress() + geo.transformDataOffset;
+                    }
+                }
+                inputs.NumDescs = (UINT)scratchGeomDescs.size();
+                inputs.pGeometryDescs = scratchGeomDescs.data();
+            } else if (auto* aabbGeos = eastl::get_if<eastl::span<const BlasAabbGeometryInfo>>(&info.geometries)) {
+                scratchGeomDescs.resize(aabbGeos->size());
+                for (usize i = 0; i < aabbGeos->size(); ++i) {
+                    const auto& geo = (*aabbGeos)[i];
+                    auto& desc = scratchGeomDescs[i];
+                    desc = {};
+                    desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS;
+                    desc.Flags = ToD3D12ASGeometryFlags(geo.flags);
+                    desc.AABBs.AABBs.StartAddress = mResourcePool->Get(geo.data).resource->GetGPUVirtualAddress();
+                    desc.AABBs.AABBs.StrideInBytes = geo.stride;
+                    desc.AABBs.AABBCount = geo.count;
+                }
+                inputs.NumDescs = (UINT)scratchGeomDescs.size();
+                inputs.pGeometryDescs = scratchGeomDescs.data();
             }
         }
 
@@ -1287,7 +1498,7 @@ namespace PyroshockStudios {
 
             // === Miscellaneous garbage collection ===
 
-             // Delete linear upload buffers that haven't been used in a long time
+            // Delete linear upload buffers that haven't been used in a long time
             for (usize i = 0; i < mAvailableLinearUploadBuffers.size(); ++i) {
                 auto& [unusedFrames, zombie] = mAvailableLinearUploadBuffers[i];
                 if (unusedFrames++ > MAX_FRAMES_LINEAR_UPLOAD_BUFFER_UNSUED_LIFETIME) {
@@ -1311,16 +1522,20 @@ namespace PyroshockStudios {
             }
         }
 
+        void D3DDevice::SetShaderModel(u32 shaderModel) {
+            ASSERT(shaderModel <= mFeatures.maxSupportedShaderModel, "Shader model used is unsupported!");
+            mActiveShaderModel = shaderModel;
+        }
+
         void D3DDevice::CheckFeatureSupport() {
             Logger::Debug(gDX12Sink, "Checking D3D12 Feature support");
-            CD3DX12FeatureSupport featureSupport;
-            featureSupport.Init(mDevice.Get());
+            mDx12FeatureSupport.Init(mDevice.Get());
             gDx12Context->FlushDebugMessages();
 
-            if (featureSupport.ResourceBindingTier() < 2) {
+            if (mDx12FeatureSupport.ResourceBindingTier() < 2) {
                 Logger::Fatal(gDX12Sink, "Insufficient resource binding tier! Resource binding tier 2 or higher is required!");
             }
-            if (featureSupport.HighestShaderModel() < D3D_SHADER_MODEL_5_1) {
+            if (mDx12FeatureSupport.HighestShaderModel() < D3D_SHADER_MODEL_5_1) {
                 Logger::Fatal(gDX12Sink, "Insufficient shader model support! Shader model 5.1 or higher is required!");
             }
         }
@@ -1412,31 +1627,31 @@ namespace PyroshockStudios {
                 CD3DX12_ROOT_PARAMETER rootparams[18]{};
                 // push constants
                 // 32 * 1 = 32 DWORDS
-                rootparams[0].InitAsConstants(32, 13);
+                rootparams[0].InitAsConstants(32, RHIDX12_ROOT_CONSTANT_CBV_REGISTER);
                 // "specialisation constants"
                 // because dx12 doesn't support them, we have to emulate them through these views
                 // 5 * 2 = 10 DWORDS
-                rootparams[1].InitAsConstantBufferView(8);
-                rootparams[2].InitAsConstantBufferView(9);
-                rootparams[3].InitAsConstantBufferView(10);
-                rootparams[4].InitAsConstantBufferView(11);
-                rootparams[5].InitAsConstantBufferView(12);
+                rootparams[1].InitAsConstantBufferView(RHIDX12_EMU_SPECCONST_CBV_VS_REGISTER);
+                rootparams[2].InitAsConstantBufferView(RHIDX12_EMU_SPECCONST_CBV_HS_REGISTER);
+                rootparams[3].InitAsConstantBufferView(RHIDX12_EMU_SPECCONST_CBV_DS_REGISTER);
+                rootparams[4].InitAsConstantBufferView(RHIDX12_EMU_SPECCONST_CBV_GS_REGISTER);
+                rootparams[5].InitAsConstantBufferView(RHIDX12_EMU_SPECCONST_CBV_PS_REGISTER);
                 // finally, our uniform buffers
                 // 8 * 2 = 16 DWORDS
-                rootparams[6].InitAsConstantBufferView(0);
-                rootparams[7].InitAsConstantBufferView(1);
-                rootparams[8].InitAsConstantBufferView(2);
-                rootparams[9].InitAsConstantBufferView(3);
-                rootparams[10].InitAsConstantBufferView(4);
-                rootparams[11].InitAsConstantBufferView(5);
-                rootparams[12].InitAsConstantBufferView(6);
-                rootparams[13].InitAsConstantBufferView(7);
+                rootparams[6].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_0);
+                rootparams[7].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_1);
+                rootparams[8].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_2);
+                rootparams[9].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_3);
+                rootparams[10].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_4);
+                rootparams[11].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_5);
+                rootparams[12].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_6);
+                rootparams[13].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_7);
 
                 CD3DX12_DESCRIPTOR_RANGE srvDescriptorRange{};
                 CD3DX12_DESCRIPTOR_RANGE samplerDescriptorRange{};
                 CD3DX12_DESCRIPTOR_RANGE uavDescriptorRange{};
-                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, NUM_CRV_SRV_UAV, 0, 1);
-                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, NUM_SAMPLERS, 0, 1);
+                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, NUM_CRV_SRV_UAV, RHIDX12_SRV_REGISTER, RHIDX12_BINDLESS_DESCRIPTOR_SPACE);
+                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, NUM_SAMPLERS, RHIDX12_SAMPLER_STATE_REGISTER, RHIDX12_BINDLESS_DESCRIPTOR_SPACE);
                 // Offset is NUM_CRV_SRV_UAV because we are copying it to end of an SRV heap.
                 uavDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, Limits::MAX_UNORDERED_ACCESS_VIEW_SLOTS, 0, 1, NUM_CRV_SRV_UAV);
 
@@ -1448,7 +1663,7 @@ namespace PyroshockStudios {
                 // DrawID constant
                 // 3 * 1 = 3 DWORDS
                 // SV_DrawIndex
-                rootparams[17].InitAsConstants(1, 0, 2, D3D12_SHADER_VISIBILITY_VERTEX);
+                rootparams[17].InitAsConstants(1, RHIDX12_EMU_DRAWINDEX_CBV_VS_REGISTER, RHIDX12_EMU_DRAWINDEX_CBV_VS_DESCRIPTOR_SPACE, D3D12_SHADER_VISIBILITY_VERTEX);
 
                 // TOTAL = 62 out of 64 DWORDS
 
@@ -1478,11 +1693,11 @@ namespace PyroshockStudios {
                 rootparams[0].InitAsConstants(4 * sizeof(eastl::array<f32, 2>) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
                 // Blit image srv
                 CD3DX12_DESCRIPTOR_RANGE srvDescriptorRange{};
-                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, RHIDX12_EMU_BLITIMAGE_SRV_REGISTER, RHIDX12_EMU_BLITIMAGE_DESCRIPTOR_SPACE);
                 rootparams[1].InitAsDescriptorTable(1, &srvDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
                 // Blit image sampler
                 CD3DX12_DESCRIPTOR_RANGE samplerDescriptorRange{};
-                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0, 0);
+                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, RHIDX12_EMU_BLITIMAGE_SAMPLER_STATE_REGISTER, RHIDX12_EMU_BLITIMAGE_DESCRIPTOR_SPACE);
                 rootparams[2].InitAsDescriptorTable(1, &samplerDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
                 const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
@@ -1658,18 +1873,21 @@ namespace PyroshockStudios {
             mProperties.msaaSupportUnorderedAccessView = typicalMSAASupport;
         }
         void D3DDevice::PopulateDeviceFeatures() {
-            CD3DX12FeatureSupport support;
-            CheckD3DResult(support.Init(mDevice.Get()));
-
             mFeatures.bGeometryShaders = true; // Always supported
             mFeatures.bTesselationShaders = true;
             mFeatures.bUint8IndexBuffer = false;
+            mFeatures.bBCnTextureCompression = true;
+            mFeatures.bHeadlessSwapChainWindow = true;
+            mFeatures.bConservativeRasterization = mDx12FeatureSupport.ConservativeRasterizationTier() != D3D12_CONSERVATIVE_RASTERIZATION_TIER_NOT_SUPPORTED;
+            mFeatures.bInt64ShaderOps = mDx12FeatureSupport.Int64ShaderOps();
+            mFeatures.bWaveOps = mDx12FeatureSupport.WaveOps();
 
-            mFeatures.bRayTracingPipelines = support.RaytracingTier() != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
-
-            mFeatures.bMeshShaders = support.MeshShaderTier() != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
-            mFeatures.bVariableRateShading = support.VariableShadingRateTier() != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
-            mFeatures.supportedShaderModel = static_cast<u32>(support.HighestShaderModel());
+            mFeatures.bAccelerationStructureBuild = mDx12FeatureSupport.RaytracingTier() != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+            mFeatures.bRayTracingPipelines = mDx12FeatureSupport.RaytracingTier() >= D3D12_RAYTRACING_TIER_1_0;
+            mFeatures.bRayQueries = mDx12FeatureSupport.RaytracingTier() >= D3D12_RAYTRACING_TIER_1_1;
+            mFeatures.bMeshShaders = mDx12FeatureSupport.MeshShaderTier() != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
+            mFeatures.bVariableRateShading = mDx12FeatureSupport.VariableShadingRateTier() != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
+            mFeatures.maxSupportedShaderModel = static_cast<u32>(mDx12FeatureSupport.HighestShaderModel());
         }
 
 
@@ -1681,7 +1899,7 @@ namespace PyroshockStudios {
         }
 
         void D3DDevice::DestroyUploadBuffers() {
-            //ASSERT(mOccupiedLinearUploadBuffers.empty(), "Command buffers must finish execution before device destruction! Linear upload buffers were leaked!");
+            // ASSERT(mOccupiedLinearUploadBuffers.empty(), "Command buffers must finish execution before device destruction! Linear upload buffers were leaked!");
             for (auto [_, buf] : mAvailableLinearUploadBuffers) {
                 delete buf;
                 gDx12Context->FlushDebugMessages();

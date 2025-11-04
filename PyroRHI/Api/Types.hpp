@@ -558,6 +558,10 @@ namespace PyroshockStudios {
             static inline constexpr BufferUsageFlags DRAW_INDIRECT = { 0x00000010 };
             static inline constexpr BufferUsageFlags BUFFER_DEVICE_ADDRESS = { 0x00000020 };
             static inline constexpr BufferUsageFlags BYTE_ADDRESS_BUFFER = { 0x08000000 };
+            static inline constexpr BufferUsageFlags ACCELERATION_STRUCTURE = { 0x10000000 };
+            static inline constexpr BufferUsageFlags BLAS_GEOMETRY_BUFFER = { 0x20000000 };
+            static inline constexpr BufferUsageFlags BLAS_INSTANCE_BUFFER = { 0x40000000 };
+            static inline constexpr BufferUsageFlags ACCELERATION_STRUCTURE_SCRATCH_BUFFER = { 0x80000000 };
         };
 
         enum struct MemoryAllocationDomain : i32 {
@@ -964,6 +968,7 @@ namespace PyroshockStudios {
             static LabelColor ORANGE;
             static LabelColor YELLOW;
             static LabelColor GREEN;
+            static LabelColor CYAN;
             static LabelColor BLUE;
             static LabelColor VIOLET;
             static LabelColor MAGENTA;
@@ -1003,6 +1008,7 @@ namespace PyroshockStudios {
         inline LabelColor LabelColor::ORANGE = { 1.0f, 0.5f, 0.0f, 1.0f };
         inline LabelColor LabelColor::YELLOW = { 1.0f, 1.0f, 0.0f, 1.0f };
         inline LabelColor LabelColor::GREEN = { 0.0f, 1.0f, 0.0f, 1.0f };
+        inline LabelColor LabelColor::CYAN = { 0.0f, 1.0f, 1.0f, 1.0f };
         inline LabelColor LabelColor::BLUE = { 0.0f, 0.0f, 1.0f, 1.0f };
         inline LabelColor LabelColor::VIOLET = { 0.5f, 0.0f, 1.0f, 1.0f };
         inline LabelColor LabelColor::MAGENTA = { 1.0f, 0.0f, 1.0f, 1.0f };
@@ -1021,5 +1027,50 @@ namespace PyroshockStudios {
 
         inline LabelColor LabelColor::WHITE = { 1.0f, 1.0f, 1.0f, 1.0f };
         inline LabelColor LabelColor::BLACK = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+        struct Transform {
+            float matrix[3][4];
+
+            // Default constructor (initializes to zero)
+            Transform() {
+                memset(matrix, 0, sizeof(matrix));
+            }
+
+            // Constructor for brace-initialization
+            Transform(float m00, float m01, float m02, float m03,
+                float m10, float m11, float m12, float m13,
+                float m20, float m21, float m22, float m23) {
+                matrix[0][0] = m00;
+                matrix[0][1] = m01;
+                matrix[0][2] = m02;
+                matrix[0][3] = m03;
+                matrix[1][0] = m10;
+                matrix[1][1] = m11;
+                matrix[1][2] = m12;
+                matrix[1][3] = m13;
+                matrix[2][0] = m20;
+                matrix[2][1] = m21;
+                matrix[2][2] = m22;
+                matrix[2][3] = m23;
+            }
+
+            // Static identity matrix
+            static const Transform IDENTITY;
+
+            // Static zero matrix
+            static const Transform ZERO;
+        };
+
+        // This represents an affine identity transformation
+        // [ 1 0 0 0 ]
+        // [ 0 1 0 0 ]
+        // [ 0 0 1 0 ]
+        inline const Transform Transform::IDENTITY = {
+            1.0f, 0.0f, 0.0f, 0.0f, // Row 0
+            0.0f, 1.0f, 0.0f, 0.0f, // Row 1
+            0.0f, 0.0f, 1.0f, 0.0f  // Row 2
+        };
+
+        inline const Transform Transform::ZERO = {};
     } // namespace RHI
 } // namespace PyroshockStudios

@@ -11,8 +11,7 @@ static constexpr u32 SWAP_ACQUIRE_FAIL_LIMIT = 4; // after 4 fails, fail the tes
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapChainCreateDestroyOverload) {
     if (!mDevice->Features().bHeadlessSwapChainWindow) {
-        GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
-        return;
+        GTEST_SKIP() << "Device does not support a headless swap chain, skipping test...";
     }
     ICommandQueue* queue = mDevice->GetPresentQueue();
     ASSERT_NE(queue, nullptr);
@@ -40,8 +39,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapChainCreateDestroyOverload) {
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
     if (!mDevice->Features().bHeadlessSwapChainWindow) {
-        GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
-        return;
+        GTEST_SKIP() << "Device does not support a headless swap chain, skipping test...";
     }
     ICommandQueue* queue = mDevice->GetPresentQueue();
     ASSERT_NE(queue, nullptr);
@@ -100,8 +98,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
     if (!mDevice->Features().bHeadlessSwapChainWindow) {
-        GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
-        return;
+        GTEST_SKIP() << "Device does not support a headless swap chain, skipping test...";
     }
     ICommandQueue* queue = mDevice->GetPresentQueue();
     ASSERT_NE(queue, nullptr);
@@ -161,9 +158,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
     static constexpr i32 NUM_SWAPCHAINS = 8;
 
-      if (!mDevice->Features().bHeadlessSwapChainWindow) {
-        GTEST_LOG_(INFO) << "Device does not support a headless swap chain, skipping test...";
-        return;
+    if (!mDevice->Features().bHeadlessSwapChainWindow) {
+        GTEST_SKIP() << "Device does not support a headless swap chain, skipping test...";
     }
     ICommandQueue* queue = mDevice->GetPresentQueue();
     ASSERT_NE(queue, nullptr);

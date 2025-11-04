@@ -24,6 +24,7 @@
 #include "Core.hpp"
 #include <PyroCommon/Version.hpp>
 #include <PyroRHI/Context.hpp>
+#include <PyroRHI/Shader/IShaderFeatureSet.hpp>
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
@@ -37,7 +38,7 @@ namespace PyroshockStudios {
             bool bEnableValidation = false;
             i64 preferredPhysicalDevice = -1; // -1 == pick most suitable
         };
-        class VulkanContext : public RHIContext {
+        class VulkanContext : public RHIContext, public IShaderFeatureSet {
         public:
             VulkanContext(const VulkanContextArgs& args, ILogStream* logSink, ILogStream* vvlSink);
             ~VulkanContext();
@@ -55,7 +56,15 @@ namespace PyroshockStudios {
 
             void InjectLogger(ILogStream* stream) override;
 
+
+            ShaderCompileTarget GetTarget() const override;
+            const char* GetProfileName(ShaderStage shaderStage) const override;
+            const char* GetFileExtension() const override;
+            const ShaderFeatureInfo& Features() const override;
+            const eastl::span<eastl::pair<const char*, const char*>>& GlobalPreprocessorDefines() const override;
         private:
+
+
             void CreateAllocationCallbacks();
 
             static void* OnAllocate(void* userData, usize size, usize alignment, VkSystemAllocationScope scope);

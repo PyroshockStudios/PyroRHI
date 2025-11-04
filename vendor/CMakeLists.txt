@@ -29,11 +29,12 @@ if(PYRO_RHI_BUILD_VULKAN)
     set(VMA_BUILD_SAMPLES OFF)
     add_subdirectory(VulkanMemoryAllocator)
 endif()
-if(PYRO_RHI_BUILD_DX12)
+if(PYRO_RHI_BUILD_DX12)    
     # d3d12 utils
     set(DXHEADERS_INSTALL ON)
     add_subdirectory(DirectX-Headers)
-
+   
+    set(D3D12MA_AGILITY_SDK_DIRECTORY ${DX12_AGILITY_SDK_PATH})
     # d3d12ma
     set(D3D12MA_BUILD_SAMPLE OFF)
     add_subdirectory(D3D12MemoryAllocator)

@@ -37,3 +37,20 @@ target_link_libraries(RHIDX12 PRIVATE
 
 add_custom_target(BuildPyroImplRHIDX12 ALL DEPENDS RHIDX12)
 set_target_properties(BuildPyroImplRHIDX12 PROPERTIES FOLDER "PyroBuildRHI")
+
+# --- Agility SDK Configuration ---
+
+target_include_directories(RHIDX12 PRIVATE "${DX12_AGILITY_SDK_INCLUDE_PATH}")
+set(OUTPUT_SDK_DIR "$<TARGET_FILE_DIR:RHIDX12>/D3D12")
+
+add_custom_command(
+    TARGET RHIDX12 POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${OUTPUT_SDK_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${DX12_AGILITY_SDK_BIN_PATH}/D3D12Core.dll"
+        "${OUTPUT_SDK_DIR}/"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${DX12_AGILITY_SDK_BIN_PATH}/d3d12SDKLayers.dll"
+        "${OUTPUT_SDK_DIR}/"
+    COMMENT "Copying DX12 Agility SDK DLLs"
+)

@@ -94,28 +94,36 @@ namespace PyroshockStudios {
             bool IsShaderResourceValid(ShaderResourceId id) const override;
             bool IsUnorderedAccessValid(UnorderedAccessId id) const override;
             bool IsSamplerValid(SamplerId id) const override;
+            bool IsBlasValid(BlasId id) const override;
+            bool IsTlasValid(TlasId id) const override;
+
             const MemoryBlockInfo& GetMemoryBlockInfo(MemoryBlock memory) const override;
             const BufferInfo& GetBufferInfo(Buffer buffer) const override;
             const ImageInfo& GetImageInfo(Image image) const override;
-            const GPUResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const override;
-            const GPUResourceInfo& GetUnorderedAccessInfo(UnorderedAccessId id) const override;
+            const GpuResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const override;
+            const GpuResourceInfo& GetUnorderedAccessInfo(UnorderedAccessId id) const override;
             const SamplerInfo& GetSamplerInfo(SamplerId id) const override;
             const RenderTargetInfo& GetRenderTargetInfo(RenderTarget renderTarget) const override;
             const RasterPipelineInfo& GetRasterPipelineInfo(RasterPipeline pipeline) const override;
             const ComputePipelineInfo& GetComputePipelineInfo(ComputePipeline pipeline) const override;
             const SemaphoreInfo& GetSemaphoreInfo(Semaphore semaphore) const override;
-
+            const BlasInfo& GetBlasInfo(BlasId blas) const override;
+            const TlasInfo& GetTlasInfo(TlasId tlas) const override;
 
             DeviceAddress BufferDeviceAddress(Buffer buffer) const override;
             u8* BufferHostAddress(Buffer buffer) const override;
+            BlasAddress BlasInstanceAddress(BlasId blas) const override;
             DeviceSize ImageSizeRequirements(Image image) const override;
             u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const override;
+
+            AccelerationStructureBuildSizesInfo BlasSizeRequirements(const BlasBuildInfo& info) const override;
+            AccelerationStructureBuildSizesInfo TlasSizeRequirements(const TlasBuildInfo& info) const override;
 
             MemoryBlock CreateMemoryBlock(const MemoryBlockInfo& info) override;
             Buffer CreateBuffer(const BufferInfo& info) override;
             Image CreateImage(const ImageInfo& info) override;
-            ShaderResourceId CreateShaderResource(const GPUResourceInfo& info) override;
-            UnorderedAccessId CreateUnorderedAccess(const GPUResourceInfo& info) override;
+            ShaderResourceId CreateShaderResource(const GpuResourceInfo& info) override;
+            UnorderedAccessId CreateUnorderedAccess(const GpuResourceInfo& info) override;
             SamplerId CreateSampler(const SamplerInfo& info) override;
             RenderTarget CreateRenderTarget(const RenderTargetInfo& info) override;
             RasterPipeline CreateRasterPipeline(const RasterPipelineInfo& info, const RasterPipelineShaderStages& rasterShaderStages) override;
@@ -124,24 +132,28 @@ namespace PyroshockStudios {
             Semaphore CreateSemaphore(const SemaphoreInfo& info) override;
             IFence* CreateFence(const FenceInfo& info) override;
             ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) override;
+            BlasId CreateBlas(const BlasInfo& info) override;
+            TlasId CreateTlas(const TlasInfo& info) override;
 
-            virtual void DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) override;
-            virtual void DestroyBuffer(Buffer& buffer, bool bDefer) override;
-            virtual void DestroyImage(Image& image, bool bDefer) override;
-            virtual void DestroyShaderResource(ShaderResourceId& srv, bool bDefer) override;
-            virtual void DestroyUnorderedAccess(UnorderedAccessId& uav, bool bDefer) override;
-            virtual void DestroySampler(SamplerId& sampler, bool bDefer) override;
-            virtual void DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer) override;
-            virtual void DestroyRasterPipeline(RasterPipeline& pipeline, bool bDefer) override;
-            virtual void DestroyComputePipeline(ComputePipeline& pipeline, bool bDefer) override;
-            virtual void DestroySwapChain(ISwapChain*& swapChain, bool bDefer) override;
-            virtual void DestroySemaphore(Semaphore& semaphore, bool bDefer) override;
-            virtual void DestroyFence(IFence*& fence, bool bDefer) override;
-            virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer) override;
+            void DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) override;
+            void DestroyBuffer(Buffer& buffer, bool bDefer) override;
+            void DestroyImage(Image& image, bool bDefer) override;
+            void DestroyShaderResource(ShaderResourceId& srv, bool bDefer) override;
+            void DestroyUnorderedAccess(UnorderedAccessId& uav, bool bDefer) override;
+            void DestroySampler(SamplerId& sampler, bool bDefer) override;
+            void DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer) override;
+            void DestroyRasterPipeline(RasterPipeline& pipeline, bool bDefer) override;
+            void DestroyComputePipeline(ComputePipeline& pipeline, bool bDefer) override;
+            void DestroySwapChain(ISwapChain*& swapChain, bool bDefer) override;
+            void DestroySemaphore(Semaphore& semaphore, bool bDefer) override;
+            void DestroyFence(IFence*& fence, bool bDefer) override;
+            void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer) override;
+            void DestroyBlas(BlasId& blas, bool bDefer) override;
+            void DestroyTlas(TlasId& tlas, bool bDefer) override;
 
-            virtual eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
-            virtual eastl::span<ICommandQueue*> GetCommandQueues() override;
-            virtual ICommandQueue* GetPresentQueue() override;
+            eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
+            eastl::span<ICommandQueue*> GetCommandQueues() override;
+            ICommandQueue* GetPresentQueue() override;
             void WaitIdle() override;
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
             void PresentQueue(const CommandQueuePresentInfo& info) override;
@@ -152,11 +164,16 @@ namespace PyroshockStudios {
 
             void CollectGarbage() override;
 
+            void SetShaderModel(u32 shaderModel) override;
+
             void ImageAddIfNecessaryBlitSupport(D3DImageResourceData& data);
             const DescriptorTableInfo& GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc);
             ID3D12PipelineState* GetBlitImagePipeline(DXGI_FORMAT format, bool bArray);
 
             LinearUploadBuffer* GetLinearBufferAllocation(UINT64 minSize = 65536ULL);
+
+            void FillBlasInputs(D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& inputs, const BlasBuildInfo& info,
+                eastl::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& scratchGeomDescs) const;
 
             ID3D12CommandSignature* GetDrawCommandSignature() {
                 return mIndirectDrawSignature.Get();
@@ -184,7 +201,7 @@ namespace PyroshockStudios {
             QueueFenceSnapshot SnapshotQueueFenceValues() const;
 
             void WriteAllSRVDescriptorHeapCopies(ID3D12Resource* pResource,
-                const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GPUResourceId handle);
+                const D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc, GpuResourceId handle);
             void DestroyAllUAVDescriptorHeapCopies(UnorderedAccessId handle);
 
         private:
@@ -210,6 +227,7 @@ namespace PyroshockStudios {
             ComPtr<IDXGIAdapter1> mAdapter = {};
             ComPtr<IDXGIFactory4> mFactory = {};
             ComPtr<ID3D12Device> mDevice = {};
+            ComPtr<ID3D12Device5> mDevice5 = {}; 
             ComPtr<D3D12MA::Allocator> mAllocator = {};
 
         public:
@@ -221,6 +239,7 @@ namespace PyroshockStudios {
             DescriptorTableInfo mNearestSamplerDescriptorTable = {};
             DescriptorTableInfo mLinearSamplerDescriptorTable = {};
 
+            u32 mActiveShaderModel = 0x51;
         private:
             eastl::vector<ICommandQueue*> mCommandQueueList = {};
             D3DCommandQueue* mCommandQueue = {};
@@ -228,11 +247,12 @@ namespace PyroshockStudios {
 
             eastl::vector<eastl::pair<UINT64 /*frames unused*/, LinearUploadBuffer*>> mAvailableLinearUploadBuffers = {};
 
-
             eastl::vector<eastl::pair<UINT64 /* cpu fence value @*/, D3DCommandQueue*>> mQueuePendingSubmits;
 
             eastl::vector<eastl::pair<QueueFenceSnapshot, ZombieDeleter>>
                 mDeferredDeletes;
+
+            CD3DX12FeatureSupport mDx12FeatureSupport{};
 
             DeviceInfo mInfo{};
             DevicePropertiesInfo mProperties{};

@@ -25,11 +25,10 @@
 #include <EASTL/hash_map.h>
 
 #include <PyroRHI/Api/Limits.hpp>
-#include <PyroRHI/Shader/IShaderFeatureSet.hpp>
 
 #include <EASTL/vector.h>
 #include <PyroCommon/Logger.hpp>
-#include <iostream>
+#include <libassert/assert.hpp>
 
 namespace PyroshockStudios::RHIVulkan {
 
@@ -437,7 +436,7 @@ namespace PyroshockStudios::RHIVulkan {
         mCreatedDevices.push_back(device);
 
         rhiProps = {
-            .bBufferDeviceAddress = device->mVulkanCaps.bVK_EXT_buffer_device_address,
+            .bBufferDeviceAddress = device->mVulkanCaps.bVK_KHR_buffer_device_address,
             .bDrawIndirectCount = true,
             .bUint8IndexBuffer = true,
             .bTesselationShader = vkPhysicalDeviceFeatures.tessellationShader == VK_TRUE,
@@ -454,46 +453,77 @@ namespace PyroshockStudios::RHIVulkan {
     }
 
     IShaderFeatureSet* VulkanContext::ShaderFeatureSet() {
-        struct SlangVulkan13FeatureSetStub : public IShaderFeatureSet {
-            SlangVulkan13FeatureSetStub() = default;
-            ShaderCompileTarget GetTarget() const override {
-                return ShaderCompileTarget::Spirv;
-            }
-            const char* GetProfileName(ShaderStage shaderStage) const override {
-                return "glsl_460";
-            }
-            const char* GetFileExtension() const override {
-                return "spv";
-            }
-            const ShaderFeatureInfo& Features() const override {
-                static auto features = ShaderFeatureInfo{
-                    .bDescriptorIndexing = true,
-                    .bBufferDeviceAddress = true,
-                    .bScalarLayout = true,
-                    .bDrawParameters = true,
-                    .bGLSL = true,
-                };
-                return features;
-            }
-            const eastl::span<eastl::pair<const char*, const char*>>& GlobalPreprocessorDefines() const override {
-                static eastl::vector<eastl::pair<const char*, const char*>> preprocesor = {
-                    { "PYRO_SHADER_FLAG_RHI_VK13", "1" },
-                    { "PYRO_SHADER_FLAG_ENABLE_SPECIALIZATION_CONSTANTS", "1" },
-                    { "PYRO_SHADER_FLAG_ENABLE_GL_DRAW_ID", "1" },
-                    { "PYRO_SHADER_FLAG_ENABLE_GL_FIRST_VERTEX", "1" },
-                    { "PYRO_SHADER_FLAG_ENABLE_GL_FIRST_INSTANCE", "1" },
-                };
-                static auto span = eastl::span(preprocesor.data(), preprocesor.size());
-                return span;
-            }
-        };
-        // for now
-        static SlangVulkan13FeatureSetStub stub{};
-        return &stub;
+        return this;
     }
 
     void VulkanContext::InjectLogger(ILogStream* stream) {
         gVulkanSink = stream;
+    }
+
+    ShaderCompileTarget VulkanContext::GetTarget() const {
+        return ShaderCompileTarget::Spirv;
+    }
+
+    const char* VulkanContext::GetProfileName(ShaderStage shaderStage) const {
+        u32 sm = mCreatedDevices[0]->mActiveShaderModel;
+        u32 maj = (sm & 0xF0) >> 4;
+        u32 min = (sm & 0x0F) >> 0;
+
+        ASSERT(maj <= 1 /*FIXME: what if vulkan updates to SPIRV 2.x?*/ && min <= 9, "Badly formatted version!");
+        ASSERT(sm <= 0x19, "Application bug! If this is a legitimate SPIRV model, the application has not added support yet!");
+
+        switch (sm) {
+        case 0x10:
+            return "spirv_1_0";
+        case 0x11:
+            return "spirv_1_1";
+        case 0x12:
+            return "spirv_1_2";
+        case 0x13:
+            return "spirv_1_3";
+        case 0x14:
+            return "spirv_1_4";
+        case 0x15:
+            return "spirv_1_5";
+        case 0x16:
+            return "spirv_1_6";
+        case 0x17:
+            return "spirv_1_7";
+        case 0x18:
+            return "spirv_1_8";
+        case 0x19:
+            return "spirv_1_9";
+        default:
+            return nullptr;
+        }
+        return nullptr;
+    }
+
+    const char* VulkanContext::GetFileExtension() const {
+        return "spv";
+    }
+
+    const ShaderFeatureInfo& VulkanContext::Features() const {
+        static auto features = ShaderFeatureInfo{
+            .bDescriptorIndexing = true,
+            .bBufferDeviceAddress = true,
+            .bScalarLayout = true,
+            .bDrawParameters = true,
+            .bGLSL = true,
+        };
+        return features;
+    }
+
+    const eastl::span<eastl::pair<const char*, const char*>>& VulkanContext::GlobalPreprocessorDefines() const {
+        static eastl::vector<eastl::pair<const char*, const char*>> preprocesor = {
+            { "PYRO_SHADER_FLAG_RHI_VK13", "1" },
+            { "PYRO_SHADER_FLAG_ENABLE_SPECIALIZATION_CONSTANTS", "1" },
+            { "PYRO_SHADER_FLAG_ENABLE_GL_DRAW_ID", "1" },
+            { "PYRO_SHADER_FLAG_ENABLE_GL_FIRST_VERTEX", "1" },
+            { "PYRO_SHADER_FLAG_ENABLE_GL_FIRST_INSTANCE", "1" },
+        };
+        static auto span = eastl::span(preprocesor.data(), preprocesor.size());
+        return span;
     }
 
     void VulkanContext::CreateAllocationCallbacks() {

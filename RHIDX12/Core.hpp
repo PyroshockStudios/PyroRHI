@@ -27,6 +27,9 @@
 
 #include <PyroCommon/Core.hpp>
 #include <PyroCommon/LoggerInterface.hpp>
+
+#undef OPAQUE
+#include <PyroRHI/Api/AccelerationStructure.hpp>
 #include <PyroRHI/Api/Util.hpp>
 
 #include <Windows.h>
@@ -38,8 +41,8 @@
 #include <wrl.h>
 #undef CreateSemaphore
 #undef CreateEvent
+#undef OPAQUE
 using Microsoft::WRL::ComPtr;
-
 
 typedef void(WINAPI* PFN_BeginEventOnCommandList)(ID3D12GraphicsCommandList* commandList, UINT64 color, _In_ PCSTR formatString);
 typedef void(WINAPI* PFN_EndEventOnCommandList)(ID3D12GraphicsCommandList* commandList);
@@ -506,7 +509,45 @@ namespace PyroshockStudios {
                 .back = static_cast<UINT>(box.z + box.depth),
             };
         }
+        static inline D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS ToD3D12ASBuildFlags(AccelerationStructureCreateFlags flags) {
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS d3dFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+            if (flags & AccelerationStructureCreateFlagBits::ALLOW_UPDATE)
+                d3dFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+            if (flags & AccelerationStructureCreateFlagBits::ALLOW_COMPACTION)
+                d3dFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION;
+            if (flags & AccelerationStructureCreateFlagBits::PREFER_FAST_TRACE)
+                d3dFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+            if (flags & AccelerationStructureCreateFlagBits::PREFER_FAST_BUILD)
+                d3dFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD;
+            if (flags & AccelerationStructureCreateFlagBits::LOW_MEMORY)
+                d3dFlags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_MINIMIZE_MEMORY;
+            // ALLOW_DATA_ACCESS is implicit in DX12
+            return d3dFlags;
+        }
+        static inline D3D12_RAYTRACING_GEOMETRY_FLAGS ToD3D12ASGeometryFlags(AccelerationStructureGeometryFlags flags) {
+            D3D12_RAYTRACING_GEOMETRY_FLAGS d3dFlags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+            if (flags & AccelerationStructureGeometryFlagBits::OPAQUE)
+                d3dFlags |= D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+            if (flags & AccelerationStructureGeometryFlagBits::NO_DUPLICATE_ANY_HIT_INVOCATION)
+                d3dFlags |= D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION;
+            return d3dFlags;
+        }
 
-
+        
+        PYRO_FORCEINLINE static constexpr DXGI_FORMAT ToDXGIFormat(IndexType type) {
+            switch (type) {
+            case IndexType::Uint32:
+                return DXGI_FORMAT_R32_UINT;
+            case IndexType::Uint16:
+                return DXGI_FORMAT_R16_UINT;
+            case IndexType::Uint8:
+                return DXGI_FORMAT_R8_UINT;
+            case IndexType::None:
+                return DXGI_FORMAT_UNKNOWN;
+            default:
+                return DXGI_FORMAT_UNKNOWN;
+            }
+            return DXGI_FORMAT_UNKNOWN;
+        }
     } // namespace RHIDX12
 } // namespace PyroshockStudios

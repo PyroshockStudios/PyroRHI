@@ -492,7 +492,7 @@ TEST(RHICommonToStringTests, DeviceFeaturesInfoToString) {
     info.bHeadlessSwapChainWindow = true;
     info.bVariableRateShading = false;
     info.bConservativeRasterization = true;
-    info.supportedShaderModel = 0x61;
+    info.maxSupportedShaderModel = 0x61;
 
     eastl::string expected =
         "DeviceFeaturesInfo {\n"
@@ -500,9 +500,9 @@ TEST(RHICommonToStringTests, DeviceFeaturesInfoToString) {
         "  TesselationShaders: false\n"
         "  MeshShaders: true\n"
         "  TaskShaders: false\n"
-        "  RayQueries: true\n"
-        "  RayTracingPipelines: false\n"
         "  AccelerationStructureBuild: true\n"
+        "  RayTracingPipelines: false\n"
+        "  RayQueries: true\n"
         "  BufferDeviceAddress: false\n"
         "  BCnTextureCompression: true\n"
         "  Uint8IndexBuffer: false\n"
@@ -513,7 +513,7 @@ TEST(RHICommonToStringTests, DeviceFeaturesInfoToString) {
         "  HeadlessSwapChainWindow: true\n"
         "  VariableRateShading: false\n"
         "  ConservativeRasterization: true\n"
-        "  SupportedShaderModel: 0x61\n"
+        "  MaxSupportedShaderModel: 0x61\n"
         "}";
 
     EXPECT_STREQ(RemoveIndentation(info.ToString(0)).c_str(), RemoveIndentation(expected).c_str());
@@ -530,8 +530,8 @@ TEST(RHICommonToStringTests, DevicePropertiesInfoToString) {
     info.minUniformBufferOffsetAlignment = 64;
     info.minStorageBufferOffsetAlignment = 32;
     info.graphicsQueueCount = 1;
-    info.computeQueueCount = 1;
-    info.transferQueueCount = 1;
+    info.computeQueueCount = 3;
+    info.transferQueueCount = 2;
     info.bHasDedicatedComputeQueue = true;
     info.bHasDedicatedTransferQueue = false;
     info.maxTextureWidth = 16384;
@@ -552,8 +552,8 @@ TEST(RHICommonToStringTests, DevicePropertiesInfoToString) {
         "  BufferImageCopyOffsetAlignment: 16\n"
         "  MinUniformBufferOffsetAlignment: 64\n"
         "  MinStorageBufferOffsetAlignment: 32\n"
-        "  QueueCounts: G=1 C=1 T=1\n"
-        "  DedicatedQueues: Compute=1 Transfer=0\n"
+        "  QueueCounts: G=1 C=3 T=2\n"
+        "  DedicatedQueues: Compute=TRUE, Transfer=FALSE\n"
         "  TextureLimits: 16384x16384x2048\n"
         "  MaxTextureArrayLayers: 2048\n"
         "  MaxSamplerAnisotropy: 16\n"

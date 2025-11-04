@@ -24,6 +24,7 @@
 #include "Core.hpp"
 #include <PyroCommon/Version.hpp>
 #include <PyroRHI/Context.hpp>
+#include <PyroRHI/Shader/IShaderFeatureSet.hpp>
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
@@ -33,8 +34,10 @@ namespace PyroshockStudios {
         struct D3DContextArgs {
             bool bDebug = false;
             bool bWarpDriver = false;
+            UINT sdkVersion = 618;
+            LPCSTR sdkDllRelativePath = ".\\D3D12\\";
         };
-        class D3DContext : public RHIContext {
+        class D3DContext : public RHIContext, public IShaderFeatureSet {
         public:
             D3DContext(const D3DContextArgs& args, ILogStream* logSink, ILogStream* debugSink);
             ~D3DContext();
@@ -46,22 +49,30 @@ namespace PyroshockStudios {
             const RHIProperties& Properties() override;
             IShaderFeatureSet* ShaderFeatureSet() override;
 
-            void InjectLogger( ILogStream* stream) override;
+            ShaderCompileTarget GetTarget() const override;
+            const char* GetProfileName(ShaderStage shaderStage) const override;
+            const char* GetFileExtension() const override;
+            const ShaderFeatureInfo& Features() const override;
+            const eastl::span<eastl::pair<const char*, const char*>>& GlobalPreprocessorDefines() const override;
+
+            void InjectLogger(ILogStream* stream) override;
 
             PYRO_FORCEINLINE void FlushDebugMessages() {
-                if (!mInfoQueue) return;
+                if (!mInfoQueue)
+                    return;
 
                 InternalFlushDebugMessages();
             }
+
         private:
             void InternalFlushDebugMessages();
-            
+
             ComPtr<IDXGIFactory4> mFactory;
             ComPtr<ID3D12InfoQueue> mInfoQueue = nullptr;
-            ComPtr<ID3D12Debug> mDebugController= nullptr;
+            ComPtr<ID3D12Debug> mDebugController = nullptr;
             D3DDevice* mDevice = nullptr;
             HMODULE mPixRuntimeDll = {};
             ILogStream* mDebugSink = nullptr;
         };
-    }
+    } // namespace RHIDX12
 } // namespace PyroshockStudios

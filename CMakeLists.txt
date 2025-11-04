@@ -26,6 +26,9 @@ if (PYRO_RHI_BUILD_TESTS)
 enable_testing()
 endif()
 
+if (PYRO_RHI_BUILD_DX12)
+include(DX12AgilitySDK.cmake)
+endif()
 add_subdirectory(vendor)
 
 add_subdirectory(PyroRHI)
@@ -45,9 +48,11 @@ add_subdirectory(tests)
 
 if (PYRO_RHI_BUILD_DX12_VALIDATION_TESTS)
 add_coverage_instrumentation(RHIDX12)
+add_coverage_instrumentation(RHIValidationTestDX12)
 endif()
 if (PYRO_RHI_BUILD_VULKAN_VALIDATION_TESTS)
 add_coverage_instrumentation(RHIVulkan)
+add_coverage_instrumentation(RHIValidationTestVulkan)
 endif()
 
 add_coverage_instrumentation(RHIBaseTest)

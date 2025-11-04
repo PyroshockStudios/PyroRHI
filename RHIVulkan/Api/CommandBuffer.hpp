@@ -80,6 +80,7 @@ namespace PyroshockStudios {
             void DrawIndexedIndirect(const DrawIndexedIndirectInfo& info) override;
             void Dispatch(const DispatchInfo& info) override;
             void DispatchIndirect(const DispatchIndirectInfo& info) override;
+            void BuildAccelerationStructures(const BuildAccelerationStructuresInfo& info) override;
             void Complete() override;
 
             VkCommandBuffer GetVkCommandBuffer() {

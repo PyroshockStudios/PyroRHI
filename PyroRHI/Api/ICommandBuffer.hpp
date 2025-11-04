@@ -35,6 +35,7 @@
 #include <PyroRHI/Api/Pipeline.hpp>
 #include <PyroRHI/Api/RenderTarget.hpp>
 #include <PyroRHI/Api/Types.hpp>
+#include <PyroRHI/Api/AccelerationStructure.hpp>
 
 namespace PyroshockStudios {
     inline namespace RHI {
@@ -691,6 +692,11 @@ namespace PyroshockStudios {
             PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
+        struct BuildAccelerationStructuresInfo {
+            eastl::span<TlasBuildInfo const> tlasBuildInfos = {};
+            eastl::span<BlasBuildInfo const> blasBuildInfos = {};
+        };
+
         /**
          * @brief Interface for recording and submitting GPU commands.
          *
@@ -932,6 +938,14 @@ namespace PyroshockStudios {
              * @brief Dispatches compute workloads using indirect parameters from a buffer. *MUST* be called outside of a renderpass
              */
             virtual void DispatchIndirect(const DispatchIndirectInfo& info) = 0;
+
+            
+            // ---------------------------------------------------------------------
+            // Ray tracing and Acceleration structures
+            // ---------------------------------------------------------------------
+
+            virtual void BuildAccelerationStructures(const BuildAccelerationStructuresInfo& info) = 0;
+
 
             // ---------------------------------------------------------------------
             // Completion

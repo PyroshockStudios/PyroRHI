@@ -23,6 +23,7 @@
 #pragma once
 #include <PyroCommon/Core.hpp>
 
+#include "AccelerationStructure.hpp"
 #include "GPUResource.hpp"
 #include "ICommandBuffer.hpp"
 #include "ICommandQueue.hpp"
@@ -97,9 +98,9 @@ namespace PyroshockStudios {
             bool bTaskShaders = false;
 
             // --- Ray Tracing ---
-            bool bRayQueries = false;
-            bool bRayTracingPipelines = false;
             bool bAccelerationStructureBuild = false;
+            bool bRayTracingPipelines = false;
+            bool bRayQueries = false;
 
             // --- Resource / Memory ---
             bool bBufferDeviceAddress = false; ///< VK_KHR_buffer_device_address / D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT
@@ -111,7 +112,7 @@ namespace PyroshockStudios {
             bool bUint8IndexBuffer = false;
 
             // --- Shader Model / SPIR-V Level ---
-            u32 supportedShaderModel = 0; ///< e.g., HLSL Shader Model or Vulkan's SPIR-V version, format of 0xMAJOR_MINOR
+            u32 maxSupportedShaderModel = 0; ///< e.g., Max HLSL Shader Model or Vulkan's SPIR-V version, format of 0xMAJOR_MINOR
 
             // --- Compute and Atomics ---
             bool bInt64ShaderOps = false;
@@ -333,6 +334,18 @@ namespace PyroshockStudios {
              */
             PYRO_NODISCARD virtual bool IsSamplerValid(SamplerId id) const = 0;
 
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * Check whether a BLAS handle is valid.
+             */
+            PYRO_NODISCARD virtual bool IsBlasValid(BlasId id) const = 0;
+
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * Check whether a TLAS handle is valid.
+             */
+            PYRO_NODISCARD virtual bool IsTlasValid(TlasId id) const = 0;
+
             // Convenience overloads
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(MemoryBlock handle) const { return IsMemoryBlockValid(handle); }
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(Buffer handle) const { return IsBufferValid(handle); }
@@ -340,6 +353,8 @@ namespace PyroshockStudios {
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(ShaderResourceId id) const { return IsShaderResourceValid(id); }
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(UnorderedAccessId id) const { return IsUnorderedAccessValid(id); }
             PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(SamplerId id) const { return IsSamplerValid(id); }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(BlasId id) const { return IsBlasValid(id); }
+            PYRO_NODISCARD PYRO_FORCEINLINE bool IsValid(TlasId id) const { return IsTlasValid(id); }
 
             // ---------------------------------------------------------------------
             // Resource Info Queries
@@ -363,12 +378,12 @@ namespace PyroshockStudios {
             /**
              * @brief Retrieves shader resource view description.
              */
-            PYRO_NODISCARD virtual const GPUResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const = 0;
+            PYRO_NODISCARD virtual const GpuResourceInfo& GetShaderResourceInfo(ShaderResourceId id) const = 0;
 
             /**
              * @brief Retrieves unordered access view description.
              */
-            PYRO_NODISCARD virtual const GPUResourceInfo& GetUnorderedAccessInfo(UnorderedAccessId id) const = 0;
+            PYRO_NODISCARD virtual const GpuResourceInfo& GetUnorderedAccessInfo(UnorderedAccessId id) const = 0;
 
             /**
              * @brief Retrieves sampler description.
@@ -395,16 +410,28 @@ namespace PyroshockStudios {
              */
             PYRO_NODISCARD virtual const SemaphoreInfo& GetSemaphoreInfo(Semaphore semaphore) const = 0;
 
+            /**
+             * @brief Retrieves BLAS description.
+             */
+            PYRO_NODISCARD virtual const BlasInfo& GetBlasInfo(BlasId blas) const = 0;
+
+            /**
+             * @brief Retrieves TLAS description.
+             */
+            PYRO_NODISCARD virtual const TlasInfo& GetTlasInfo(TlasId tlas) const = 0;
+
 
             // ---------------------------------------------------------------------
             // Memory Access
             // ---------------------------------------------------------------------
 
             /**
-             * @brief Returns the device (GPU) address of a buffer, if supported.
+             * @brief - REQUIRES BDA SUPPORT -
+             * Returns the device (GPU) address of a buffer, if supported.
              * This address may or may not be a valid address to use inside a shader, usage varies by API.
              */
             PYRO_NODISCARD virtual DeviceAddress BufferDeviceAddress(Buffer buffer) const = 0;
+
 
             /**
              * @brief Returns the host (CPU) mapped pointer for a buffer. This will not be a valid
@@ -419,6 +446,13 @@ namespace PyroshockStudios {
             PYRO_NODISCARD PYRO_FORCEINLINE T* BufferHostAddressAs(Buffer buffer) const {
                 return reinterpret_cast<T*>(BufferHostAddress(buffer));
             }
+
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * Returns the api specific address of a BLAS. This is to be used in `BlasInstanceData`
+             */
+            PYRO_NODISCARD virtual BlasAddress BlasInstanceAddress(BlasId blas) const = 0;
+
 
             // ---------------------------------------------------------------------
             // Memory requirements
@@ -442,6 +476,19 @@ namespace PyroshockStudios {
              * Row width is the minimal width that needs to be queried **INCLUDING** the format size. For a buffer-image copy, this is the extent of your copy region.
              */
             PYRO_NODISCARD virtual u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice = {}) const = 0;
+
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             *
+             * Returns the size requirements for build, scratch and update buffers for a BLAS
+             */
+            PYRO_NODISCARD virtual AccelerationStructureBuildSizesInfo BlasSizeRequirements(const BlasBuildInfo& info) const = 0;
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             *
+             * Returns the size requirements for build, scratch and update buffers for a TLAS
+             */
+            PYRO_NODISCARD virtual AccelerationStructureBuildSizesInfo TlasSizeRequirements(const TlasBuildInfo& info) const = 0;
 
             // ---------------------------------------------------------------------
             // Resource Creation
@@ -469,12 +516,12 @@ namespace PyroshockStudios {
              * @brief Creates a shader resource view with the specified parameters. ShaderResourceId::index is an index into
              * the descriptor heap that can be used to index into a bindless heap in a shader.
              */
-            PYRO_NODISCARD virtual ShaderResourceId CreateShaderResource(const GPUResourceInfo& info) = 0;
+            PYRO_NODISCARD virtual ShaderResourceId CreateShaderResource(const GpuResourceInfo& info) = 0;
             /**
              * @brief Creates an unordered access view with the specified parameters. This handle must be bound
              * and cannot be used for bindless shader indexing.
              */
-            PYRO_NODISCARD virtual UnorderedAccessId CreateUnorderedAccess(const GPUResourceInfo& info) = 0;
+            PYRO_NODISCARD virtual UnorderedAccessId CreateUnorderedAccess(const GpuResourceInfo& info) = 0;
             /**
              * @brief Creates a sampler with the specified parameters. SamplerId::index is an index into
              * the descriptor heap that can be used to index into a bindless heap in a shader.
@@ -509,6 +556,34 @@ namespace PyroshockStudios {
              * @brief Creates a query pool for GPU command timestamps
              */
             PYRO_NODISCARD virtual ITimestampQueryPool* CreateTimestampQueryPool(const TimestampQueryPoolInfo& info) = 0;
+
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * Creates a bottom level acceleration structure to be referenced by a Tlas.
+             */
+            PYRO_NODISCARD virtual BlasId CreateBlas(const BlasInfo& info) = 0;
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * Creates a top level acceleration structure with the given parameters. This returns a handle
+             * that is meant to be passed to a shader, to index into a runtime array of Tlas descriptors
+             */
+            PYRO_NODISCARD virtual TlasId CreateTlas(const TlasInfo& info) = 0;
+
+
+            // Convenience create overloads
+            PYRO_NODISCARD PYRO_FORCEINLINE MemoryBlock Create(const MemoryBlockInfo& info) { return CreateMemoryBlock(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE Buffer Create(const BufferInfo& info) { return CreateBuffer(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE Image Create(const ImageInfo& info) { return CreateImage(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE SamplerId Create(const SamplerInfo& info) { return CreateSampler(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE RasterPipeline Create(const RasterPipelineInfo& info, const RasterPipelineShaderStages& stages) { return CreateRasterPipeline(info, stages); }
+            PYRO_NODISCARD PYRO_FORCEINLINE ComputePipeline Create(const ComputePipelineInfo& info, const ShaderInfo& shader) { return CreateComputePipeline(info, shader); }
+            PYRO_NODISCARD PYRO_FORCEINLINE ISwapChain* Create(const SwapChainInfo& info) { return CreateSwapChain(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE RenderTarget Create(const RenderTargetInfo& info) { return CreateRenderTarget(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE Semaphore Create(const SemaphoreInfo& info) { return CreateSemaphore(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE IFence* Create(const FenceInfo& info) { return CreateFence(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE ITimestampQueryPool* Create(const TimestampQueryPoolInfo& info) { return CreateTimestampQueryPool(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE BlasId Create(const BlasInfo& info) { return CreateBlas(info); }
+            PYRO_NODISCARD PYRO_FORCEINLINE TlasId Create(const TlasInfo& info) { return CreateTlas(info); }
 
             // ---------------------------------------------------------------------
             // Resource Destruction
@@ -594,6 +669,21 @@ namespace PyroshockStudios {
              * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
             virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer = false) = 0;
+            
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * @brief Destroys the BLAS.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
+             */
+            virtual void DestroyBlas(BlasId& blas, bool bDefer = false) = 0;
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * @brief Destroys the TLAS.
+             * When `bDefer` is false, the object is destroyed immediately, and the handle is set to NULL.
+             * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
+             */
+            virtual void DestroyTlas(TlasId& tlas, bool bDefer = false) = 0;
 
             // Convenience overloads
 
@@ -610,6 +700,8 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE void Destroy(Semaphore& semaphore, bool bDefer = false) { DestroySemaphore(semaphore, bDefer); }
             PYRO_FORCEINLINE void Destroy(IFence*& fence, bool bDefer = false) { DestroyFence(fence, bDefer); }
             PYRO_FORCEINLINE void Destroy(ITimestampQueryPool*& queryPool, bool bDefer = false) { DestroyTimestampQueryPool(queryPool, bDefer); }
+            PYRO_FORCEINLINE void Destroy(BlasId& blas, bool bDefer = false) { DestroyBlas(blas, bDefer); }
+            PYRO_FORCEINLINE void Destroy(TlasId& tlas, bool bDefer = false) { DestroyTlas(tlas, bDefer); }
 
             PYRO_FORCEINLINE void DestroyImmediately(MemoryBlock memory) { DestroyMemoryBlock(memory, false); }
             PYRO_FORCEINLINE void DestroyImmediately(Buffer buffer) { DestroyBuffer(buffer, false); }
@@ -624,6 +716,8 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE void DestroyImmediately(Semaphore semaphore) { DestroySemaphore(semaphore, false); }
             PYRO_FORCEINLINE void DestroyImmediately(IFence* fence) { DestroyFence(fence, false); }
             PYRO_FORCEINLINE void DestroyImmediately(ITimestampQueryPool* queryPool) { DestroyTimestampQueryPool(queryPool, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(BlasId blas) { DestroyBlas(blas, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(TlasId tlas) { DestroyTlas(tlas, false); }
 
             PYRO_FORCEINLINE void DestroyDeferred(MemoryBlock memory) { DestroyMemoryBlock(memory, true); }
             PYRO_FORCEINLINE void DestroyDeferred(Buffer buffer) { DestroyBuffer(buffer, true); }
@@ -638,6 +732,8 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE void DestroyDeferred(Semaphore semaphore) { DestroySemaphore(semaphore, true); }
             PYRO_FORCEINLINE void DestroyDeferred(IFence* fence) { DestroyFence(fence, true); }
             PYRO_FORCEINLINE void DestroyDeferred(ITimestampQueryPool* queryPool) { DestroyTimestampQueryPool(queryPool, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(BlasId blas) { DestroyBlas(blas, true); }
+            PYRO_FORCEINLINE void DestroyDeferred(TlasId tlas) { DestroyTlas(tlas, true); }
 
             // ---------------------------------------------------------------------
             // Support Queries
@@ -666,44 +762,44 @@ namespace PyroshockStudios {
             /**
              * @brief Destroys all pending objects for deletion. This is required to be called after a deferred destruction call, otherwise resources will be accumulated.
              * This should ONLY be called AFTER all queues using the resources have been submitted, or the device may assume the resource was never used, and prematurely destroy them.
-             * The following is an example of CORRECT usage: 
-             * 
+             * The following is an example of CORRECT usage:
+             *
              * ======================================================
-             * 
+             *
              * -- Frame 1
-             * 
+             *
              *   - Destroy resources A
-             * 
+             *
              *   - Use resources A
-             * 
+             *
              *   - Submit Queue 1
-             * 
+             *
              *   - Use resources A
-             * 
+             *
              *   - Submit Queue 2
-             * 
+             *
              *   - Collect Garbage
-             * 
+             *
              * -- Frame 2
-             * 
+             *
              *   - Destroy resources B
-             * 
+             *
              *   - Use resources B
-             * 
+             *
              *   - Collect Garbage
-             * 
+             *
              *   - Submit Queue 1
-             * 
+             *
              *   - Destroy resources C
-             * 
+             *
              *   - Use resources C
-             * 
+             *
              *   - Submit Queue 2
-             * 
+             *
              *   - Collect Garbage
-             * 
+             *
              * ======================================================
-             * 
+             *
              * @note this is automatically called upon device destruction.
              */
             virtual void CollectGarbage() = 0;
@@ -744,18 +840,18 @@ namespace PyroshockStudios {
              */
             PYRO_NODISCARD virtual DeviceStatusInfo Status() const = 0;
 
-            // Convenience create overloads
-            PYRO_NODISCARD PYRO_FORCEINLINE MemoryBlock Create(const MemoryBlockInfo& info) { return CreateMemoryBlock(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE Buffer Create(const BufferInfo& info) { return CreateBuffer(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE Image Create(const ImageInfo& info) { return CreateImage(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE SamplerId Create(const SamplerInfo& info) { return CreateSampler(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE RasterPipeline Create(const RasterPipelineInfo& info, const RasterPipelineShaderStages& stages) { return CreateRasterPipeline(info, stages); }
-            PYRO_NODISCARD PYRO_FORCEINLINE ComputePipeline Create(const ComputePipelineInfo& info, const ShaderInfo& shader) { return CreateComputePipeline(info, shader); }
-            PYRO_NODISCARD PYRO_FORCEINLINE ISwapChain* Create(const SwapChainInfo& info) { return CreateSwapChain(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE RenderTarget Create(const RenderTargetInfo& info) { return CreateRenderTarget(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE Semaphore Create(const SemaphoreInfo& info) { return CreateSemaphore(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE IFence* Create(const FenceInfo& info) { return CreateFence(info); }
-            PYRO_NODISCARD PYRO_FORCEINLINE ITimestampQueryPool* Create(const TimestampQueryPoolInfo& info) { return CreateTimestampQueryPool(info); }
+            
+            // ---------------------------------------------------------------------
+            // Device configuration
+            // ---------------------------------------------------------------------
+
+            /**
+            * @brief Sets the shader model version that the device will be expecting from now on. 
+            * FORMAT: 0xMAJORMINOR
+            * e.g. for DirectX ShaderModel 5.1 -> 0x51
+            * e.g. for Vulkan SPIR-V 1.3 -> 0x13
+            */
+            virtual void SetShaderModel(u32 shaderModel) = 0;
         };
     } // namespace RHI
 } // namespace PyroshockStudios

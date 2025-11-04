@@ -33,5 +33,5 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ValidateDeviceCreation) {
 
 
     const DeviceFeaturesInfo& feats = mDevice->Features();
-    EXPECT_GT(feats.supportedShaderModel, 0);
+    EXPECT_GT(feats.maxSupportedShaderModel, 0);
 }
