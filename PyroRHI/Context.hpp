@@ -26,6 +26,7 @@
 #include <PyroRHI/Core.hpp>
 #include <PyroRHI/Api/Forward.hpp>
 #include <PyroRHI/Shader/Forward.hpp>
+#include <PyroRHI/Shader/ShaderModelFeature.hpp>
 
 namespace PyroshockStudios {
     inline namespace RHI {
@@ -55,8 +56,9 @@ namespace PyroshockStudios {
 
             virtual IDevice* CreateDevice() = 0;
 
-            virtual const RHIProperties& Properties() = 0;
-            virtual IShaderFeatureSet* ShaderFeatureSet() = 0;
+            virtual const RHIProperties& Properties() const = 0;
+            virtual const IShaderFeatureSet* ShaderFeatureSet() const = 0;
+            virtual u32 GetMinimumShaderModelFeatureTier(ShaderModelFeatureFlags shaderModelFeatures) const = 0;
         };
     }
 }

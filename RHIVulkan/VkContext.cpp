@@ -448,14 +448,47 @@ namespace PyroshockStudios::RHIVulkan {
         return device;
     }
 
-    const RHIProperties& VulkanContext::Properties() {
+    const RHIProperties& VulkanContext::Properties() const {
         return rhiProps;
     }
 
-    IShaderFeatureSet* VulkanContext::ShaderFeatureSet() {
+    const IShaderFeatureSet* VulkanContext::ShaderFeatureSet() const {
         return this;
     }
 
+    u32 VulkanContext::GetMinimumShaderModelFeatureTier(ShaderModelFeatureFlags shaderModelFeatures) const {
+        u32 minVersion = 0x13;
+
+        if (shaderModelFeatures & ShaderModelFeatureBits::CONSERVATIVE_RASTERIZATION) {
+            minVersion = std::max(minVersion, 0x13u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::MESH_SHADER) {
+            minVersion = std::max(minVersion, 0x15u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::RAY_QUERY) {
+            minVersion = std::max(minVersion, 0x14u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::RAY_TRACING) {
+            minVersion = std::max(minVersion, 0x14u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::SHADER_FLOAT16) {
+            minVersion = std::max(minVersion, 0x13u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::SHADER_INT64) {
+            minVersion = std::max(minVersion, 0x13u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::SHADER_INT64_ATOMICS) {
+            minVersion = std::max(minVersion, 0x13u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::SUBGROUP_OPERATIONS) {
+            minVersion = std::max(minVersion, 0x13u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::VARIABLE_RATE_SHADING) {
+            minVersion = std::max(minVersion, 0x15u);
+        }
+
+        return minVersion;
+    }
     void VulkanContext::InjectLogger(ILogStream* stream) {
         gVulkanSink = stream;
     }

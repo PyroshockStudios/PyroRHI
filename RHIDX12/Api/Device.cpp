@@ -1522,6 +1522,10 @@ namespace PyroshockStudios {
             }
         }
 
+        u32 D3DDevice::GetActiveShaderModel() const {
+            return mActiveShaderModel;
+        }
+
         void D3DDevice::SetShaderModel(u32 shaderModel) {
             ASSERT(shaderModel <= mFeatures.maxSupportedShaderModel, "Shader model used is unsupported!");
             mActiveShaderModel = shaderModel;

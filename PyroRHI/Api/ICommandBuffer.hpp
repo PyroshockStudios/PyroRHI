@@ -285,7 +285,7 @@ namespace PyroshockStudios {
         /**
          * @brief Parameters describing a buffer memory barrier.
          *
-         * Used to synchronize access to buffer resources between pipeline stages or queues.
+         * Used to synchronize access to buffer resources between pipeline stages or layouts.
          */
         struct BufferMemoryBarrierInfo {
             /// @brief Buffer handle to apply the barrier to.
@@ -314,7 +314,7 @@ namespace PyroshockStudios {
         /**
          * @brief Parameters describing an image memory barrier.
          *
-         * Used to synchronize access to image resources between pipeline stages, layouts, or queues.
+         * Used to synchronize access to image resources between pipeline stages or layouts.
          */
         struct ImageMemoryBarrierInfo {
             /// @brief Image handle to apply the barrier to.
@@ -337,6 +337,26 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const ImageMemoryBarrierInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const ImageMemoryBarrierInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
+        };
+
+        /**
+         * @brief Parameters describing an acceleration structure barrier.
+         *
+         * Used to synchronize access to BLAS/TLAS resources between pipeline stages, layouts, or queues.
+         */
+        struct AccelerationStructureBarrierInfo {
+            /// @brief BLAS/TLAS handle to apply the barrier to.
+            eastl::variant<BlasId, TlasId> accelerationStructure = PYRO_NULL_BLAS;
+
+            /// @brief Source access flags (before the barrier).
+            Access srcAccess = AccessConsts::NONE;
+
+            /// @brief Destination access flags (after the barrier).
+            Access dstAccess = AccessConsts::NONE;
+
+            PYRO_NODISCARD bool operator==(const AccelerationStructureBarrierInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const AccelerationStructureBarrierInfo&) const = default;
             PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
@@ -750,14 +770,21 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
 
             /**
-             * @brief Inserts a barrier for synchronizing buffer memory accesses. *MUST* be called outside of a renderpass
+             * @brief Inserts a barrier for synchronizing buffer memory accesses. *MUST* be called outside of a renderpass.
              */
             virtual void BufferBarrier(const BufferMemoryBarrierInfo& info) = 0;
 
             /**
-             * @brief Inserts a barrier for synchronizing image memory accesses. *MUST* be called outside of a renderpass
+             * @brief Inserts a barrier for synchronizing image memory accesses. *MUST* be called outside of a renderpass.
              */
             virtual void ImageBarrier(const ImageMemoryBarrierInfo& info) = 0;
+
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * Inserts a barrier for synchronizing acceleration structure accesses. Use this for synchronising builds/updates. 
+             * *MUST* be called outside of a renderpass.
+             */
+            virtual void AccelerationStructureBarrier(const AccelerationStructureBarrierInfo& info) = 0;
 
             // ---------------------------------------------------------------------
             // Synchronization
@@ -943,7 +970,11 @@ namespace PyroshockStudios {
             // ---------------------------------------------------------------------
             // Ray tracing and Acceleration structures
             // ---------------------------------------------------------------------
-
+           
+            /**
+             * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
+             * Builds/updates a list of BLAS/TLAS. *MUST* be called outside of a renderpass.
+             */
             virtual void BuildAccelerationStructures(const BuildAccelerationStructuresInfo& info) = 0;
 
 

@@ -53,6 +53,7 @@ namespace PyroshockStudios {
             void UpdateBuffer(const UpdateBufferInfo& info) override;
             void BufferBarrier(const BufferMemoryBarrierInfo& info) override;
             void ImageBarrier(const ImageMemoryBarrierInfo& info) override;
+            void AccelerationStructureBarrier(const AccelerationStructureBarrierInfo& info) override;
 
             void TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) override;
             void TransferImageOwnership(Image image, ICommandQueue* dstQueue) override;
@@ -95,6 +96,7 @@ namespace PyroshockStudios {
             // TODO
             // void FlushPipelineLayout();
 
+            eastl::vector<VkMemoryBarrier2> mMemoryBarriers = {};
             eastl::vector<VkBufferMemoryBarrier2> mBufferBarriers = {};
             eastl::vector<VkImageMemoryBarrier2> mImageBarriers = {};
             bool mCompleted = false;

@@ -669,7 +669,7 @@ namespace PyroshockStudios {
              * If `bDefer` is true, the object will be scheduled to be destroyed after all queue submits have completed, and `CollectGarbage()` is required to be called.
              */
             virtual void DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer = false) = 0;
-            
+
             /**
              * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
              * @brief Destroys the BLAS.
@@ -840,17 +840,21 @@ namespace PyroshockStudios {
              */
             PYRO_NODISCARD virtual DeviceStatusInfo Status() const = 0;
 
-            
+
             // ---------------------------------------------------------------------
             // Device configuration
             // ---------------------------------------------------------------------
 
             /**
-            * @brief Sets the shader model version that the device will be expecting from now on. 
-            * FORMAT: 0xMAJORMINOR
-            * e.g. for DirectX ShaderModel 5.1 -> 0x51
-            * e.g. for Vulkan SPIR-V 1.3 -> 0x13
-            */
+             * @brief Gets the current shader model version that has been configured.
+             */
+            PYRO_NODISCARD virtual u32 GetActiveShaderModel() const = 0;
+            /**
+             * @brief Sets the shader model version that the device will be expecting from now on.
+             * FORMAT: 0xMAJORMINOR
+             * e.g. for DirectX ShaderModel 5.1 -> 0x51
+             * e.g. for Vulkan SPIR-V 1.3 -> 0x13
+             */
             virtual void SetShaderModel(u32 shaderModel) = 0;
         };
     } // namespace RHI

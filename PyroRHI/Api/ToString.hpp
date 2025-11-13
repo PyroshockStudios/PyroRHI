@@ -890,6 +890,22 @@ namespace PyroshockStudios {
             return s;
         }
 
+        inline eastl::string AccelerationStructureBarrierInfo::ToString(usize indentation) const {
+            eastl::string s;
+            s += "AccelerationStructureBarrierInfo {\n";
+            if (eastl::holds_alternative<BlasId>(accelerationStructure)) {
+                s += Indent(indentation + 2) + "BLAS: " + ToHexH64(eastl::get<BlasId>(accelerationStructure)) + "\n";
+            } else if (eastl::holds_alternative<TlasId>(accelerationStructure)) {
+                s += Indent(indentation + 2) + "TLAS: " + ToHexH64(eastl::get<TlasId>(accelerationStructure)) + "\n";
+            } else {
+                s += Indent(indentation + 2) + "!BAD VARIANT!\n";
+            }
+            s += Indent(indentation + 2) + "srcAccess: " + srcAccess.ToString() + "\n";
+            s += Indent(indentation + 2) + "dstAccess: " + dstAccess.ToString() + "\n";
+            s += Indent(indentation) + "}";
+            return s;
+        }
+
         inline eastl::string InvalidateTimestampQueryInfo::ToString(usize indentation) const {
             eastl::string s;
             s += "InvalidateTimestampQueryInfo {\n";

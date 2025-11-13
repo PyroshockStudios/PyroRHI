@@ -164,6 +164,7 @@ namespace PyroshockStudios {
 
             void CollectGarbage() override;
 
+            u32 GetActiveShaderModel() const override;
             void SetShaderModel(u32 shaderModel) override;
 
             void ImageAddIfNecessaryBlitSupport(D3DImageResourceData& data);
@@ -227,7 +228,7 @@ namespace PyroshockStudios {
             ComPtr<IDXGIAdapter1> mAdapter = {};
             ComPtr<IDXGIFactory4> mFactory = {};
             ComPtr<ID3D12Device> mDevice = {};
-            ComPtr<ID3D12Device5> mDevice5 = {}; 
+            ComPtr<ID3D12Device5> mDevice5 = {};
             ComPtr<D3D12MA::Allocator> mAllocator = {};
 
         public:
@@ -240,6 +241,7 @@ namespace PyroshockStudios {
             DescriptorTableInfo mLinearSamplerDescriptorTable = {};
 
             u32 mActiveShaderModel = 0x51;
+
         private:
             eastl::vector<ICommandQueue*> mCommandQueueList = {};
             D3DCommandQueue* mCommandQueue = {};

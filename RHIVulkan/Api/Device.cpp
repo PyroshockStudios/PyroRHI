@@ -2106,6 +2106,10 @@ namespace PyroshockStudios {
             return {};
         }
 
+        u32 VulkanDevice::GetActiveShaderModel() const {
+            return mActiveShaderModel;
+        }
+
         void VulkanDevice::SetShaderModel(u32 shaderModel) {
             ASSERT(shaderModel <= mFeatures.maxSupportedShaderModel, "Shader model used is unsupported!");
             mActiveShaderModel = shaderModel;

@@ -44,8 +44,9 @@ namespace PyroshockStudios {
             ~VulkanContext();
 
             IDevice* CreateDevice() override;
-            const RHIProperties& Properties() override;
-            IShaderFeatureSet* ShaderFeatureSet() override;
+            const RHIProperties& Properties() const override;
+            const IShaderFeatureSet* ShaderFeatureSet() const override;
+            u32 GetMinimumShaderModelFeatureTier(ShaderModelFeatureFlags shaderModelFeatures) const override;
 
             const VkAllocationCallbacks* GetVkAllocator() {
                 return &mAllocator;
@@ -62,9 +63,8 @@ namespace PyroshockStudios {
             const char* GetFileExtension() const override;
             const ShaderFeatureInfo& Features() const override;
             const eastl::span<eastl::pair<const char*, const char*>>& GlobalPreprocessorDefines() const override;
+
         private:
-
-
             void CreateAllocationCallbacks();
 
             static void* OnAllocate(void* userData, usize size, usize alignment, VkSystemAllocationScope scope);

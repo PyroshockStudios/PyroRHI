@@ -26,8 +26,8 @@
 #include <RHIDX12/Api/GPUResource.hpp>
 #include <RHIDX12/Core.hpp>
 
-#include <EASTL/hash_set.h>
 #include <EASTL/hash_map.h>
+#include <EASTL/hash_set.h>
 namespace PyroshockStudios {
     namespace RHIDX12 {
         class D3DDevice;
@@ -48,6 +48,7 @@ namespace PyroshockStudios {
             void UpdateBuffer(const UpdateBufferInfo& info) override;
             void BufferBarrier(const BufferMemoryBarrierInfo& info) override;
             void ImageBarrier(const ImageMemoryBarrierInfo& info) override;
+            void AccelerationStructureBarrier(const AccelerationStructureBarrierInfo& info) override;
             void TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) override;
             void TransferImageOwnership(Image image, ICommandQueue* dstQueue) override;
             void AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) override;
