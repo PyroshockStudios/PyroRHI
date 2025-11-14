@@ -450,7 +450,7 @@ namespace PyroshockStudios::RHIVulkan {
 
         VkDebugUtilsLabelEXT label = {};
         label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        label.pLabelName = info.name.data();
+        label.pLabelName = info.name.c_str();
         label.color[0] = info.labelColor.r;
         label.color[1] = info.labelColor.g;
         label.color[2] = info.labelColor.b;
@@ -793,7 +793,7 @@ namespace PyroshockStudios::RHIVulkan {
     }
 
     void VulkanCommandBuffer::FlushBarriers() {
-        if (!mBufferBarriers.empty() || !mImageBarriers.empty()) {
+        if (!mBufferBarriers.empty() || !mImageBarriers.empty() || !mMemoryBarriers.empty()) {
             VkDependencyInfo dependencies = {
                 .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
                 .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,

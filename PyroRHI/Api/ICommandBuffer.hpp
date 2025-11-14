@@ -409,7 +409,7 @@ namespace PyroshockStudios {
             /**
              * @brief Name for the label, useful for profiling or debugging.
              */
-            eastl::string_view name = {};
+            eastl::string name = {};
 
             PYRO_NODISCARD bool operator==(const CommandLabelInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const CommandLabelInfo&) const = default;

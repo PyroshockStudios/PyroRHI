@@ -526,17 +526,23 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateBlas_Success) {
     // 5. Get Command List and perform *initial build*
     ICommandQueue* queue = mDevice->GetCommandQueues()[0];
     ASSERT_NE(queue, nullptr);
-    ICommandBuffer* cmd = queue->GetCommandBuffer({ .name = "Initial BLAS Build commands" });
+    ICommandBuffer* cmd = queue->GetCommandBuffer({ .name = "BLAS commands" });
     ASSERT_NE(cmd, nullptr);
+
+    cmd->BeginLabel({ .name = "Initial BLAS Build" });
 
     initialBuildInfo.dstBlas = blasId;
     initialBuildInfo.scratchBuffer = buildScratchBuffer;
     cmd->BuildAccelerationStructures({ .blasBuildInfos = eastl::span<const BlasBuildInfo>(&initialBuildInfo, 1) });
-    cmd->Complete();
-    queue->SubmitCommandBuffer(cmd);
-    mDevice->SubmitQueue({ .queue = queue });
-    mDevice->WaitIdle(); // Wait for the initial build
 
+    // VERY IMPORTANT! Wait for the build to complete!
+    cmd->AccelerationStructureBarrier({
+        .accelerationStructure = blasId,
+        .srcAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_READ_WRITE,
+        .dstAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_READ_WRITE,
+    });
+
+    cmd->EndLabel();
     // --- Act ---
     // 6. Setup *Updated* Geometry Buffers (e.g., move the triangle)
     const SimpleVertex updatedVertices[] = { { 2.0f, 2.0f, 0.0f }, { 0.0f, 2.0f, 0.0f }, { 1.0f, 0.0f, 0.0f } };
@@ -560,13 +566,13 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateBlas_Success) {
     };
 
     // 8. Record Update Command
-    ICommandBuffer* updateCmd = queue->GetCommandBuffer({ .name = "Update BLAS commands" });
-    ASSERT_NE(updateCmd, nullptr);
-    updateCmd->BuildAccelerationStructures({ .blasBuildInfos = eastl::span<const BlasBuildInfo>(&updateBuildInfo, 1) });
-    updateCmd->Complete();
+    cmd->BeginLabel({ .name = "BLAS Update" });
+    cmd->BuildAccelerationStructures({ .blasBuildInfos = eastl::span<const BlasBuildInfo>(&updateBuildInfo, 1) });
+    cmd->EndLabel();
+    cmd->Complete();
 
     // 9. Submit and Wait
-    queue->SubmitCommandBuffer(updateCmd);
+    queue->SubmitCommandBuffer(cmd);
     mDevice->SubmitQueue({ .queue = queue });
     mDevice->WaitIdle();
 
@@ -646,20 +652,29 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateTlas_Success) {
     ASSERT_NE(tlasId, PYRO_NULL_TLAS);
 
     // 5. Create TLAS Scratch Buffers
-    BufferInfo tlasBuildScratchInfo = { .size = tlasSizeInfo.buildScratchSize, .usage = BufferUsageFlagBits::ACCELERATION_STRUCTURE_SCRATCH_BUFFER, .allocationDomain = MemoryAllocationDomain::DeviceLocal, };
+    BufferInfo tlasBuildScratchInfo = {
+        .size = tlasSizeInfo.buildScratchSize,
+        .usage = BufferUsageFlagBits::ACCELERATION_STRUCTURE_SCRATCH_BUFFER,
+        .allocationDomain = MemoryAllocationDomain::DeviceLocal,
+    };
     Buffer tlasBuildScratchBuffer = mDevice->CreateBuffer(tlasBuildScratchInfo);
     ASSERT_NE(tlasBuildScratchBuffer, PYRO_NULL_BUFFER);
 
-    BufferInfo tlasUpdateScratchInfo = { .size = tlasSizeInfo.updateScratchSize, .usage = BufferUsageFlagBits::ACCELERATION_STRUCTURE_SCRATCH_BUFFER, .allocationDomain = MemoryAllocationDomain::DeviceLocal, };
+    BufferInfo tlasUpdateScratchInfo = {
+        .size = tlasSizeInfo.updateScratchSize,
+        .usage = BufferUsageFlagBits::ACCELERATION_STRUCTURE_SCRATCH_BUFFER,
+        .allocationDomain = MemoryAllocationDomain::DeviceLocal,
+    };
     Buffer tlasUpdateScratchBuffer = mDevice->CreateBuffer(tlasUpdateScratchInfo);
     ASSERT_NE(tlasUpdateScratchBuffer, PYRO_NULL_BUFFER);
 
     // 6. Get Command List and perform *initial build* (BLAS + TLAS)
     ICommandQueue* queue = mDevice->GetCommandQueues()[0];
     ASSERT_NE(queue, nullptr);
-    ICommandBuffer* cmd = queue->GetCommandBuffer({ .name = "Initial TLAS/BLAS Build" });
+    ICommandBuffer* cmd = queue->GetCommandBuffer({ .name = "TLAS/BLAS Operations" });
     ASSERT_NE(cmd, nullptr);
 
+    cmd->BeginLabel({ .name = "Initial TLAS/BLAS Build" });
     initialBuildInfo.dstTlas = tlasId;
     initialBuildInfo.scratchBuffer = tlasBuildScratchBuffer;
     BuildAccelerationStructuresInfo buildAllInfo = {
@@ -667,10 +682,20 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateTlas_Success) {
         .blasBuildInfos = eastl::span<const BlasBuildInfo>(&blasBuildInfo, 1) // Build the BLAS
     };
     cmd->BuildAccelerationStructures(buildAllInfo);
-    cmd->Complete();
-    queue->SubmitCommandBuffer(cmd);
-    mDevice->SubmitQueue({ .queue = queue });
-    mDevice->WaitIdle();
+
+    // VERY IMPORTANT! Wait for the builds to complete!
+    cmd->AccelerationStructureBarrier({
+        .accelerationStructure = blasId,
+        .srcAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_READ_WRITE,
+        .dstAccess = AccessConsts::NONE, // We are not updating the blas anymore
+    });
+    cmd->AccelerationStructureBarrier({
+        .accelerationStructure = tlasId,
+        .srcAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_READ_WRITE,
+        .dstAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_READ_WRITE,
+    });
+
+    cmd->EndLabel();
 
     // --- Act ---
     // 7. Create *Updated* Instance Buffer (e.g., move the instance)
@@ -697,13 +722,14 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateTlas_Success) {
     };
 
     // 9. Record Update Command
-    ICommandBuffer* updateCmd = queue->GetCommandBuffer({ .name = "Update TLAS commands" });
-    ASSERT_NE(updateCmd, nullptr);
-    updateCmd->BuildAccelerationStructures({ .tlasBuildInfos = eastl::span<const TlasBuildInfo>(&updateBuildInfo, 1) });
-    updateCmd->Complete();
+    cmd->BeginLabel({ .name = "TLAS Update" });
+    cmd->BuildAccelerationStructures({ .tlasBuildInfos = eastl::span<const TlasBuildInfo>(&updateBuildInfo, 1) });
+    cmd->EndLabel();
+
+    cmd->Complete();
 
     // 10. Submit and Wait
-    queue->SubmitCommandBuffer(updateCmd);
+    queue->SubmitCommandBuffer(cmd);
     mDevice->SubmitQueue({ .queue = queue });
     mDevice->WaitIdle();
 

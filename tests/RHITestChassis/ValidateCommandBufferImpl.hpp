@@ -1145,8 +1145,9 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
     // Now run the ray tracing
 
     BufferInfo bufferInfo{};
+    bufferInfo.name = "Result Storage Buffer";
     bufferInfo.size = PYRO_ALIGN(4, mDevice->Properties().minStorageBufferOffsetAlignment);
-    bufferInfo.usage = BufferUsageFlagBits::UNORDERED_ACCESS | BufferUsageFlagBits::BYTE_ADDRESS_BUFFER;
+    bufferInfo.usage = BufferUsageFlagBits::UNORDERED_ACCESS | BufferUsageFlagBits::BYTE_ADDRESS_BUFFER | BufferUsageFlagBits::TRANSFER_SRC;
     bufferInfo.initialLayout = BufferLayout::UnorderedAccess;
     bufferInfo.allocationDomain = MemoryAllocationDomain::DeviceLocal;
     TRACK_RHI_PARAMETER(bufferInfo);

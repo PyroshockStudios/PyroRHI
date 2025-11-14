@@ -46,7 +46,7 @@ endfunction()
 add_subdirectory(RHIBaseTest)
 
 include(FetchContent)
-    set(SLANG_VERSION "2025.21") 
+    set(SLANG_VERSION "2025.14.3") 
     set(SLANG_ROOT "${CMAKE_BINARY_DIR}/_deps/slang")
     set(SLANG_URL_BASE "https://github.com/shader-slang/slang/releases/download/v${SLANG_VERSION}")
 
