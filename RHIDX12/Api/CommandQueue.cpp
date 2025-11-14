@@ -29,7 +29,7 @@ namespace PyroshockStudios {
         D3DCommandQueue::D3DCommandQueue(D3DDevice* device, CommandQueueInfo&& info, ComPtr<ID3D12CommandQueue>&& queue)
             : mDevice(device), mInfo(eastl::move(info)), mCommandQueue(eastl::move(queue)) {
             D3DSetDebugName(mCommandQueue, mInfo.name.c_str());
-            CheckD3DResult(mDevice->InternalDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mQueueTracker)));
+            CheckD3DResult(mDevice->InternalDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mQueueTracker)), "Failed to create queue resource fence!");
         }
         D3DCommandQueue::~D3DCommandQueue() {
             for (auto& [cmb, fenceVal] : mPooledCommandBuffers) {
@@ -53,9 +53,9 @@ namespace PyroshockStudios {
                 ComPtr<ID3D12GraphicsCommandList> commandList = {};
 
                 D3D12_COMMAND_LIST_TYPE type = mCommandQueue->GetDesc().Type;
-                CheckD3DResult(mDevice->InternalDevice()->CreateCommandAllocator(type, IID_PPV_ARGS(&commandAllocator)));
+                CheckD3DResult(mDevice->InternalDevice()->CreateCommandAllocator(type, IID_PPV_ARGS(&commandAllocator)), "Failed to create command allocator!");
                 D3DSetDebugName(commandAllocator, (info.name + " Allocator").c_str());
-                CheckD3DResult(mDevice->InternalDevice()->CreateCommandList(0, type, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)));
+                CheckD3DResult(mDevice->InternalDevice()->CreateCommandList(0, type, commandAllocator.Get(), nullptr, IID_PPV_ARGS(&commandList)), "Failed to create command list!");
                 commands = new D3DCommandBuffer(mDevice, eastl::move(commandList), eastl::move(commandAllocator));
                 commands->queueFlags = mInfo.flags;
             }
@@ -105,16 +105,16 @@ namespace PyroshockStudios {
         void D3DCommandQueue::WaitIdle() {
             ComPtr<ID3D12Fence> fence;
             ComPtr<ID3D12Device> device;
-            CheckD3DResult(mCommandQueue->GetDevice(IID_PPV_ARGS(&device)));
+            CheckD3DResult(mCommandQueue->GetDevice(IID_PPV_ARGS(&device)), "Failed to get ID3D12Device!");
 
-            CheckD3DResult(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+            CheckD3DResult(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "Failed to create temporary wait idle fence!");
 
             HANDLE eventHandle = CreateEventA(nullptr, FALSE, FALSE, nullptr);
             if (!eventHandle)
                 return;
 
             UINT64 fenceValue = 1;
-            CheckD3DResult(mCommandQueue->Signal(fence.Get(), fenceValue));
+            CheckD3DResult(mCommandQueue->Signal(fence.Get(), fenceValue), "Failed to signal temrporary wait idle fence!");
             if (fence->GetCompletedValue() < fenceValue) {
                 fence->SetEventOnCompletion(fenceValue, eventHandle);
                 WaitForSingleObject(eventHandle, INFINITE);
@@ -126,7 +126,7 @@ namespace PyroshockStudios {
         }
         f64 D3DCommandQueue::GetTimestampTickPeriodNs() const {
             UINT64 freq = 0;
-            CheckD3DResult(mCommandQueue->GetTimestampFrequency(&freq));
+            CheckD3DResult(mCommandQueue->GetTimestampFrequency(&freq), "Failed to get ID3D12CommandQueue timestamp frequency!");
             return 1e9 / static_cast<f64>(freq);
         }
         void D3DCommandQueue::SignalQueueFence(UINT64 value) {

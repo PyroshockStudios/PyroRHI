@@ -35,7 +35,7 @@ namespace PyroshockStudios {
                 desc.Count = info.queryCount;
                 desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
 
-                CheckD3DResult(device->InternalDevice()->CreateQueryHeap(&desc, IID_PPV_ARGS(&mQueryPool)));
+                CheckD3DResult(device->InternalDevice()->CreateQueryHeap(&desc, IID_PPV_ARGS(&mQueryPool)), "Failed to create timestamp query heap!");
                 D3DSetDebugName(mQueryPool, info.name.c_str());
             }
 
@@ -53,18 +53,20 @@ namespace PyroshockStudios {
                 desc.SampleDesc.Count = 1;
                 desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
                 CD3DX12_HEAP_PROPERTIES heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
-               CheckD3DResult(device->InternalDevice()->CreateCommittedResource(
-                    &heap,
-                    D3D12_HEAP_FLAG_NONE,
-                    &desc,
-                    D3D12_RESOURCE_STATE_COPY_DEST, 
-                    nullptr,
-                    IID_PPV_ARGS(&mReadbackBuffer)));
+                CheckD3DResult(device->InternalDevice()->CreateCommittedResource(
+                                   &heap,
+                                   D3D12_HEAP_FLAG_NONE,
+                                   &desc,
+                                   D3D12_RESOURCE_STATE_COPY_DEST,
+                                   nullptr,
+                                   IID_PPV_ARGS(&mReadbackBuffer)),
+                    "Failed to create timestamp query readback buffer!");
                 D3D12_RANGE range{};
                 range.Begin = 0;
                 range.End = desc.Width;
 
-                CheckD3DResult(mReadbackBuffer->Map(0, &range, &mMappedResult));
+                CheckD3DResult(mReadbackBuffer->Map(0, &range, &mMappedResult),
+                    "Failed to map timestamp query readback buffer!");
                 D3DSetDebugName(mQueryPool, (info.name + " (Readback Buffer)").c_str());
             }
         }

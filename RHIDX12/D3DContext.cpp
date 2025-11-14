@@ -100,7 +100,7 @@ namespace PyroshockStudios::RHIDX12 {
             }
         }
 
-        CheckD3DResult(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&mFactory)));
+        CheckD3DResult(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&mFactory)), "Failed to CreateDXGIFactory2!");
         D3DSetDebugName(mFactory, "DXGI Factory 4");
 
         ComPtr<IDXGIAdapter1> adapter;
@@ -121,7 +121,7 @@ namespace PyroshockStudios::RHIDX12 {
         CheckD3DResult(D3D12CreateDevice(
             adapter.Get(),
             D3D_FEATURE_LEVEL_11_0,
-            IID_PPV_ARGS(&device)));
+            IID_PPV_ARGS(&device)), "Failed to create D3D12 Device with D3D_FEATURE_LEVEL = 11_0");
         D3DSetDebugName(device, "D3D12 Device (Feature level 11_0)");
 
         if (args.bDebug) {

@@ -79,8 +79,8 @@ namespace PyroshockStudios {
 
             void Reset() {
                 // allocator MUST also be reset! otherwise a huge memory leak occurs!
-                CheckD3DResult(mAllocator->Reset());
-                CheckD3DResult(mCommandList->Reset(mAllocator.Get(), nullptr));
+                CheckD3DResult(mAllocator->Reset(), "Failed to reset command allocator!");
+                CheckD3DResult(mCommandList->Reset(mAllocator.Get(), nullptr), "Failed to reset command list!");
             }
 
         public:

@@ -22,8 +22,9 @@
 
 #include "Pipeline.hpp"
 #include "Device.hpp"
+#include <RHIDX12/Helper/DXShaderCompiler.hpp>
 
-#include <d3dcompiler.h>
+// temp
 #include <iostream>
 #include <libassert/assert.hpp>
 
@@ -33,33 +34,8 @@ namespace PyroshockStudios {
     namespace RHIDX12 {
         using OWORD = eastl::array<u32, 4>;
 
-        struct SemanticInfo {
-            eastl::string semanticName;
-            UINT semanticIndex;
-        };
-
-        eastl::vector<D3D12_SIGNATURE_PARAMETER_DESC> ReflectSemantics(ComPtr<ID3D12ShaderReflection>& reflector, const void* shaderBytecode, size_t bytecodeLength) {
-            eastl::vector<D3D12_SIGNATURE_PARAMETER_DESC> list{};
-
-            // Create reflection interface
-            // This works for both DXBC and DXIL (for signature reflection)
-            CheckD3DResult(D3DReflect(shaderBytecode, bytecodeLength, IID_PPV_ARGS(&reflector)));
-            // Get shader description
-            D3D12_SHADER_DESC shaderDesc = {};
-            CheckD3DResult(reflector->GetDesc(&shaderDesc));
-
-            // Iterate over input parameters
-            for (UINT i = 0; i < shaderDesc.InputParameters; ++i) {
-                D3D12_SIGNATURE_PARAMETER_DESC paramDesc;
-                CheckD3DResult(reflector->GetInputParameterDesc(i, &paramDesc));
-                list.emplace_back(paramDesc);
-            }
-
-            return list;
-        }
-
-        // MODIFIED: Added bDxil flag
-        void PopulateSpecialisationConstants(eastl::span<const u8> code, const eastl::span<const SpecializationConstantInfo>& list, ID3D12Device* device, ComPtr<ID3D12Resource>& outResource, bool bDxil) {
+        void PopulateSpecialisationConstants(eastl::span<const u8> code, const eastl::span<const SpecializationConstantInfo>& list,
+            ID3D12Device* device, ComPtr<ID3D12Resource>& outResource, bool bDxil) {
             eastl::vector<OWORD> shaderSpecializationData{};
             for (const auto& info : list) {
                 if ((shaderSpecializationData.size()) < (info.location + 1)) {
@@ -69,19 +45,15 @@ namespace PyroshockStudios {
                 shaderSpecializationData[info.location][1] = 1;
             }
 
-            // FIXME: specialisation consants still need to be implemented for DXIL
-            if (!bDxil) {
-                // HACK: There is no clean way to get the variable names originally declared,
+            // HACK: There is no clean way to get the variable names originally declared,
+            if (bDxil) {
+                eastl::string disasm = DissasembleDXIL(code.data(), code.size());
+                std::cout << disasm.c_str() << std::endl;
+
+                shaderSpecializationData.resize(Limits::MAX_SPECIALIZATION_CONSTANTS);
+            } else {
                 // FXC seems to emit CB0[BINDING][OWORD offset], so we can safely search for this string
-                // So we need to reflect the raw instructions
-                ComPtr<ID3DBlob> disasmBlob = nullptr;
-                CheckD3DResult(D3DDisassemble(
-                    reinterpret_cast<const void*>(code.data()),
-                    code.size(),
-                    D3D_DISASM_DISABLE_DEBUG_INFO | D3D_DISASM_INSTRUCTION_ONLY,
-                    nullptr,
-                    &disasmBlob));
-                eastl::string_view disasm((const char*)disasmBlob->GetBufferPointer(), disasmBlob->GetBufferSize());
+                eastl::string disasm = DissasembleDXBC(code.data(), code.size());
                 for (i32 i = static_cast<i32>(shaderSpecializationData.size()); i < Limits::MAX_SPECIALIZATION_CONSTANTS; ++i) {
                     eastl::string name = "CB0[8][" + eastl::to_string(i) + "].x";
                     if (disasm.find(name.c_str(), 0, name.size()) != eastl::string_view::npos) {
@@ -151,7 +123,11 @@ namespace PyroshockStudios {
             eastl::vector<D3D12_SIGNATURE_PARAMETER_DESC> semantics{};
             ComPtr<ID3D12ShaderReflection> reflector = nullptr;
             if (stages.vertexShaderInfo && !info.inputAssemblyState.vertexAttributes.empty()) {
-                semantics = ReflectSemantics(reflector, stages.vertexShaderInfo->program.data(), stages.vertexShaderInfo->program.size());
+                if (bDxil) {
+                    semantics = ReflectSemanticsDXIL(reflector, stages.vertexShaderInfo->program.data(), stages.vertexShaderInfo->program.size());
+                } else {
+                    semantics = ReflectSemanticsDXBC(reflector, stages.vertexShaderInfo->program.data(), stages.vertexShaderInfo->program.size());
+                }
             }
             eastl::vector<D3D12_INPUT_ELEMENT_DESC> inputElements;
             for (u32 i = 0; i < info.inputAssemblyState.vertexAttributes.size(); ++i) {
@@ -299,7 +275,7 @@ namespace PyroshockStudios {
             psoDesc.DSVFormat = dsvFormat;
             psoDesc.SampleDesc = sampleDesc;
 
-            CheckD3DResult(mDevice->InternalDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)));
+            CheckD3DResult(mDevice->InternalDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)), "Failed to create Graphics ID3D12PipelineState!");
 
             D3DSetDebugName(mPipelineState, info.name.c_str());
         }
@@ -319,7 +295,7 @@ namespace PyroshockStudios {
             psoDesc.CS = { stage.program.data(), stage.program.size() };
             psoDesc.pRootSignature = rootSig;
 
-            CheckD3DResult(mDevice->InternalDevice()->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)));
+            CheckD3DResult(mDevice->InternalDevice()->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)), "Failed to create Compute ID3D12PipelineState!");
 
             D3DSetDebugName(mPipelineState, info.name.c_str());
         }

@@ -108,7 +108,8 @@ namespace PyroshockStudios {
                     static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
                     &swapChainDesc,
                     nullptr,
-                    &swapChain));
+                                   &swapChain),
+                    "Failed to CreateSwapChainForComposition");
                 gDx12Context->FlushDebugMessages();
             } else {
                 CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForHwnd(
@@ -117,38 +118,46 @@ namespace PyroshockStudios {
                     &swapChainDesc,
                     nullptr,
                     nullptr,
-                    &swapChain));
+                                   &swapChain),
+                    "Failed to CreateSwapChainForHwnd");
                 gDx12Context->FlushDebugMessages();
             }
             if (info.alphaMode != SwapChainAlphaMode::None && info.nativeWindow) {
                 CheckD3DResult(DCompositionCreateDevice(
                     nullptr,
                     __uuidof(IDCompositionDevice),
-                    reinterpret_cast<void**>(mDcompDevice.GetAddressOf())));
+                                   reinterpret_cast<void**>(mDcompDevice.GetAddressOf())),
+                    "Failed to DCompositionCreateDevice");
+                ;
                 gDx12Context->FlushDebugMessages();
 
-                CheckD3DResult(mDcompDevice->CreateTargetForHwnd(hwnd, TRUE, &mDcompTarget));
+                CheckD3DResult(mDcompDevice->CreateTargetForHwnd(hwnd, TRUE, &mDcompTarget),
+                    "Failed to IDCompositionDevice::CreateTargetForHwnd");
                 gDx12Context->FlushDebugMessages();
 
-                CheckD3DResult(mDcompDevice->CreateVisual(&mDcompVisual));
+                CheckD3DResult(mDcompDevice->CreateVisual(&mDcompVisual),
+                    "Failed to IDCompositionDevice::CreateVisual");
                 gDx12Context->FlushDebugMessages();
 
 
-                CheckD3DResult(mDcompVisual->SetContent(swapChain.Get()));
+                CheckD3DResult(mDcompVisual->SetContent(swapChain.Get()),
+                    "Failed to IDCompositionVisual::SetContent");
                 gDx12Context->FlushDebugMessages();
                 // Add visual to target
-                CheckD3DResult(mDcompTarget->SetRoot(mDcompVisual.Get()));
+                CheckD3DResult(mDcompTarget->SetRoot(mDcompVisual.Get()),
+                    "Failed to IDCompositionTarget::SetRoot");
                 gDx12Context->FlushDebugMessages();
                 // Commit composition
-                CheckD3DResult(mDcompDevice->Commit());
+                CheckD3DResult(mDcompDevice->Commit(),
+                    "Failed to IDCompositionDevice::Commit");
                 gDx12Context->FlushDebugMessages();
             }
             
-            CheckD3DResult(swapChain.As(&mSwapChain));
+            CheckD3DResult(swapChain.As(&mSwapChain), "Failed to get IDXGISwapChain3");
             D3DSetDebugName(mSwapChain, info.name.c_str());
 
             mSwapWait = mSwapChain->GetFrameLatencyWaitableObject();
-            CheckD3DResult(mSwapChain->SetMaximumFrameLatency(1));
+            CheckD3DResult(mSwapChain->SetMaximumFrameLatency(1), "Failed to SetMaximumFrameLatency");
             gDx12Context->FlushDebugMessages();
             GetImages();
         }
@@ -178,7 +187,7 @@ namespace PyroshockStudios {
             mInfo.extent.height = area.bottom;
 
             DXGI_SWAP_CHAIN_DESC1 desc;
-            CheckD3DResult(mSwapChain->GetDesc1(&desc));
+            CheckD3DResult(mSwapChain->GetDesc1(&desc), "Failed to get DXGI_SWAP_CHAIN_DESC1");
             auto q = static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue();
             mSwapChain->ResizeBuffers(desc.BufferCount, mInfo.extent.width, mInfo.extent.height, desc.Format, desc.Flags);
             gDx12Context->FlushDebugMessages();
@@ -215,7 +224,7 @@ namespace PyroshockStudios {
             mWrappedBuffers.resize(mInfo.bufferCount);
             for (UINT i = 0; i < mWrappedBuffers.size(); ++i) {
                 auto [image, data] = mDevice->ResourcePool().AllocImage();
-                CheckD3DResult(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&data.resource)));
+                CheckD3DResult(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&data.resource)), "Failed to get swap buffer!");
                 gDx12Context->FlushDebugMessages();
                 data.info = {
                     .dimensions = ImageDimensions::e2D,

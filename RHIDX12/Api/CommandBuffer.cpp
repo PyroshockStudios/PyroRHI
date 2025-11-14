@@ -272,9 +272,9 @@ namespace PyroshockStudios {
             heapDesc.NumDescriptors = 1;
             heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
             heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heapGpu)));
+            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heapGpu)), "Failed to create temporary UAV GPU descriptor heap ");
             heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heapCpu)));
+            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heapCpu)), "Failed to create temporary UAV CPU descriptor heap ");
             D3DSetDebugName(heapGpu, "UAV Clear GPU Desriptor Heap");
             D3DSetDebugName(heapCpu, "UAV Clear CPU Desriptor Heap");
 
@@ -936,7 +936,7 @@ namespace PyroshockStudios {
             }
 
             mPendingQueryPoolMinMaxResolves.clear();
-            CheckD3DResult(mCommandList->Close());
+            CheckD3DResult(mCommandList->Close(), "Failed to close command list!");
             mCurrentRasterPipeline = nullptr;
             mInvalidatedVertexBufferBindings.clear();
             mPendingVertexBufferBinds.clear();

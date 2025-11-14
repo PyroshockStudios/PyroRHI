@@ -30,9 +30,9 @@
 #include "SwapChain.hpp"
 #include "Sync.hpp"
 #include <PyroCommon/Logger.hpp>
-#include <RHIDX12/Variables.hpp>
 #include <RHIDX12/D3DContext.hpp>
 #include <RHIDX12/InternalShaders.hpp>
+#include <RHIDX12/Variables.hpp>
 
 #include <libassert/assert.hpp>
 
@@ -251,7 +251,7 @@ namespace PyroshockStudios {
             } else {
                 heapDec.Flags |= D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
             }
-            mDevice->CreateHeap(&heapDec, IID_PPV_ARGS(&data.heap));
+            CheckD3DResult(mDevice->CreateHeap(&heapDec, IID_PPV_ARGS(&data.heap)), "Failed to create memory block ID3D12Heap!");
             D3DSetDebugName(data.heap, info.name.c_str());
             D3D12MA::VIRTUAL_BLOCK_DESC vblockDesc = {};
             vblockDesc.Size = info.size;
@@ -259,7 +259,7 @@ namespace PyroshockStudios {
                 D3D12MA::VIRTUAL_BLOCK_DESC vblockDesc = {};
                 (u32&)vblockDesc.Flags |= D3D12MA::VIRTUAL_BLOCK_FLAG_ALGORITHM_LINEAR;
             }
-            D3D12MA::CreateVirtualBlock(&vblockDesc, data.block.GetAddressOf());
+            CheckD3DResult(D3D12MA::CreateVirtualBlock(&vblockDesc, data.block.GetAddressOf()), "Failed to create memory block allocator!");
             gDx12Context->FlushDebugMessages();
             return memory;
         }
@@ -339,7 +339,7 @@ namespace PyroshockStudios {
                     nullptr, // optimized clear value (unused for buffers)
                     data.allocation.GetAddressOf(),
                     IID_PPV_ARGS(&data.resource));
-                CheckD3DResult(hr);
+                CheckD3DResult(hr, "Failed to create buffer resource without memory block");
 
             } else {
                 auto& block = mResourcePool->Get(info.memoryBlock);
@@ -374,14 +374,14 @@ namespace PyroshockStudios {
                     state,
                     nullptr,
                     IID_PPV_ARGS(&data.resource));
-                CheckD3DResult(hr);
+                CheckD3DResult(hr, "Failed to create buffer resource with memory block");
                 ++block.debugRefs;
             }
             D3DSetDebugName(data.resource, info.name.c_str());
 
             if (bMap) {
                 D3D12_RANGE range = { 0, info.size };
-                CheckD3DResult(data.resource->Map(0, &range, reinterpret_cast<void**>(&data.mappedMemory)));
+                CheckD3DResult(data.resource->Map(0, &range, reinterpret_cast<void**>(&data.mappedMemory)), "Failed to persistently map buffer memory!");
             }
             gDx12Context->FlushDebugMessages();
             return buffer;
@@ -448,7 +448,7 @@ namespace PyroshockStudios {
                     nullptr, // optimized clear value if needed
                     data.allocation.GetAddressOf(),
                     IID_PPV_ARGS(&data.resource));
-                CheckD3DResult(hr);
+                CheckD3DResult(hr, "Failed to create image resource without memory block");
             } else {
                 auto& block = mResourcePool->Get(info.memoryBlock);
                 D3D12MA::VIRTUAL_ALLOCATION_DESC allocDesc = {};
@@ -481,7 +481,7 @@ namespace PyroshockStudios {
                     D3D12_RESOURCE_STATE_COMMON,
                     nullptr,
                     IID_PPV_ARGS(&data.resource));
-                CheckD3DResult(hr);
+                CheckD3DResult(hr, "Failed to create image resource with memory block");
                 ++block.debugRefs;
             }
 
@@ -796,12 +796,13 @@ namespace PyroshockStudios {
             allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
 
             CheckD3DResult(mAllocator->CreateResource(
-                &allocDesc,
-                &bufferDesc,
-                D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
-                nullptr,
-                &data.allocation,
-                IID_PPV_ARGS(&data.resource)));
+                               &allocDesc,
+                               &bufferDesc,
+                               D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+                               nullptr,
+                               &data.allocation,
+                               IID_PPV_ARGS(&data.resource)),
+                "Failed to create Acceleration Structure (BLAS)");
 
             D3DSetDebugName(data.resource, info.name.c_str());
             data.address = data.resource->GetGPUVirtualAddress();
@@ -821,12 +822,13 @@ namespace PyroshockStudios {
             allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
 
             CheckD3DResult(mAllocator->CreateResource(
-                &allocDesc,
-                &bufferDesc,
-                D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
-                nullptr,
-                &data.allocation,
-                IID_PPV_ARGS(&data.resource)));
+                               &allocDesc,
+                               &bufferDesc,
+                               D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+                               nullptr,
+                               &data.allocation,
+                               IID_PPV_ARGS(&data.resource)),
+                "Failed to create Acceleration Structure (TLAS)");
 
             D3DSetDebugName(data.resource, info.name.c_str());
 
@@ -1120,7 +1122,8 @@ namespace PyroshockStudios {
             // signal the given fences
             for (auto [fence, value] : info.signalFences) {
                 auto* s = static_cast<D3DFence*>(fence);
-                CheckD3DResult(q->InternalQueue()->Signal(s->InternalFence(), value));
+                CheckD3DResult(q->InternalQueue()->Signal(s->InternalFence(), value),
+                    "Failed to create signal ID3D12Fence");
                 gDx12Context->FlushDebugMessages();
             }
             // Signal fence for the command buffer deleters
@@ -1190,7 +1193,8 @@ namespace PyroshockStudios {
                         heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
                         heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-                        CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&table.mHeap)));
+                        CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&table.mHeap)),
+                            "Failed to create image blit descriptor heap!");
                         eastl::string name = "Blit Src Descriptor Heap ";
                         name += "Mip = " + eastl::to_string(i) + ", Layer=" + eastl::to_string(j);
                         D3DSetDebugName(table.mHeap, name.c_str());
@@ -1257,7 +1261,8 @@ namespace PyroshockStudios {
             heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
             heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-            CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&tableInfo.mHeap)));
+            CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&tableInfo.mHeap)),
+                "Failed to create SRV-UAV Descriptor Copy Heap!");
             D3DSetDebugName(tableInfo.mHeap, "SRV-UAV Descriptor Copy Heap");
             tableInfo.cpuDescriptor = tableInfo.mHeap->GetCPUDescriptorHandleForHeapStart();
             tableInfo.gpuDescriptor = tableInfo.mHeap->GetGPUDescriptorHandleForHeapStart();
@@ -1338,7 +1343,8 @@ namespace PyroshockStudios {
             Logger::Trace(gDX12Sink, "[D3D12] Creating image blit pipeline state object");
             ComPtr<ID3D12PipelineState>& entry = mBlitImagePipelineStates[hash];
             // --- Create PSO ---
-            CheckD3DResult(mDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&entry)));
+            CheckD3DResult(mDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&entry)), "Failed to create image blit pipeline state object!");
+
             eastl::string name = eastl::string("Blit image pipeline state DXGI format=") + eastl::to_string((UINT)format) + ", Array=" +
                                  (bArray ? "true" : "false");
             D3DSetDebugName(entry, name.c_str());
@@ -1565,7 +1571,7 @@ namespace PyroshockStudios {
             };
             for (auto& queueDesc : queueDescs) {
                 ComPtr<ID3D12CommandQueue> commandQueue;
-                CheckD3DResult(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
+                CheckD3DResult(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)), "Failed to create command queue!");
 
                 CommandQueueInfo queueDescData;
                 switch (queueDesc.Type) {
@@ -1616,7 +1622,7 @@ namespace PyroshockStudios {
                 heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
                 heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mDefaultUAVDescriptorTable.mHeap)));
+                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mDefaultUAVDescriptorTable.mHeap)), "Failed to create global descriptor heap!");
                 mDefaultUAVDescriptorTable.cpuDescriptor = mDefaultUAVDescriptorTable.mHeap->GetCPUDescriptorHandleForHeapStart();
                 mDefaultUAVDescriptorTable.gpuDescriptor = mDefaultUAVDescriptorTable.mHeap->GetGPUDescriptorHandleForHeapStart();
                 D3DSetDebugName(mDefaultUAVDescriptorTable.mHeap, "Default SRV-UAV Descriptor Heap");
@@ -1680,8 +1686,9 @@ namespace PyroshockStudios {
                 if (error && error->GetBufferPointer()) {
                     OutputDebugStringA((const char*)error->GetBufferPointer());
                 }
-                CheckD3DResult(hr);
-                CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
+                CheckD3DResult(hr, "Failed to D3D12SerializeRootSignature");
+                CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)), 
+                    "Failed to create global root signature!");
                 D3DSetDebugName(mRootSignature, "Default Root Signature");
                 gDx12Context->FlushDebugMessages();
             }
@@ -1712,8 +1719,8 @@ namespace PyroshockStudios {
                 if (error && error->GetBufferPointer()) {
                     OutputDebugStringA((const char*)error->GetBufferPointer());
                 }
-                CheckD3DResult(hr);
-                CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mBlitImageRootSignature)));
+                CheckD3DResult(hr, "Failed to D3D12SerializeRootSignature for image blit root signature");
+                CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mBlitImageRootSignature)), "Failed to create image blit root signature");
                 D3DSetDebugName(mBlitImageRootSignature, "Blit Image Root Signature");
                 gDx12Context->FlushDebugMessages();
             }
@@ -1727,7 +1734,8 @@ namespace PyroshockStudios {
                 heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
                 heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mNearestSamplerDescriptorTable.mHeap)));
+                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mNearestSamplerDescriptorTable.mHeap)),
+                    "Failed to create default NN sampler heap");
                 mNearestSamplerDescriptorTable.cpuDescriptor = mNearestSamplerDescriptorTable.mHeap->GetCPUDescriptorHandleForHeapStart();
                 mNearestSamplerDescriptorTable.gpuDescriptor = mNearestSamplerDescriptorTable.mHeap->GetGPUDescriptorHandleForHeapStart();
                 D3DSetDebugName(mNearestSamplerDescriptorTable.mHeap, "Blit Image Nearest Sampler Descriptor Heap");
@@ -1745,7 +1753,8 @@ namespace PyroshockStudios {
 
                 mDevice->CreateSampler(&samplerDesc, mNearestSamplerDescriptorTable.cpuDescriptor);
 
-                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mLinearSamplerDescriptorTable.mHeap)));
+                CheckD3DResult(mDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mLinearSamplerDescriptorTable.mHeap)),
+                    "Failed to create default linear sampler heap");
                 mLinearSamplerDescriptorTable.cpuDescriptor = mLinearSamplerDescriptorTable.mHeap->GetCPUDescriptorHandleForHeapStart();
                 mLinearSamplerDescriptorTable.gpuDescriptor = mLinearSamplerDescriptorTable.mHeap->GetGPUDescriptorHandleForHeapStart();
                 D3DSetDebugName(mLinearSamplerDescriptorTable.mHeap, "Blit Image Linear Sampler Descriptor Heap");
@@ -1767,13 +1776,16 @@ namespace PyroshockStudios {
 
                 argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
                 cmdSigDesc.ByteStride = sizeof(DrawArgumentBuffer);
-                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawSignature)));
+                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawSignature)), 
+                    "Failed to create indirect draw command signature!");
                 argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
                 cmdSigDesc.ByteStride = sizeof(DrawIndexedArgumentBuffer);
-                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawIndexedSignature)));
+                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawIndexedSignature)), 
+                    "Failed to create indirect draw indexed command signature!");
                 argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
                 cmdSigDesc.ByteStride = sizeof(DispatchArgumentBuffer);
-                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDispatchSignature)));
+                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDispatchSignature)),
+                    "Failed to create indirect dispatch command signature!");
                 gDx12Context->FlushDebugMessages();
             }
         }
@@ -1785,7 +1797,8 @@ namespace PyroshockStudios {
             allocatorDesc.pDevice = mDevice.Get();
             allocatorDesc.pAllocationCallbacks = nullptr;
             allocatorDesc.pAdapter = mAdapter.Get();
-            CheckD3DResult(D3D12MA::CreateAllocator(&allocatorDesc, mAllocator.GetAddressOf()));
+            CheckD3DResult(D3D12MA::CreateAllocator(&allocatorDesc, mAllocator.GetAddressOf()),
+                "Failed to create D3D12MA allocator!");
             gDx12Context->FlushDebugMessages();
         }
         void D3DDevice::PopulateDeviceInfo() {
@@ -1805,10 +1818,9 @@ namespace PyroshockStudios {
             } else {
                 mInfo.deviceType = DeviceType::Unknown;
             }
-            mInfo.bUnifiedMemory = (desc.DedicatedVideoMemory == 0);
+            mInfo.bUnifiedMemory = mDx12FeatureSupport.UMA();
             mInfo.bRemovable = false;
             mInfo.bPrimaryAdapter = !!(desc.Flags & DXGI_ADAPTER_FLAG3_ACG_COMPATIBLE);
-
             mInfo.adapterLUIDLow = desc.AdapterLuid.LowPart;
             mInfo.adapterLUIDHigh = desc.AdapterLuid.HighPart;
 
@@ -1847,7 +1859,8 @@ namespace PyroshockStudios {
         }
         void D3DDevice::PopulateDeviceProperties() {
             CD3DX12FeatureSupport support;
-            CheckD3DResult(support.Init(mDevice.Get()));
+            CheckD3DResult(support.Init(mDevice.Get()),
+                "Failed to get DX12 device feature support!");
             mProperties.minStorageBufferOffsetAlignment = D3D12_RAW_UAV_SRV_BYTE_ALIGNMENT;
             mProperties.minUniformBufferOffsetAlignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
             mProperties.bufferImageCopyOffsetAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
