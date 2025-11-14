@@ -58,6 +58,17 @@ namespace PyroshockStudios {
             static constexpr inline AccelerationStructureGeometryFlags NO_DUPLICATE_ANY_HIT_INVOCATION = { 0x00000002 };
         };
 
+        using AccelerationStructureGeometryInstanceFlags = u32;
+        struct AccelerationStructureGeometryInstanceFlagBits {
+            static constexpr inline AccelerationStructureGeometryInstanceFlags NONE = { 0x00 };
+            static constexpr inline AccelerationStructureGeometryInstanceFlags TRIANGLE_FACING_CULL_DISABLE = { 0x01 };
+            static constexpr inline AccelerationStructureGeometryInstanceFlags TRIANGLE_FLIP_FACING = { 0x02 };
+            static constexpr inline AccelerationStructureGeometryInstanceFlags FORCE_OPAQUE = { 0x04 };
+            static constexpr inline AccelerationStructureGeometryInstanceFlags FORCE_NO_OPAQUE = { 0x08 };
+            static constexpr inline AccelerationStructureGeometryInstanceFlags FORCE_OPACITY_MICROMAP_STATE = { 0x10 };
+            static constexpr inline AccelerationStructureGeometryInstanceFlags DISABLE_OPACITY_MICROMAPS = { 0x20 };
+        };
+
         struct BlasTriangleGeometryInfo {
             Format vertexFormat = Format::Undefined; ///< Required, vertex format. How the BLAS should interpret the vertices.
             IndexType indexType = IndexType::None;   ///< Optional index format, if type is NONE, indexBuffer is expected to be PYRO_NULL_BUFFER
@@ -125,7 +136,7 @@ namespace PyroshockStudios {
             u32 instanceCustomIndex : 24;
             u32 mask : 8;
             u32 instanceShaderBindingTableRecordOffset : 24;
-            u32 flags : 8;
+            AccelerationStructureGeometryInstanceFlags flags : 8;
             BlasAddress blasAddress = PYRO_NULL_BLAS_ADDRESS;
         };
 
@@ -134,7 +145,7 @@ namespace PyroshockStudios {
         struct TlasInstanceInfo {
             Buffer data = {};
             u32 count = {};
-            //bool bDataArrayOfPointers = {};
+            // bool bDataArrayOfPointers = {};
             AccelerationStructureGeometryFlags flags = AccelerationStructureGeometryFlagBits::OPAQUE; ///< Attribute for opaque/transparent instance
         };
 
