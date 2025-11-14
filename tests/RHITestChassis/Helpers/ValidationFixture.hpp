@@ -20,12 +20,6 @@
 #error Missing RHI_TEST_CHASSIS_RHI_OPTIONS
 #endif
 
-#define MIN_HLSL_SM_FOR_RAY_TRACING_PIPELINES 0x63
-#define MIN_SPIRV_SM_FOR_RAY_TRACING_PIPELINES 0x16
-
-#define MIN_HLSL_SM_FOR_RAY_QUERIES 0x65
-#define MIN_SPIRV_SM_FOR_RAY_QUERIES 0x16
-
 #include "ShaderCompiler.hpp"
 #include <PyroCommon/Logger.hpp>
 #include <PyroRHI/Api/IDevice.hpp>

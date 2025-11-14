@@ -438,10 +438,11 @@ namespace PyroshockStudios::RHIVulkan {
         rhiProps = {
             .bBufferDeviceAddress = device->mVulkanCaps.bVK_KHR_buffer_device_address,
             .bDrawIndirectCount = true,
-            .bUint8IndexBuffer = true,
+            .bUint8IndexBuffer = false /*TODO check device support*/,
             .bTesselationShader = vkPhysicalDeviceFeatures.tessellationShader == VK_TRUE,
             .bGeometryShader = vkPhysicalDeviceFeatures.geometryShader == VK_TRUE,
             .bBCnTextureCompression = vkPhysicalDeviceFeatures.textureCompressionBC == VK_TRUE,
+            .bEnhancedUndefinedLayoutTransitions = true,
             .viewportConvention = RHIViewportConvention::LeftHanded_OriginTopLeft,
         };
 

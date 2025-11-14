@@ -973,7 +973,6 @@ using namespace PyroshockStudios::Types;
 
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
-
     struct SimpleVertex {
         f32 x, y, z;
     };
@@ -986,22 +985,12 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
         return;
     }
 
-#ifdef RHI_IMPL_DX12
-    if (mDevice->Features().maxSupportedShaderModel < MIN_HLSL_SM_FOR_RAY_QUERIES) {
-        GTEST_SKIP() << "Device does not support HLSL Shader Model " << MIN_HLSL_SM_FOR_RAY_QUERIES << ". Skipping test.";
+    u32 minimumSmTier = mApi.loadedContext->GetMinimumShaderModelFeatureTier(ShaderModelFeatureBits::RAY_QUERY);
+    if (mDevice->Features().maxSupportedShaderModel < minimumSmTier) {
+        GTEST_SKIP() << "Device does not support Shader Model " << std::hex << minimumSmTier << ". Skipping test.";
         return;
     }
-    mDevice->SetShaderModel(MIN_HLSL_SM_FOR_RAY_QUERIES);
-#elif defined(RHI_IMPL_VULKAN)
-    if (mDevice->Features().maxSupportedShaderModel < MIN_SPIRV_SM_FOR_RAY_QUERIES) {
-        GTEST_SKIP() << "Device does not support SPIRV Version " << MIN_SPIRV_SM_FOR_RAY_QUERIES << ". Skipping test.";
-        return;
-    }
-    mDevice->SetShaderModel(MIN_SPIRV_SM_FOR_RAY_QUERIES);
-#else
-#error Cannot correctly configure shader model version.
-#endif
-
+    mDevice->SetShaderModel(minimumSmTier);
     // Compile the compute shader with ray query operations
     ShaderObject csh = mShaderCompiler->CompileShaderFromSource(
         gEXEC_RAY_QUERY_COMPUTE_SHADER,
@@ -1207,7 +1196,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
 
     // expect the ray to intersect!!!
     u32 rayIntersectResult = *mDevice->BufferHostAddressAs<u32>(readbackBuffer);
-    //EXPECT_EQ(rayIntersectResult, 1);
+    // EXPECT_EQ(rayIntersectResult, 1);
 
     mDevice->DestroyTlas(tlasId, false);
     mDevice->DestroyBuffer(tlasScratchBuffer, false);

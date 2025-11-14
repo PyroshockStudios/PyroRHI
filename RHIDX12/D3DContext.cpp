@@ -218,6 +218,7 @@ namespace PyroshockStudios::RHIDX12 {
             .bTesselationShader = true,
             .bGeometryShader = true,
             .bBCnTextureCompression = true,
+            .bEnhancedUndefinedLayoutTransitions = false,
             .viewportConvention = RHIViewportConvention::LeftHanded_OriginBottomLeft,
         };
         return set;
