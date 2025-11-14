@@ -280,10 +280,13 @@ namespace PyroshockStudios {
             bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
             bufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-            if (info.usage & BufferUsageFlagBits::UNORDERED_ACCESS)
+            if ((info.usage & (BufferUsageFlagBits::UNORDERED_ACCESS |
+                                  BufferUsageFlagBits::ACCELERATION_STRUCTURE_SCRATCH_BUFFER)) != BufferUsageFlagBits::NONE)
                 bufferDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-            if ((info.usage & BufferUsageFlagBits::SHADER_RESOURCE) == BufferUsageFlagBits::NONE)
+            if ((info.usage & (BufferUsageFlagBits::SHADER_RESOURCE |
+                                  BufferUsageFlagBits::BLAS_GEOMETRY_BUFFER |
+                                  BufferUsageFlagBits::BLAS_INSTANCE_BUFFER)) == BufferUsageFlagBits::NONE)
                 bufferDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
             // Map MemoryAllocationUsage to heap type & initial state
@@ -1687,7 +1690,7 @@ namespace PyroshockStudios {
                     OutputDebugStringA((const char*)error->GetBufferPointer());
                 }
                 CheckD3DResult(hr, "Failed to D3D12SerializeRootSignature");
-                CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)), 
+                CheckD3DResult(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)),
                     "Failed to create global root signature!");
                 D3DSetDebugName(mRootSignature, "Default Root Signature");
                 gDx12Context->FlushDebugMessages();
@@ -1776,11 +1779,11 @@ namespace PyroshockStudios {
 
                 argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
                 cmdSigDesc.ByteStride = sizeof(DrawArgumentBuffer);
-                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawSignature)), 
+                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawSignature)),
                     "Failed to create indirect draw command signature!");
                 argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
                 cmdSigDesc.ByteStride = sizeof(DrawIndexedArgumentBuffer);
-                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawIndexedSignature)), 
+                CheckD3DResult(mDevice->CreateCommandSignature(&cmdSigDesc, nullptr, IID_PPV_ARGS(&mIndirectDrawIndexedSignature)),
                     "Failed to create indirect draw indexed command signature!");
                 argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
                 cmdSigDesc.ByteStride = sizeof(DispatchArgumentBuffer);

@@ -883,9 +883,10 @@ namespace PyroshockStudios {
                 geomDescs.clear(); // Clear for each new BLAS
                 D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
 
+                ID3D12Resource* scratchBuffer = mDevice->ResourcePool().Get(blasInfo.scratchBuffer).resource.Get();
                 // Get destination and scratch buffer addresses
                 buildDesc.DestAccelerationStructureData = mDevice->ResourcePool().Get(blasInfo.dstBlas).address;
-                buildDesc.ScratchAccelerationStructureData = mDevice->ResourcePool().Get(blasInfo.scratchBuffer).resource->GetGPUVirtualAddress();
+                buildDesc.ScratchAccelerationStructureData = scratchBuffer->GetGPUVirtualAddress();
 
                 // Fill in the geometry inputs
                 mDevice->FillBlasInputs(buildDesc.Inputs, blasInfo, geomDescs);
@@ -904,9 +905,11 @@ namespace PyroshockStudios {
                 ASSERT(tlasInfo.scratchBuffer != PYRO_NULL_BUFFER, "Scratch buffers must never be null!");
                 D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
 
+                ID3D12Resource* scratchBuffer = mDevice->ResourcePool().Get(tlasInfo.scratchBuffer).resource.Get();
                 // Get destination and scratch buffer addresses
                 buildDesc.DestAccelerationStructureData = eastl::get<D3DTlasData>(mDevice->ResourcePool().mSRVHeap.GetInfo(tlasInfo.dstTlas)).resource->GetGPUVirtualAddress();
-                buildDesc.ScratchAccelerationStructureData = mDevice->ResourcePool().Get(tlasInfo.scratchBuffer).resource->GetGPUVirtualAddress();
+                buildDesc.ScratchAccelerationStructureData = scratchBuffer->GetGPUVirtualAddress();
+
 
                 // Fill inputs
                 buildDesc.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;

@@ -48,7 +48,16 @@ namespace PyroshockStudios {
             // HACK: There is no clean way to get the variable names originally declared,
             if (bDxil) {
                 eastl::string disasm = DissasembleDXIL(code.data(), code.size());
-                std::cout << disasm.c_str() << std::endl;
+                /*
+                *   TODO: implement this for DXIL. Not entirely sure what the indicator is, but might be something like this
+                * 
+                    !79 = !{i32 0, %pyro_internal_PyroSpecConst_0* undef, !"pyro_internal_PyroSpecConst_0", i32 0, i32 8, i32 1, i32 256, null}
+                    !80 = !{i32 0, %struct.SLANG_ParameterGroup_pyro_internal_PyroSpecConst_0 undef, !81, %pyro_internal_PyroSpecConst_0 undef, !83}
+                    !81 = !{i32 256, !82}
+                    !82 = !{i32 6, !"pyro_internal_Specialization_0", i32 3, i32 0, i32 7, i32 5}
+                    !83 = !{i32 256, !84}
+                    !84 = !{i32 6, !"pyro_internal_PyroSpecConst_0", i32 3, i32 0}
+                */
 
                 shaderSpecializationData.resize(Limits::MAX_SPECIALIZATION_CONSTANTS);
             } else {
