@@ -84,12 +84,12 @@ namespace PyroshockStudios {
             ComPtr<IDxcUtils> pDxcUtils;
             ComPtr<IDxcBlobEncoding> pBlob;
 
-            CheckD3DResult(D3D12GetInterface(CLSID_DxcUtils, IID_PPV_ARGS(&pDxcUtils)), "Failed to get IDxcUtils!");
+            CheckD3DResult(DxcCreateInstance(CLSID_DxcContainerReflection, IID_PPV_ARGS(&pReflection)), "Failed to get IDxcContainerReflection!");
+            CheckD3DResult(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&pDxcUtils)), "Failed to get IDxcUtils!");
 
             CheckD3DResult(pDxcUtils->CreateBlob(shaderBytecode, static_cast<UINT32>(bytecodeLength), DFCC_DXIL, pBlob.GetAddressOf()), "Failed to create IDxcBlob!");
 
             UINT32 shaderIdx;
-            CheckD3DResult(D3D12GetInterface(CLSID_DxcContainerReflection, IID_PPV_ARGS(&pReflection)), "Failed to get IDxcContainerReflection!");
             CheckD3DResult(pReflection->Load(pBlob.Get()), "Failed to load reflection blob!");
             CheckD3DResult(pReflection->FindFirstPartKind(DFCC_DXIL, &shaderIdx), "Failed to get DXIL reflection");
             CheckD3DResult(pReflection->GetPartReflection(shaderIdx, IID_PPV_ARGS(&reflector)), "Failed to get ID3D12ShaderReflection");
@@ -115,8 +115,8 @@ namespace PyroshockStudios {
             ComPtr<IDxcCompiler> pDxcCompiler;
             ComPtr<IDxcBlobEncoding> pBlob;
 
-            CheckD3DResult(D3D12GetInterface(CLSID_DxcUtils, IID_PPV_ARGS(&pDxcUtils)), "Failed to get IDxcUtils!");
-            CheckD3DResult(D3D12GetInterface(CLSID_DxcCompiler, IID_PPV_ARGS(&pDxcCompiler)), "Failed to get IDxcCompiler!");
+            CheckD3DResult(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&pDxcCompiler)), "Failed to get IDxcCompiler!");
+            CheckD3DResult(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&pDxcUtils)), "Failed to get IDxcUtils!");
 
             CheckD3DResult(pDxcUtils->CreateBlob(shaderBytecode, static_cast<UINT32>(bytecodeLength), DFCC_DXIL, pBlob.GetAddressOf()), "Failed to create IDxcBlob!");
             
