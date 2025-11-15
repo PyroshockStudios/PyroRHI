@@ -180,9 +180,11 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID)
     query.TraceRayInline(
         gTlas[tlasIndex],                           // AccelerationStructure
         RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH,   // uint RayFlags,
-        ~0,                                         // uint InstanceInclusionMask,
+        0xFF,                                       // uint InstanceInclusionMask,
         ray,                                        // RayDesc
     );
+    
+    query.Proceed();
 
     uint hitResult = 0;
     if (query.CommittedStatus() == COMMITTED_TRIANGLE_HIT)

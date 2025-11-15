@@ -29,7 +29,7 @@ target_compile_features(RHIDX12 PRIVATE cxx_std_23)
 
 target_link_libraries(RHIDX12 PRIVATE 
     PyroRHI::PyroRHI DirectX-Headers DirectX-Guids D3D12MemoryAllocator
-    d3d12.lib d3dcompiler.lib dxgi.lib dxguid.lib dcomp.lib uuid.lib
+    d3d12.lib d3dcompiler.lib dxcompiler.lib dxgi.lib dxguid.lib dcomp.lib uuid.lib
     kernel32.lib user32.lib
     comdlg32.lib advapi32.lib shell32.lib
     ole32.lib oleaut32.lib

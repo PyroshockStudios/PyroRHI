@@ -171,6 +171,7 @@ namespace PyroshockStudios {
             const DeviceFeaturesInfo& Features() const override;
             DeviceStatusInfo Status() const override;
 
+            u32 GetActiveShaderModel() const override;
             void SetShaderModel(u32 shaderModel) override;
 
             VulkanContext* Context() {

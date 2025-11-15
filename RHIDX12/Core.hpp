@@ -78,7 +78,7 @@ namespace PyroshockStudios {
             return result;
         }
 
-        void CheckD3DResult(HRESULT result);
+        void CheckD3DResult(HRESULT result, const char* extraMessage);
 
         PYRO_FORCEINLINE static constexpr DXGI_FORMAT ToDXGIFormat(Format type) {
             switch (type) {

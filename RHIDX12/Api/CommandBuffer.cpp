@@ -272,9 +272,9 @@ namespace PyroshockStudios {
             heapDesc.NumDescriptors = 1;
             heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
             heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heapGpu)));
+            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heapGpu)), "Failed to create temporary UAV GPU descriptor heap ");
             heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heapCpu)));
+            CheckD3DResult(mDevice->InternalDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heapCpu)), "Failed to create temporary UAV CPU descriptor heap ");
             D3DSetDebugName(heapGpu, "UAV Clear GPU Desriptor Heap");
             D3DSetDebugName(heapCpu, "UAV Clear CPU Desriptor Heap");
 
@@ -481,6 +481,11 @@ namespace PyroshockStudios {
                     gDx12Context->FlushDebugMessages();
                 }
             }
+        }
+
+        void D3DCommandBuffer::AccelerationStructureBarrier(const AccelerationStructureBarrierInfo& info) {
+            D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
+            mCommandList->ResourceBarrier(1, &uavBarrier);
         }
 
         void D3DCommandBuffer::TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) {
@@ -871,7 +876,6 @@ namespace PyroshockStudios {
                 return;
             }
 
-            // --- 1. Build all BLAS ---
             eastl::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geomDescs; // Re-used scratch space
             for (const auto& blasInfo : info.blasBuildInfos) {
                 ASSERT(blasInfo.dstBlas != PYRO_NULL_BLAS, "dstBlas must never be null!");
@@ -879,9 +883,10 @@ namespace PyroshockStudios {
                 geomDescs.clear(); // Clear for each new BLAS
                 D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
 
+                ID3D12Resource* scratchBuffer = mDevice->ResourcePool().Get(blasInfo.scratchBuffer).resource.Get();
                 // Get destination and scratch buffer addresses
                 buildDesc.DestAccelerationStructureData = mDevice->ResourcePool().Get(blasInfo.dstBlas).address;
-                buildDesc.ScratchAccelerationStructureData = mDevice->ResourcePool().Get(blasInfo.scratchBuffer).resource->GetGPUVirtualAddress();
+                buildDesc.ScratchAccelerationStructureData = scratchBuffer->GetGPUVirtualAddress();
 
                 // Fill in the geometry inputs
                 mDevice->FillBlasInputs(buildDesc.Inputs, blasInfo, geomDescs);
@@ -893,28 +898,23 @@ namespace PyroshockStudios {
 
                 mCommandList4->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
             }
+            gDx12Context->FlushDebugMessages();
 
-            // --- 2. UAV Barrier for BLAS ---
-            // We need to ensure all BLAS builds are finished before the TLAS build starts reading them.
-            if (info.blasBuildInfos.size() > 0 && info.tlasBuildInfos.size() > 0) {
-                D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
-                mCommandList->ResourceBarrier(1, &uavBarrier);
-            }
-
-            // --- 3. Build all TLAS ---
             for (const auto& tlasInfo : info.tlasBuildInfos) {
                 ASSERT(tlasInfo.dstTlas != PYRO_NULL_TLAS, "dstTlas must never be null!");
                 ASSERT(tlasInfo.scratchBuffer != PYRO_NULL_BUFFER, "Scratch buffers must never be null!");
                 D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
 
+                ID3D12Resource* scratchBuffer = mDevice->ResourcePool().Get(tlasInfo.scratchBuffer).resource.Get();
                 // Get destination and scratch buffer addresses
                 buildDesc.DestAccelerationStructureData = eastl::get<D3DTlasData>(mDevice->ResourcePool().mSRVHeap.GetInfo(tlasInfo.dstTlas)).resource->GetGPUVirtualAddress();
-                buildDesc.ScratchAccelerationStructureData = mDevice->ResourcePool().Get(tlasInfo.scratchBuffer).resource->GetGPUVirtualAddress();
+                buildDesc.ScratchAccelerationStructureData = scratchBuffer->GetGPUVirtualAddress();
+
 
                 // Fill inputs
                 buildDesc.Inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
                 buildDesc.Inputs.Flags = ToD3D12ASBuildFlags(tlasInfo.flags);
-                
+
                 buildDesc.Inputs.NumDescs = tlasInfo.instances.count;
                 buildDesc.Inputs.InstanceDescs = mDevice->ResourcePool().Get(tlasInfo.instances.data).resource->GetGPUVirtualAddress();
 
@@ -925,13 +925,6 @@ namespace PyroshockStudios {
                 }
 
                 mCommandList4->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
-            }
-
-            // --- 4. Final UAV Barrier ---
-            // Ensure TLAS build is finished before any shader tries to read it.
-            if (info.tlasBuildInfos.size() > 0) {
-                D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(nullptr);
-                mCommandList->ResourceBarrier(1, &uavBarrier);
             }
 
             gDx12Context->FlushDebugMessages();
@@ -946,7 +939,7 @@ namespace PyroshockStudios {
             }
 
             mPendingQueryPoolMinMaxResolves.clear();
-            CheckD3DResult(mCommandList->Close());
+            CheckD3DResult(mCommandList->Close(), "Failed to close command list!");
             mCurrentRasterPipeline = nullptr;
             mInvalidatedVertexBufferBindings.clear();
             mPendingVertexBufferBinds.clear();

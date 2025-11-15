@@ -336,6 +336,21 @@ namespace PyroshockStudios::RHIVulkan {
         mImageBarriers.push_back(barrier);
     }
 
+    void VulkanCommandBuffer::AccelerationStructureBarrier(const AccelerationStructureBarrierInfo& info) {
+        VkMemoryBarrier2 barrier = {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+            .srcStageMask = ToVkPipelineStageFlags(info.srcAccess.stages),
+            .srcAccessMask = ToVkAccessTypeFlags(info.srcAccess.type),
+            .dstStageMask = ToVkPipelineStageFlags(info.dstAccess.stages),
+            .dstAccessMask = ToVkAccessTypeFlags(info.dstAccess.type)
+        };
+
+        if (info.srcAccess == AccessConsts::NONE) {
+            barrier.srcStageMask |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+        }
+
+        mMemoryBarriers.push_back(barrier);
+    }
     void VulkanCommandBuffer::TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) {
         ASSERT(mCompleted == false, "can not record commands to completed command list");
 
@@ -435,7 +450,7 @@ namespace PyroshockStudios::RHIVulkan {
 
         VkDebugUtilsLabelEXT label = {};
         label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        label.pLabelName = info.name.data();
+        label.pLabelName = info.name.c_str();
         label.color[0] = info.labelColor.r;
         label.color[1] = info.labelColor.g;
         label.color[2] = info.labelColor.b;
@@ -778,12 +793,12 @@ namespace PyroshockStudios::RHIVulkan {
     }
 
     void VulkanCommandBuffer::FlushBarriers() {
-        if (!mBufferBarriers.empty() || !mImageBarriers.empty()) {
+        if (!mBufferBarriers.empty() || !mImageBarriers.empty() || !mMemoryBarriers.empty()) {
             VkDependencyInfo dependencies = {
                 .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
                 .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
-                .memoryBarrierCount = 0,
-                .pMemoryBarriers = nullptr,
+                .memoryBarrierCount = static_cast<u32>(mMemoryBarriers.size()),
+                .pMemoryBarriers = mMemoryBarriers.data(),
                 .bufferMemoryBarrierCount = static_cast<u32>(mBufferBarriers.size()),
                 .pBufferMemoryBarriers = mBufferBarriers.data(),
                 .imageMemoryBarrierCount = static_cast<u32>(mImageBarriers.size()),
@@ -791,6 +806,7 @@ namespace PyroshockStudios::RHIVulkan {
             };
             vkCmdPipelineBarrier2(mCommandBuffer, &dependencies);
 
+            mMemoryBarriers.clear();
             mBufferBarriers.clear();
             mImageBarriers.clear();
         }

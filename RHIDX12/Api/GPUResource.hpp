@@ -62,7 +62,7 @@ namespace PyroshockStudios {
                 heapDesc.NumDescriptors = maxDescriptors;
                 heapDesc.Type = heapType;
                 heapDesc.Flags = gpuVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-                CheckD3DResult(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mHeap)));
+                CheckD3DResult(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&mHeap)), "Failed to create descriptor heap!");
                 D3DSetDebugName(mHeap, debugName);
                 mIncSz = device->GetDescriptorHandleIncrementSize(heapType);
                 mDescriptorBase = mHeap->GetCPUDescriptorHandleForHeapStart();

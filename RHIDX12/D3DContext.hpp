@@ -46,13 +46,14 @@ namespace PyroshockStudios {
                 IDXGIAdapter1** ppAdapter,
                 i32 deviceIndex = -1);
             IDevice* CreateDevice() override;
-            const RHIProperties& Properties() override;
-            IShaderFeatureSet* ShaderFeatureSet() override;
+            const RHIProperties& Properties() const override;
+            const IShaderFeatureSet* ShaderFeatureSet() const override;
 
             ShaderCompileTarget GetTarget() const override;
             const char* GetProfileName(ShaderStage shaderStage) const override;
             const char* GetFileExtension() const override;
             const ShaderFeatureInfo& Features() const override;
+            virtual u32 GetMinimumShaderModelFeatureTier(ShaderModelFeatureFlags shaderModelFeatures) const override;
             const eastl::span<eastl::pair<const char*, const char*>>& GlobalPreprocessorDefines() const override;
 
             void InjectLogger(ILogStream* stream) override;

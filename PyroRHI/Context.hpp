@@ -23,9 +23,10 @@
 #pragma once
 #include <PyroCommon/Core.hpp>
 #include <PyroCommon/LoggerInterface.hpp>
-#include <PyroRHI/Core.hpp>
 #include <PyroRHI/Api/Forward.hpp>
+#include <PyroRHI/Core.hpp>
 #include <PyroRHI/Shader/Forward.hpp>
+#include <PyroRHI/Shader/ShaderModelFeature.hpp>
 
 namespace PyroshockStudios {
     inline namespace RHI {
@@ -38,14 +39,15 @@ namespace PyroshockStudios {
             RightHanded_OriginBottomLeft
         };
         struct RHIProperties {
-            bool bHeadlessEnvironment = false;
-            bool bBufferDeviceAddress = false;
-            bool bDrawIndirectCount = false;
-            bool bUint8IndexBuffer = false;
-            bool bTesselationShader = false;
-            bool bGeometryShader = false;
-            bool bBCnTextureCompression = false;
-            RHIViewportConvention viewportConvention = RHIViewportConvention::None;
+            bool bHeadlessEnvironment = false;                                      ///< No windowing system is required for full api usage.
+            bool bBufferDeviceAddress = false;                                      ///< Supports using 64 bit device addresses in shaders.
+            bool bDrawIndirectCount = false;                                        ///< Can use a count buffer alongside indirect drawing.
+            bool bUint8IndexBuffer = false;                                         ///< Supports 8 bit index buffers
+            bool bTesselationShader = false;                                        ///< Supports Hull and Domain shaders
+            bool bGeometryShader = false;                                           ///< Supports Geometry shaders
+            bool bBCnTextureCompression = false;                                    ///< Supports BC1-7 compression
+            bool bEnhancedUndefinedLayoutTransitions = false;                       ///< Supports transitioning a resource from Undefined if the prior layout is not Undefined.
+            RHIViewportConvention viewportConvention = RHIViewportConvention::None; ///< States the convention of the viewport to keep display consistent across APIs.
         };
 
         class RHIContext : ILoggerAware, DeleteCopy, DeleteMove {
@@ -55,8 +57,9 @@ namespace PyroshockStudios {
 
             virtual IDevice* CreateDevice() = 0;
 
-            virtual const RHIProperties& Properties() = 0;
-            virtual IShaderFeatureSet* ShaderFeatureSet() = 0;
+            virtual const RHIProperties& Properties() const = 0;
+            virtual const IShaderFeatureSet* ShaderFeatureSet() const = 0;
+            virtual u32 GetMinimumShaderModelFeatureTier(ShaderModelFeatureFlags shaderModelFeatures) const = 0;
         };
-    }
-}
+    } // namespace RHI
+} // namespace PyroshockStudios

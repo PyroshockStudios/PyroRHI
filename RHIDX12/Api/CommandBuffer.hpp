@@ -26,8 +26,8 @@
 #include <RHIDX12/Api/GPUResource.hpp>
 #include <RHIDX12/Core.hpp>
 
-#include <EASTL/hash_set.h>
 #include <EASTL/hash_map.h>
+#include <EASTL/hash_set.h>
 namespace PyroshockStudios {
     namespace RHIDX12 {
         class D3DDevice;
@@ -48,6 +48,7 @@ namespace PyroshockStudios {
             void UpdateBuffer(const UpdateBufferInfo& info) override;
             void BufferBarrier(const BufferMemoryBarrierInfo& info) override;
             void ImageBarrier(const ImageMemoryBarrierInfo& info) override;
+            void AccelerationStructureBarrier(const AccelerationStructureBarrierInfo& info) override;
             void TransferBufferOwnership(Buffer buffer, ICommandQueue* dstQueue) override;
             void TransferImageOwnership(Image image, ICommandQueue* dstQueue) override;
             void AcquireBufferOwnership(Buffer buffer, ICommandQueue* srcQueue) override;
@@ -78,8 +79,8 @@ namespace PyroshockStudios {
 
             void Reset() {
                 // allocator MUST also be reset! otherwise a huge memory leak occurs!
-                CheckD3DResult(mAllocator->Reset());
-                CheckD3DResult(mCommandList->Reset(mAllocator.Get(), nullptr));
+                CheckD3DResult(mAllocator->Reset(), "Failed to reset command allocator!");
+                CheckD3DResult(mCommandList->Reset(mAllocator.Get(), nullptr), "Failed to reset command list!");
             }
 
         public:

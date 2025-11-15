@@ -20,21 +20,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "Core.hpp"
-#include <PyroCommon/Logger.hpp>
-#include <comdef.h>
-#include <libassert/assert.hpp>
+#pragma once 
+#include <RHIDX12/Core.hpp>
+#include <d3dcompiler.h>
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
-        ILogStream* gDX12Sink = nullptr;
+        struct SemanticInfo {
+            eastl::string semanticName;
+            UINT semanticIndex;
+        };
 
-        void CheckD3DResult(HRESULT result, const char* extraMessage) {
-            if (result == S_OK)
-                return;
-            Logger::Fatal(gDX12Sink, "Direct3D 12 error: {}! Expected S_OK but found '{}' ({})",
-                extraMessage,
-                _com_error(result).ErrorMessage(), (long)result);
-        }
+        eastl::vector<D3D12_SIGNATURE_PARAMETER_DESC> ReflectSemanticsDXBC(ComPtr<ID3D12ShaderReflection>& reflector, LPCVOID shaderBytecode, SIZE_T bytecodeLength);
+        eastl::vector<D3D12_SIGNATURE_PARAMETER_DESC> ReflectSemanticsDXIL(ComPtr<ID3D12ShaderReflection>& reflector, LPCVOID shaderBytecode, SIZE_T bytecodeLength);
+    
+        eastl::string DissasembleDXBC(LPCVOID shaderBytecode, SIZE_T bytecodeLength);
+        eastl::string DissasembleDXIL(LPCVOID shaderBytecode, SIZE_T bytecodeLength);
     } // namespace RHIDX12
 } // namespace PyroshockStudios
