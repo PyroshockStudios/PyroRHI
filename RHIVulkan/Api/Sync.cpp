@@ -43,7 +43,7 @@ namespace PyroshockStudios {
         u64 VulkanFence::Value() const {
             u64 value = 0;
             VkResult result = vkGetSemaphoreCounterValue(mDevice->GetVkDevice(), mSemaphore, &value);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to get fence value! (VkSemaphore)");
             return value;
         }
         void VulkanFence::SetValue(u64 value) {
@@ -54,7 +54,7 @@ namespace PyroshockStudios {
                 .value = value,
             };
             VkResult result = vkSignalSemaphore(mDevice->GetVkDevice(), &signalInfo);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to signal fence! (VkSemaphore)");
         }
         bool VulkanFence::WaitForValue(u64 value, u64 timeoutNs) {
             VkSemaphoreWaitInfo waitInfo{

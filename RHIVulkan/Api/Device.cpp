@@ -112,9 +112,11 @@ namespace PyroshockStudios {
             };
 
             u32 extensionCount;
-            vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+            CheckVkResult(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr),
+                "Failed to enumerate device extensions!");
             eastl::vector<VkExtensionProperties> availableExtensions(extensionCount);
-            vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
+            CheckVkResult(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data()),
+                "Failed to enumerate device extensions!");
 
             auto tryEnableExtension = [physicalDevice, &lastPhysicalDevicePnext, &extensions](VkExtensionProperties& extension, const char* extensionName, auto& extensionFeatureStruct, const auto& checkFunc, const auto& customFunc) {
                 if (strcmp(extension.extensionName, extensionName) == 0) {
@@ -334,8 +336,7 @@ namespace PyroshockStudios {
                 .pEnabledFeatures = nullptr,
             };
 
-            auto result = vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, mContext->GetVkAllocator(), &mDevice);
-            CheckVkResult(result);
+            CheckVkResult(vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, mContext->GetVkAllocator(), &mDevice), "Failed to create vulkan device!");
 
             volkLoadDevice(mDevice);
             volkLoadDeviceTable(&mDeviceTable, mDevice);
@@ -356,7 +357,10 @@ namespace PyroshockStudios {
             for (const auto& [createInfo, family] : queues) {
                 VkQueue queue = VK_NULL_HANDLE;
                 vkGetDeviceQueue(mDevice, family, 0, &queue);
-                ASSERT(queue != VK_NULL_HANDLE, "Faild to get queue!");
+                if (queue == VK_NULL_HANDLE) {
+                    Logger::Fatal(gVulkanSink, "Faild to get command queue!");
+                    return;
+                }
                 auto* cqueue = new VulkanCommandQueue(this, queue, family, createInfo);
                 if (vkSetDebugUtilsObjectNameEXT != nullptr) {
                     const VkDebugUtilsObjectNameInfoEXT nameInfo = {
@@ -420,8 +424,7 @@ namespace PyroshockStudios {
                 vmaAllocatorCreateInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
             }
 
-            result = vmaCreateAllocator(&vmaAllocatorCreateInfo, &mVmaAllocator);
-            CheckVkResult(result);
+            CheckVkResult(vmaCreateAllocator(&vmaAllocatorCreateInfo, &mVmaAllocator), "Failed to create memory allocator!");
 
             mResourceTable.Initialize(MAX_VK_BINDLESS_BUFFERS, MAX_VK_BINDLESS_IMAGES, MAX_VK_BINDLESS_SAMPLERS,
                 MAX_VK_VIRTUAL_MEMORIES, mVulkanCaps.bVK_KHR_acceleration_structures ? MAX_VK_ACCELERATION_STRUCTURES : 0,
@@ -461,7 +464,7 @@ namespace PyroshockStudios {
                 blockCreateInfo.flags |= VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT;
             }
             blockCreateInfo.pAllocationCallbacks = mContext->GetVkAllocator();
-            CheckVkResult(vmaCreateVirtualBlock(&blockCreateInfo, &ret.vmaBlock));
+            CheckVkResult(vmaCreateVirtualBlock(&blockCreateInfo, &ret.vmaBlock), "Failed to create virtual memory block!");
             VmaAllocationInfo vmaAllocationInfo = {};
             VkMemoryPropertyFlags requiredFlags{};
             VkMemoryPropertyFlags preferredFlags{};
@@ -517,7 +520,7 @@ namespace PyroshockStudios {
             ret.requirements.alignment = PYRO_ALIGN(static_cast<VkDeviceSize>(info.minAlignment), requiredAlignment);
             ret.requirements.size = info.size;
             ret.requirements.memoryTypeBits = FindFullMemoryTypeMask(eastl::numeric_limits<u32>::max(), requiredFlags);
-            CheckVkResult(vmaAllocateMemory(mVmaAllocator, &ret.requirements, &vmaAllocationCreateInfo, &ret.vmaAllocation, &ret.vmaAllocationInfo));
+            CheckVkResult(vmaAllocateMemory(mVmaAllocator, &ret.requirements, &vmaAllocationCreateInfo, &ret.vmaAllocation, &ret.vmaAllocationInfo), "Failed to allocate memory block!");
             if (vkSetDebugUtilsObjectNameEXT) {
                 const VkDebugUtilsObjectNameInfoEXT deviceMemNameInfo = {
                     .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
@@ -643,11 +646,12 @@ namespace PyroshockStudios {
                     .priority = 0.5f,
                 };
                 VkResult result = vmaCreateBuffer(mVmaAllocator, &vkBufferCreateInfo, &vmaAllocationCreateInfo, &ret.vkBuffer, &ret.vmaAllocation.Get<VmaAllocation>(), &vmaAllocationInfo);
-                CheckVkResult(result);
+                CheckVkResult(result, "Failed to create buffer!");
                 ret.allocationInfo = vmaAllocationInfo;
             } else {
                 auto& blockInfo = Slot(info.memoryBlock);
-                CheckVkResult(vkCreateBuffer(mDevice, &vkBufferCreateInfo, mContext->GetVkAllocator(), &ret.vkBuffer));
+                CheckVkResult(vkCreateBuffer(mDevice, &vkBufferCreateInfo, mContext->GetVkAllocator(), &ret.vkBuffer),
+                    "Failed to create buffer!");
                 VkMemoryRequirements requirements;
                 vkGetBufferMemoryRequirements(mDevice, ret.vkBuffer, &requirements);
                 VmaVirtualAllocationCreateInfo vmaVirtualAllocationCreateInfo = {
@@ -674,7 +678,8 @@ namespace PyroshockStudios {
                     mResourceTable.mBufferSlots.ReturnSlot(id);
                     return PYRO_NULL_BUFFER;
                 }
-                CheckVkResult(vkBindBufferMemory(mDevice, ret.vkBuffer, blockInfo.vmaAllocationInfo.deviceMemory, offset + blockInfo.vmaAllocationInfo.offset));
+                CheckVkResult(vkBindBufferMemory(mDevice, ret.vkBuffer, blockInfo.vmaAllocationInfo.deviceMemory, offset + blockInfo.vmaAllocationInfo.offset),
+                    "Failed to bind buffer memory!");
                 vmaGetVirtualAllocationInfo(blockInfo.vmaBlock, ret.vmaAllocation.Get<VmaVirtualAllocation>(), &ret.allocationInfo.Get<VmaVirtualAllocationInfo>());
                 ++blockInfo.debugReferences;
             }
@@ -763,11 +768,12 @@ namespace PyroshockStudios {
                     .priority = 0.5f,
                 };
                 VkResult result = vmaCreateImage(mVmaAllocator, &vkImageCreateInfo, &vmaAllocationCreateInfo, &ret.vkImage, &ret.vmaAllocation.Get<VmaAllocation>(), &vmaAllocationInfo);
-                CheckVkResult(result);
+                CheckVkResult(result, "Failed to create image!");
                 ret.allocationInfo = vmaAllocationInfo;
             } else {
                 auto& blockInfo = Slot(info.memoryBlock);
-                CheckVkResult(vkCreateImage(mDevice, &vkImageCreateInfo, mContext->GetVkAllocator(), &ret.vkImage));
+                CheckVkResult(vkCreateImage(mDevice, &vkImageCreateInfo, mContext->GetVkAllocator(), &ret.vkImage),
+                    "Failed to craete image!");
                 VkMemoryRequirements requirements;
                 vkGetImageMemoryRequirements(mDevice, ret.vkImage, &requirements);
                 VmaVirtualAllocationCreateInfo vmaVirtualAllocationCreateInfo = {
@@ -794,7 +800,8 @@ namespace PyroshockStudios {
                     return PYRO_NULL_IMAGE;
                 }
 
-                CheckVkResult(vkBindImageMemory(mDevice, ret.vkImage, blockInfo.vmaAllocationInfo.deviceMemory, offset + blockInfo.vmaAllocationInfo.offset));
+                CheckVkResult(vkBindImageMemory(mDevice, ret.vkImage, blockInfo.vmaAllocationInfo.deviceMemory, offset + blockInfo.vmaAllocationInfo.offset),
+                    "Failed to bind image memory!");
                 vmaGetVirtualAllocationInfo(blockInfo.vmaBlock, ret.vmaAllocation.Get<VmaVirtualAllocation>(), &ret.allocationInfo.Get<VmaVirtualAllocationInfo>());
                 ++blockInfo.debugReferences;
             }
@@ -1064,7 +1071,7 @@ namespace PyroshockStudios {
 
             VkResult result = vkCreateImageView(mDevice, &vkImageViewCreateInfo, mContext->GetVkAllocator(),
                 &ret.descriptor.Get<VkDescriptorImageInfo>().imageView);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create image view!");
 
             if (vkSetDebugUtilsObjectNameEXT) {
                 eastl::string name =
@@ -1125,7 +1132,7 @@ namespace PyroshockStudios {
             };
 
             VkResult result = vkCreateSampler(mDevice, &vkSamplerCreateInfo, mContext->GetVkAllocator(), &ret.vkSampler);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create sampler object!");
 
             if (vkSetDebugUtilsObjectNameEXT) {
 
@@ -1170,7 +1177,7 @@ namespace PyroshockStudios {
                 .deviceAddress = {},
             };
             VkResult result = vkCreateAccelerationStructureKHR(mDevice, &vkCreateInfo, mContext->GetVkAllocator(), &ret.vkAccelerationStructure);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create acceleration structure (BLAS)!");
 
             VkAccelerationStructureDeviceAddressInfoKHR vkAccelerationStructureDeviceAddressInfo = {
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
@@ -1216,7 +1223,7 @@ namespace PyroshockStudios {
                 .deviceAddress = {},
             };
             VkResult result = vkCreateAccelerationStructureKHR(mDevice, &vkCreateInfo, mContext->GetVkAllocator(), &ret.vkAccelerationStructure);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create acceleration structure (TLAS)!");
 
             VkAccelerationStructureDeviceAddressInfoKHR vkAccelerationStructureDeviceAddressInfo = {
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
@@ -1793,21 +1800,21 @@ namespace PyroshockStudios {
 
         VulkanSwapChainSupportInfo VulkanDevice::GetSwapChainSupport(VkSurfaceKHR surface) const {
             VulkanSwapChainSupportInfo support{};
-            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, surface, &support.capabilities);
+            CheckVkResult(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, surface, &support.capabilities), "Failed to query windowing surface capabilities!");
             u32 formatCount = 0;
-            vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, surface, &formatCount, nullptr);
+            CheckVkResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, surface, &formatCount, nullptr), "Failed to query windowing surface formats!");
 
             if (formatCount != 0) {
                 support.formats.resize(formatCount);
-                vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, surface, &formatCount, support.formats.data());
+                CheckVkResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, surface, &formatCount, support.formats.data()), "Failed to query windowing surface formats!");
             }
 
             u32 presentModeCount = 0;
-            vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, surface, &presentModeCount, nullptr);
+            CheckVkResult(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, surface, &presentModeCount, nullptr), "Failed to query windowing surface present modes!");
 
             if (presentModeCount != 0) {
                 support.presentModes.resize(presentModeCount);
-                vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, surface, &presentModeCount, support.presentModes.data());
+                CheckVkResult(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, surface, &presentModeCount, support.presentModes.data()), "Failed to query windowing surface present modes!");
             }
             return support;
         }
@@ -1824,6 +1831,7 @@ namespace PyroshockStudios {
             }
             if (mask == 0) {
                 Logger::Fatal(gVulkanSink, "failed to find a suitable memory type!");
+                return {};
             }
             return mask;
         }
@@ -1852,7 +1860,7 @@ namespace PyroshockStudios {
 
             VkSemaphore semaphore;
             VkResult result = vkCreateSemaphore(mDevice, &createInfo, mContext->GetVkAllocator(), &semaphore);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create semaphore!");
 
             if (vkSetDebugUtilsObjectNameEXT) {
                 const VkDebugUtilsObjectNameInfoEXT samplerNameInfo = {
@@ -1883,7 +1891,7 @@ namespace PyroshockStudios {
 
             VkSemaphore semaphore;
             VkResult result = vkCreateSemaphore(mDevice, &createInfo, mContext->GetVkAllocator(), &semaphore);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create fence!");
 
             if (vkSetDebugUtilsObjectNameEXT) {
                 const VkDebugUtilsObjectNameInfoEXT samplerNameInfo = {
@@ -1918,7 +1926,7 @@ namespace PyroshockStudios {
             for (ICommandQueue* queue : mCommandQueues) {
                 queue->WaitIdle();
             }
-            vkDeviceWaitIdle(mDevice);
+            CheckVkResult(vkDeviceWaitIdle(mDevice), "Failed to idle device!");
         }
 
         void VulkanDevice::SubmitQueue(const CommandQueueSubmitInfo& info) {
@@ -1998,7 +2006,7 @@ namespace PyroshockStudios {
             submitInfo.signalSemaphoreInfoCount = static_cast<u32>(signalSemaphores.size());
             submitInfo.pSignalSemaphoreInfos = signalSemaphores.data();
 
-            vkQueueSubmit2(vkQueue->GetVkQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+            CheckVkResult(vkQueueSubmit2(vkQueue->GetVkQueue(), 1, &submitInfo, VK_NULL_HANDLE), "Failed to submit command queue!");
 
             for (VulkanCommandBuffer* commandBuffer : vkQueue->RefSubmittedCommandBuffers()) {
                 // std::unique_lock const lock{mDevice.main_queue_zombies_mtx};
