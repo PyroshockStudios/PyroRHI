@@ -973,7 +973,6 @@ using namespace PyroshockStudios::Types;
 
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
-
     struct SimpleVertex {
         f32 x, y, z;
     };
@@ -986,22 +985,12 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
         return;
     }
 
-#ifdef RHI_IMPL_DX12
-    if (mDevice->Features().maxSupportedShaderModel < MIN_HLSL_SM_FOR_RAY_QUERIES) {
-        GTEST_SKIP() << "Device does not support HLSL Shader Model " << MIN_HLSL_SM_FOR_RAY_QUERIES << ". Skipping test.";
+    u32 minimumSmTier = mApi.loadedContext->GetMinimumShaderModelFeatureTier(ShaderModelFeatureBits::RAY_QUERY);
+    if (mDevice->Features().maxSupportedShaderModel < minimumSmTier) {
+        GTEST_SKIP() << "Device does not support Shader Model " << std::hex << minimumSmTier << ". Skipping test.";
         return;
     }
-    mDevice->SetShaderModel(MIN_HLSL_SM_FOR_RAY_QUERIES);
-#elif defined(RHI_IMPL_VULKAN)
-    if (mDevice->Features().maxSupportedShaderModel < MIN_SPIRV_SM_FOR_RAY_QUERIES) {
-        GTEST_SKIP() << "Device does not support SPIRV Version " << MIN_SPIRV_SM_FOR_RAY_QUERIES << ". Skipping test.";
-        return;
-    }
-    mDevice->SetShaderModel(MIN_SPIRV_SM_FOR_RAY_QUERIES);
-#else
-#error Cannot correctly configure shader model version.
-#endif
-
+    mDevice->SetShaderModel(minimumSmTier);
     // Compile the compute shader with ray query operations
     ShaderObject csh = mShaderCompiler->CompileShaderFromSource(
         gEXEC_RAY_QUERY_COMPUTE_SHADER,
@@ -1084,6 +1073,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
         .transform = Transform::IDENTITY,
         .instanceCustomIndex = 0,
         .mask = 0xFF,
+        .flags = AccelerationStructureGeometryInstanceFlagBits::TRIANGLE_FACING_CULL_DISABLE |
+                 AccelerationStructureGeometryInstanceFlagBits::FORCE_OPAQUE,
         .blasAddress = mDevice->BlasInstanceAddress(blasId),
     };
     BufferInfo instanceBufferInfo = {
@@ -1130,11 +1121,29 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
     tlasBuildInfo.dstTlas = tlasId;
     tlasBuildInfo.scratchBuffer = tlasScratchBuffer;
 
-    BuildAccelerationStructuresInfo buildAllInfo = {
-        .tlasBuildInfos = eastl::span<const TlasBuildInfo>(&tlasBuildInfo, 1),
-        .blasBuildInfos = eastl::span<const BlasBuildInfo>(&blasBuildInfo, 1)
-    };
-    cmd->BuildAccelerationStructures(buildAllInfo);
+
+    // build blas first
+    {
+        BuildAccelerationStructuresInfo buildInfo = {
+            .blasBuildInfos = eastl::span<const BlasBuildInfo>(&blasBuildInfo, 1),
+        };
+        cmd->BuildAccelerationStructures(buildInfo);
+    }
+    // wait for blas to finish
+
+    cmd->AccelerationStructureBarrier({
+        .accelerationStructure = blasId,
+        .srcAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_WRITE,
+        .dstAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_READ,
+    });
+    // then build tlas
+    {
+        BuildAccelerationStructuresInfo buildInfo = {
+            .tlasBuildInfos = eastl::span<const TlasBuildInfo>(&tlasBuildInfo, 1),
+        };
+        cmd->BuildAccelerationStructures(buildInfo);
+    }
+
     cmd->Complete();
 
     // 11. Submit and Wait
@@ -1145,8 +1154,9 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
     // Now run the ray tracing
 
     BufferInfo bufferInfo{};
+    bufferInfo.name = "Result Storage Buffer";
     bufferInfo.size = PYRO_ALIGN(4, mDevice->Properties().minStorageBufferOffsetAlignment);
-    bufferInfo.usage = BufferUsageFlagBits::UNORDERED_ACCESS | BufferUsageFlagBits::BYTE_ADDRESS_BUFFER;
+    bufferInfo.usage = BufferUsageFlagBits::UNORDERED_ACCESS | BufferUsageFlagBits::BYTE_ADDRESS_BUFFER | BufferUsageFlagBits::TRANSFER_SRC;
     bufferInfo.initialLayout = BufferLayout::UnorderedAccess;
     bufferInfo.allocationDomain = MemoryAllocationDomain::DeviceLocal;
     TRACK_RHI_PARAMETER(bufferInfo);
@@ -1206,7 +1216,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
 
     // expect the ray to intersect!!!
     u32 rayIntersectResult = *mDevice->BufferHostAddressAs<u32>(readbackBuffer);
-    //EXPECT_EQ(rayIntersectResult, 1);
+    EXPECT_EQ(rayIntersectResult, 1);
 
     mDevice->DestroyTlas(tlasId, false);
     mDevice->DestroyBuffer(tlasScratchBuffer, false);

@@ -31,7 +31,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ValidateDeviceCreation) {
     EXPECT_GT(props.maxTextureDepth, 0);
     EXPECT_GT(props.maxTextureArrayLayers, 0);
 
-
     const DeviceFeaturesInfo& feats = mDevice->Features();
     EXPECT_GT(feats.maxSupportedShaderModel, 0);
+    EXPECT_GT(mDevice->GetActiveShaderModel(), 0);
+    EXPECT_LE(mDevice->GetActiveShaderModel(), feats.maxSupportedShaderModel);
 }

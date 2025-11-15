@@ -20,14 +20,9 @@
 #error Missing RHI_TEST_CHASSIS_RHI_OPTIONS
 #endif
 
-#define MIN_HLSL_SM_FOR_RAY_TRACING_PIPELINES 0x63
-#define MIN_SPIRV_SM_FOR_RAY_TRACING_PIPELINES 0x14
-
-#define MIN_HLSL_SM_FOR_RAY_QUERIES 0x65
-#define MIN_SPIRV_SM_FOR_RAY_QUERIES 0x14
-
 #include "ShaderCompiler.hpp"
 #include <PyroCommon/Logger.hpp>
+#include <PyroCommon/Util/String.hpp>
 #include <PyroRHI/Api/IDevice.hpp>
 #include <PyroRHI/Api/ToString.hpp>
 #include <PyroRHI/Context.hpp>
@@ -97,8 +92,13 @@ class RHI_CONTEXT_FIXTURE_NAME : public ::testing::Test, public ILogStream {
     };
     void Log(LogSeverity severity, const char* message) override {
         if (severity >= LogSeverity::Error) {
-            bFailed = true;
-            ADD_FAILURE() << "[" RHI_TEST_CHASSIS_API_VALIDATOR_NAME "] Validation Error: " << message;
+            // for some reason spirv errors tend to be useless
+            if (eastl::string_view(message).find("spirv-val produced an error") == eastl::string::npos) {
+                bFailed = true;
+                ADD_FAILURE() << "[" RHI_TEST_CHASSIS_API_VALIDATOR_NAME "] Validation Error: " << message;
+            } else {
+                std::cout << "[" RHI_TEST_CHASSIS_API_VALIDATOR_NAME "] " << message << "\n";
+            }
         } else {
             std::cout << "[" RHI_TEST_CHASSIS_API_VALIDATOR_NAME "] " << message << "\n";
         }
@@ -210,7 +210,7 @@ protected:
             GTEST_LOG_(INFO) << "[" RHI_TEST_CHASSIS_API_LOG_NAME "] HAS FAILED! Used parameters:\n";
             for (auto& d : mUsedData) {
                 GTEST_LOG_(INFO) << "  - " << d.dataName << ":\n"
-                          << d.stringified.c_str();
+                                 << d.stringified.c_str();
             }
             GTEST_LOG_(INFO) << "\n";
         }

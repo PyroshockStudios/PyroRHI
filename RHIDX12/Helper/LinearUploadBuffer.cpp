@@ -40,10 +40,10 @@ namespace PyroshockStudios {
                 &bufDesc,
                 D3D12_RESOURCE_STATE_GENERIC_READ,
                 nullptr,
-                IID_PPV_ARGS(&mUploadBuffer)));
+                IID_PPV_ARGS(&mUploadBuffer)), "Failed to create Linear Upload Buffer!");
 
             // Persistent mapping for CPU access
-            CheckD3DResult(mUploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mMappedPtr)));
+            CheckD3DResult(mUploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mMappedPtr)), "Failed to map Linear Upload Buffer!");
         }
 
 

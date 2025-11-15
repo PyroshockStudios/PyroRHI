@@ -40,11 +40,11 @@ namespace PyroshockStudios {
                 // This is safe to do since the RHI enforces that Semaphore is 
                 // a sync object that is GPU local, and is bound to frames in flight (like vulkan)
                 ++mCurrentValue; 
-                CheckD3DResult(queue->Signal(mFence.Get(), mCurrentValue));
+                CheckD3DResult(queue->Signal(mFence.Get(), mCurrentValue), "Failed to signal queue with semaphore (ID3D12Fence)!");
             }
             // GPU wait
             PYRO_FORCEINLINE void Wait(ID3D12CommandQueue* queue) {
-               CheckD3DResult(queue->Wait(mFence.Get(), mCurrentValue));
+                CheckD3DResult(queue->Wait(mFence.Get(), mCurrentValue), "Failed to wait for queue signal on semaphore (ID3D12Fence)!");
             }
 
         private:

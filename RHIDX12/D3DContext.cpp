@@ -100,7 +100,7 @@ namespace PyroshockStudios::RHIDX12 {
             }
         }
 
-        CheckD3DResult(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&mFactory)));
+        CheckD3DResult(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&mFactory)), "Failed to CreateDXGIFactory2!");
         D3DSetDebugName(mFactory, "DXGI Factory 4");
 
         ComPtr<IDXGIAdapter1> adapter;
@@ -121,7 +121,7 @@ namespace PyroshockStudios::RHIDX12 {
         CheckD3DResult(D3D12CreateDevice(
             adapter.Get(),
             D3D_FEATURE_LEVEL_11_0,
-            IID_PPV_ARGS(&device)));
+            IID_PPV_ARGS(&device)), "Failed to create D3D12 Device with D3D_FEATURE_LEVEL = 11_0");
         D3DSetDebugName(device, "D3D12 Device (Feature level 11_0)");
 
         if (args.bDebug) {
@@ -210,7 +210,7 @@ namespace PyroshockStudios::RHIDX12 {
         return mDevice;
     }
 
-    const RHIProperties& D3DContext::Properties() {
+    const RHIProperties& D3DContext::Properties() const {
         const static RHIProperties set{
             .bBufferDeviceAddress = false,
             .bDrawIndirectCount = false,
@@ -218,15 +218,15 @@ namespace PyroshockStudios::RHIDX12 {
             .bTesselationShader = true,
             .bGeometryShader = true,
             .bBCnTextureCompression = true,
+            .bEnhancedUndefinedLayoutTransitions = false,
             .viewportConvention = RHIViewportConvention::LeftHanded_OriginBottomLeft,
         };
         return set;
     }
 
-    IShaderFeatureSet* D3DContext::ShaderFeatureSet() {
+    const IShaderFeatureSet* D3DContext::ShaderFeatureSet() const {
         return this;
     }
-
 
     ShaderCompileTarget D3DContext::GetTarget() const {
         return mDevice->mActiveShaderModel == 0x51 ? ShaderCompileTarget::Dxbc : ShaderCompileTarget::Dxil;
@@ -283,6 +283,40 @@ namespace PyroshockStudios::RHIDX12 {
             .bGLSL = false,
         };
         return features;
+    }
+
+    u32 D3DContext::GetMinimumShaderModelFeatureTier(ShaderModelFeatureFlags shaderModelFeatures) const {
+        u32 minVersion = 0x51;
+
+        if (shaderModelFeatures & ShaderModelFeatureBits::CONSERVATIVE_RASTERIZATION) {
+            minVersion = std::max(minVersion, 0x60u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::MESH_SHADER) {
+            minVersion = std::max(minVersion, 0x65u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::RAY_QUERY) {
+            minVersion = std::max(minVersion, 0x65u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::RAY_TRACING) {
+            minVersion = std::max(minVersion, 0x63u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::SHADER_FLOAT16) {
+            minVersion = std::max(minVersion, 0x60u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::SHADER_INT64) {
+            minVersion = std::max(minVersion, 0x60u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::SHADER_INT64_ATOMICS) {
+            minVersion = std::max(minVersion, 0x66u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::SUBGROUP_OPERATIONS) {
+            minVersion = std::max(minVersion, 0x60u);
+        }
+        if (shaderModelFeatures & ShaderModelFeatureBits::VARIABLE_RATE_SHADING) {
+            minVersion = std::max(minVersion, 0x64u);
+        }
+
+        return minVersion;
     }
 
     const eastl::span<eastl::pair<const char*, const char*>>& D3DContext::GlobalPreprocessorDefines() const {

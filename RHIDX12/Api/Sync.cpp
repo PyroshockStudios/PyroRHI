@@ -27,7 +27,7 @@ namespace PyroshockStudios {
     namespace RHIDX12 {
         D3DSemaphore::D3DSemaphore(D3DDevice* device, SemaphoreInfo&& info)
             : mDevice(device), mInfo(eastl::move(info)) {
-            mDevice->InternalDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence));
+            CheckD3DResult(mDevice->InternalDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)), "Failed to create ID3D12Fence!");
         }
         D3DSemaphore::~D3DSemaphore() {
         }
@@ -36,7 +36,7 @@ namespace PyroshockStudios {
         }
         D3DFence::D3DFence(D3DDevice* device, FenceInfo&& info)
             : mDevice(device), mInfo(eastl::move(info)) {
-            mDevice->InternalDevice()->CreateFence(mInfo.initialValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence));
+            CheckD3DResult(mDevice->InternalDevice()->CreateFence(mInfo.initialValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)), "Failed to create ID3D12Fence!");
             mEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
         }
         D3DFence::~D3DFence() {
@@ -52,7 +52,7 @@ namespace PyroshockStudios {
         }
         void D3DFence::SetValue(u64 value) {
             mCurrentValue = value;
-            mFence->Signal(value);
+            CheckD3DResult(mFence->Signal(value), "Failed to signal ID3D12Fence!");
         }
         bool D3DFence::WaitForValue(u64 value, u64 timeoutNs) {
             if (Value() >= value)
