@@ -1121,11 +1121,29 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
     tlasBuildInfo.dstTlas = tlasId;
     tlasBuildInfo.scratchBuffer = tlasScratchBuffer;
 
-    BuildAccelerationStructuresInfo buildAllInfo = {
-        .tlasBuildInfos = eastl::span<const TlasBuildInfo>(&tlasBuildInfo, 1),
-        .blasBuildInfos = eastl::span<const BlasBuildInfo>(&blasBuildInfo, 1)
-    };
-    cmd->BuildAccelerationStructures(buildAllInfo);
+
+    // build blas first
+    {
+        BuildAccelerationStructuresInfo buildInfo = {
+            .blasBuildInfos = eastl::span<const BlasBuildInfo>(&blasBuildInfo, 1),
+        };
+        cmd->BuildAccelerationStructures(buildInfo);
+    }
+    // wait for blas to finish
+
+    cmd->AccelerationStructureBarrier({
+        .accelerationStructure = blasId,
+        .srcAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_WRITE,
+        .dstAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_READ,
+    });
+    // then build tlas
+    {
+        BuildAccelerationStructuresInfo buildInfo = {
+            .tlasBuildInfos = eastl::span<const TlasBuildInfo>(&tlasBuildInfo, 1),
+        };
+        cmd->BuildAccelerationStructures(buildInfo);
+    }
+
     cmd->Complete();
 
     // 11. Submit and Wait

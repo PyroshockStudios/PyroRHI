@@ -422,11 +422,29 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, BuildTlas_Success) {
     tlasBuildInfo.dstTlas = tlasId;
     tlasBuildInfo.scratchBuffer = tlasScratchBuffer;
 
-    BuildAccelerationStructuresInfo buildAllInfo = {
-        .tlasBuildInfos = eastl::span<const TlasBuildInfo>(&tlasBuildInfo, 1),
-        .blasBuildInfos = eastl::span<const BlasBuildInfo>(&blasBuildInfo, 1)
-    };
-    cmd->BuildAccelerationStructures(buildAllInfo);
+
+    // build blas first
+    {
+        BuildAccelerationStructuresInfo buildInfo = {
+            .blasBuildInfos = eastl::span<const BlasBuildInfo>(&blasBuildInfo, 1),
+        };
+        cmd->BuildAccelerationStructures(buildInfo);
+    }
+    // wait for blas to finish
+
+    cmd->AccelerationStructureBarrier({
+        .accelerationStructure = blasId,
+        .srcAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_WRITE,
+        .dstAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_READ,
+    });
+    // then build tlas
+    {
+        BuildAccelerationStructuresInfo buildInfo = {
+            .tlasBuildInfos = eastl::span<const TlasBuildInfo>(&tlasBuildInfo, 1),
+        };
+        cmd->BuildAccelerationStructures(buildInfo);
+    }
+
     cmd->Complete();
 
     // 11. Submit and Wait
@@ -681,14 +699,31 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateTlas_Success) {
         .tlasBuildInfos = eastl::span<const TlasBuildInfo>(&initialBuildInfo, 1),
         .blasBuildInfos = eastl::span<const BlasBuildInfo>(&blasBuildInfo, 1) // Build the BLAS
     };
-    cmd->BuildAccelerationStructures(buildAllInfo);
 
-    // VERY IMPORTANT! Wait for the builds to complete!
+    // build blas first
+    {
+        BuildAccelerationStructuresInfo buildInfo = {
+            .blasBuildInfos = eastl::span<const BlasBuildInfo>(&blasBuildInfo, 1),
+        };
+        cmd->BuildAccelerationStructures(buildInfo);
+    }
+    // wait for blas to finish
+
     cmd->AccelerationStructureBarrier({
         .accelerationStructure = blasId,
-        .srcAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_READ_WRITE,
-        .dstAccess = AccessConsts::NONE, // We are not updating the blas anymore
+        .srcAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_WRITE,
+        .dstAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_READ,
     });
+    // then build tlas
+    {
+        BuildAccelerationStructuresInfo buildInfo = {
+            .tlasBuildInfos = eastl::span<const TlasBuildInfo>(&initialBuildInfo, 1),
+        };
+        cmd->BuildAccelerationStructures(buildInfo);
+    }
+
+
+    // VERY IMPORTANT! Wait for the builds to complete!
     cmd->AccelerationStructureBarrier({
         .accelerationStructure = tlasId,
         .srcAccess = AccessConsts::ACCELERATION_STRUCTURE_BUILD_READ_WRITE,

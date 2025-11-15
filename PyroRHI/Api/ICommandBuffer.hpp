@@ -974,6 +974,8 @@ namespace PyroshockStudios {
             /**
              * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
              * Builds/updates a list of BLAS/TLAS. *MUST* be called outside of a renderpass.
+             * NOTE: It is **INVALID** to build a TLAS in the same call that relies on a BLAS build. For a TLAS build to successfully complete,
+             * its BLAS must have been built in a previous BuildAccelerationStructures() call, and a AccelerationStructureBarrier().
              */
             virtual void BuildAccelerationStructures(const BuildAccelerationStructuresInfo& info) = 0;
 

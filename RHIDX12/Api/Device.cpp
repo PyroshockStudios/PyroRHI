@@ -797,7 +797,6 @@ namespace PyroshockStudios {
 
             D3D12MA::ALLOCATION_DESC allocDesc = {};
             allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;
-
             CheckD3DResult(mAllocator->CreateResource(
                                &allocDesc,
                                &bufferDesc,

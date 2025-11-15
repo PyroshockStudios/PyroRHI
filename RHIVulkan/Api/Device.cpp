@@ -177,11 +177,16 @@ namespace PyroshockStudios {
 
                 tryEnableExtension(
                     extension, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, physicalDeviceAccelerationStructureFeatures,
-                    [&]() { return physicalDeviceAccelerationStructureFeatures.accelerationStructure == VK_TRUE; },
+                    [&]() { return physicalDeviceAccelerationStructureFeatures.accelerationStructure == VK_TRUE &&
+                                   physicalDeviceAccelerationStructureFeatures.descriptorBindingAccelerationStructureUpdateAfterBind == VK_TRUE; },
                     [&]() {
                         Logger::Info(gVulkanSink, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME " is supported on this device.");
 
+                        physicalDeviceAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
+                        physicalDeviceAccelerationStructureFeatures.descriptorBindingAccelerationStructureUpdateAfterBind = VK_TRUE;
                         physicalDeviceAccelerationStructureFeatures.accelerationStructureCaptureReplay = VK_FALSE;
+                        physicalDeviceAccelerationStructureFeatures.accelerationStructureHostCommands = VK_FALSE;
+                        physicalDeviceAccelerationStructureFeatures.accelerationStructureIndirectBuild = VK_FALSE;
 
                         mFeatures.bAccelerationStructureBuild = true;
                         mVulkanCaps.bVK_KHR_acceleration_structures = true;
@@ -207,6 +212,7 @@ namespace PyroshockStudios {
                     extension, VK_KHR_RAY_QUERY_EXTENSION_NAME, physicalDeviceRayQueryFeatures,
                     [&]() { return physicalDeviceRayQueryFeatures.rayQuery == VK_TRUE; },
                     [&]() {
+                        physicalDeviceRayQueryFeatures.rayQuery = VK_TRUE;
                         Logger::Info(gVulkanSink, VK_KHR_RAY_QUERY_EXTENSION_NAME " is supported on this device.");
                         mFeatures.bRayQueries = true;
                         mVulkanCaps.bVK_KHR_ray_query = true;

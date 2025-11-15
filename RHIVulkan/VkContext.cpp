@@ -316,7 +316,7 @@ namespace PyroshockStudios::RHIVulkan {
                 VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
             debugInfo.pUserData = static_cast<void*>(mVVLSink);
             debugInfo.pfnUserCallback = [](VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-                                            VkDebugUtilsMessageTypeFlagsEXT,
+                                            VkDebugUtilsMessageTypeFlagsEXT type,
                                             const VkDebugUtilsMessengerCallbackDataEXT* data,
                                             void* userdata) -> VkBool32 {
                 auto* vvlSink = static_cast<ILogStream*>(userdata);
