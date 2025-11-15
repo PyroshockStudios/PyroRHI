@@ -94,7 +94,7 @@ namespace PyroshockStudios {
             };
 
             VkResult result = vkCreateDescriptorPool(device, &vkDescriptorPoolCreateInfo, allocator, &mDescriptorPool);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create descriptor pool!");
 
             if (vkSetDebugUtilsObjectNameEXT != nullptr) {
                 const char* descriptorPoolName = "Mega Descriptor Pool";
@@ -126,7 +126,7 @@ namespace PyroshockStudios {
             };
 
             result = vkAllocateDescriptorSets(device, &vkDescriptorSetAllocateInfo, &mBindlessDescriptorSet);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to allocate descriptor sets!");
             if (vkSetDebugUtilsObjectNameEXT != nullptr) {
                 const char* name = "Bindless Descriptor Set";
                 const VkDebugUtilsObjectNameInfoEXT nameInfo = {
@@ -155,7 +155,7 @@ namespace PyroshockStudios {
             };
 
             vkCreatePipelineLayout(device, &vkPipelineLayoutCreateInfo, allocator, &mPipelineLayout);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create global pipeline layout!");
             if (vkSetDebugUtilsObjectNameEXT != nullptr) {
                 const char* name = "Universal Pipeline Layout";
                 const VkDebugUtilsObjectNameInfoEXT nameInfo = {
@@ -383,7 +383,7 @@ namespace PyroshockStudios {
             };
 
             VkResult result = vkCreateDescriptorSetLayout(device, &vkDescriptorSetLayoutCreateInfo, allocator, &mBindlessDescriptorSetLayout);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create bindless descriptor set layout!");
 
             if (vkSetDebugUtilsObjectNameEXT != nullptr) {
                 const char* name = "Bindless Sescriptor Set Layout";
@@ -394,8 +394,7 @@ namespace PyroshockStudios {
                     .objectHandle = eastl::bit_cast<uint64_t>(mBindlessDescriptorSetLayout),
                     .pObjectName = name,
                 };
-                result = vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
-                CheckVkResult(result);
+                vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
             }
         }
 
@@ -445,7 +444,7 @@ namespace PyroshockStudios {
 
             VkResult result = vkCreateDescriptorSetLayout(device, &vkDescriptorSetLayoutCreateInfo,
                 allocator, &mPushDescriptorSetLayout);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create push descriptor set layout!");
 
             if (vkSetDebugUtilsObjectNameEXT != nullptr) {
                 const char* name = "Push Descriptor Set Layout";
@@ -456,8 +455,7 @@ namespace PyroshockStudios {
                     .objectHandle = eastl::bit_cast<uint64_t>(mPushDescriptorSetLayout),
                     .pObjectName = name,
                 };
-                result = vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
-                CheckVkResult(result);
+                vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
             }
         }
     } // namespace RHIVulkan

@@ -187,7 +187,7 @@ namespace PyroshockStudios::RHIVulkan {
             VkHeadlessSurfaceCreateInfoEXT createInfo{ VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT };
             result = vkCreateHeadlessSurfaceEXT(mDevice->Context()->GetVkInstance(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSurface);
         }
-        CheckVkResult(result);
+        CheckVkResult(result, "Failed to create window surface!");
     }
     void VulkanSwapChain::CreateSwapChain(VkSwapchainKHR oldSwapChain) {
         mInfo.bufferCount = eastl::clamp(mInfo.bufferCount, mSupportInfo.capabilities.minImageCount, mSupportInfo.capabilities.maxImageCount);
@@ -239,14 +239,14 @@ namespace PyroshockStudios::RHIVulkan {
         createInfo.oldSwapchain = oldSwapChain;
 
         VkResult result = vkCreateSwapchainKHR(mDevice->GetVkDevice(), &createInfo, mDevice->Context()->GetVkAllocator(), &mSwapChain);
-        CheckVkResult(result);
+        CheckVkResult(result, "Failed to create swap chain!");
 
         u32 imageCount = 0;
-        vkGetSwapchainImagesKHR(mDevice->GetVkDevice(), mSwapChain, &imageCount, nullptr);
+        CheckVkResult(vkGetSwapchainImagesKHR(mDevice->GetVkDevice(), mSwapChain, &imageCount, nullptr), "Failed to get swap buffers!");
         mInfo.bufferCount = imageCount;
         mSwapImages.resize(static_cast<usize>(imageCount));
         mWrappedImages.resize(static_cast<usize>(imageCount));
-        vkGetSwapchainImagesKHR(mDevice->GetVkDevice(), mSwapChain, &imageCount, mSwapImages.data());
+        CheckVkResult(vkGetSwapchainImagesKHR(mDevice->GetVkDevice(), mSwapChain, &imageCount, mSwapImages.data()), "Failed to get swap buffers!");
         for (u32 i = 0; i < mSwapImages.size(); ++i) {
             if (vkSetDebugUtilsObjectNameEXT) {
                 eastl::string name = mInfo.name + " (Vk Swap Image #" + eastl::to_string(i) + ")";
@@ -293,7 +293,7 @@ namespace PyroshockStudios::RHIVulkan {
 
             VkResult result = vkCreateSemaphore(mDevice->GetVkDevice(),
                 &createInfo, mDevice->Context()->GetVkAllocator(), &mImageAcquireSemaphores[i]);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create swap chain acquire semaphore!");
 
             if (vkSetDebugUtilsObjectNameEXT) {
                 eastl::string name1 = mInfo.name + " Acquire Image Semaphore #" + eastl::to_string(i);

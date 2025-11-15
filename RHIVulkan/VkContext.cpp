@@ -143,7 +143,7 @@ namespace PyroshockStudios::RHIVulkan {
     VulkanContext::VulkanContext(const VulkanContextArgs& args, ILogStream* logSink, ILogStream* vvlSink) : mPreferredDeviceIndex(args.preferredPhysicalDevice),
                                                                                                             mVVLSink(vvlSink) {
         VulkanContext::InjectLogger(logSink);
-        CheckVkResult(volkInitialize());
+        CheckVkResult(volkInitialize(), "Failed to initialise Volk!");
         eastl::vector<char const*> enabledExtensions = {};
         bool bTrueHeadlessInstance = args.bHeadless;
 
@@ -173,11 +173,11 @@ namespace PyroshockStudios::RHIVulkan {
         eastl::vector<VkExtensionProperties> instance_extensions = {};
         uint32_t instance_extension_count = {};
         VkResult result = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr);
-        CheckVkResult(result);
+        CheckVkResult(result, "Failed to vkEnumerateInstanceExtensionProperties!");
 
         instance_extensions.resize(instance_extension_count);
         result = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, instance_extensions.data());
-        CheckVkResult(result);
+        CheckVkResult(result, "Failed to vkEnumerateInstanceExtensionProperties!");
 
         for (auto const* req_ext : explicitExtensions) {
             bool found = false;
@@ -188,7 +188,8 @@ namespace PyroshockStudios::RHIVulkan {
                 }
             }
             if (!found) {
-                throw std::runtime_error(fmt::format("Missing required Vulkan instance extension: {}", req_ext));
+                Logger::Fatal(gVulkanSink, "Missing required Vulkan instance extension: {}", req_ext);
+                return;
             }
             enabledExtensions.push_back(req_ext);
         }
@@ -245,9 +246,9 @@ namespace PyroshockStudios::RHIVulkan {
 
         eastl::vector<VkLayerProperties> instance_layers = {};
         uint32_t instance_layer_count = {};
-        CheckVkResult(vkEnumerateInstanceLayerProperties(&instance_layer_count, nullptr));
+        CheckVkResult(vkEnumerateInstanceLayerProperties(&instance_layer_count, nullptr), "Failed to vkEnumerateInstanceLayerProperties");
         instance_layers.resize(instance_layer_count);
-        CheckVkResult(vkEnumerateInstanceLayerProperties(&instance_layer_count, instance_layers.data()));
+        CheckVkResult(vkEnumerateInstanceLayerProperties(&instance_layer_count, instance_layers.data()), "Failed to vkEnumerateInstanceLayerProperties");
 
         for (const char* lay : implicitEnabledLayers) {
             bool found = false;
@@ -298,8 +299,7 @@ namespace PyroshockStudios::RHIVulkan {
 
         CreateAllocationCallbacks();
 
-        VkResult result = vkCreateInstance(&instanceCreateInfo, &mAllocator, &mInstance);
-        CheckVkResult(result);
+        CheckVkResult(vkCreateInstance(&instanceCreateInfo, &mAllocator, &mInstance), "Failed to create VkInstance!");
         volkLoadInstance(mInstance);
 
         if (args.bEnableValidation) {
@@ -322,16 +322,16 @@ namespace PyroshockStudios::RHIVulkan {
                 auto* vvlSink = static_cast<ILogStream*>(userdata);
                 switch (severity) {
                 case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-                    Logger::Verbose(vvlSink, data->pMessage);
+                    Logger::Verbose(vvlSink, "{}", data->pMessage);
                     break;
                 case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-                    Logger::Info(vvlSink, data->pMessage);
+                    Logger::Info(vvlSink, "{}", data->pMessage);
                     break;
                 case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-                    Logger::Warn(vvlSink, data->pMessage);
+                    Logger::Warn(vvlSink, "{}", data->pMessage);
                     break;
                 case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-                    Logger::Error(vvlSink, data->pMessage);
+                    Logger::Error(vvlSink, "{}", data->pMessage);
                     break;
                 default:
                     break;
@@ -339,7 +339,7 @@ namespace PyroshockStudios::RHIVulkan {
                 return VK_FALSE;
             };
 
-            CheckVkResult(m_fnVkCreateDebugUtilsMessengerEXT(mInstance, &debugInfo, &mAllocator, &mMessenger));
+            CheckVkResult(m_fnVkCreateDebugUtilsMessengerEXT(mInstance, &debugInfo, &mAllocator, &mMessenger), "Failed to hook vulkan debug messenger!");
         }
         bHeadlessEnabled = bTrueHeadlessInstance;
     }
@@ -359,13 +359,11 @@ namespace PyroshockStudios::RHIVulkan {
 
     IDevice* VulkanContext::CreateDevice() {
         u32 deviceCount = 0;
-        auto result = vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr);
-        CheckVkResult(result);
+        CheckVkResult(vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr), "Failed to enumerate vulkan devices!");
 
         eastl::vector<VkPhysicalDevice> vkPhysicalDevices = {};
         vkPhysicalDevices.resize(deviceCount);
-        result = vkEnumeratePhysicalDevices(mInstance, &deviceCount, vkPhysicalDevices.data());
-        CheckVkResult(result);
+        CheckVkResult(vkEnumeratePhysicalDevices(mInstance, &deviceCount, vkPhysicalDevices.data()), "Failed to enumerate vulkan devices!");
 
         VkPhysicalDevice vkPhysicalDevice = {};
         VkPhysicalDeviceProperties vkPhysicalDeviceProperties = {};

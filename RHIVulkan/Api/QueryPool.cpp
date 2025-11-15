@@ -36,8 +36,8 @@ namespace PyroshockStudios {
                 .queryCount = info.queryCount,
             };
 
-            vkCreateQueryPool(device->GetVkDevice(),
-                &createInfo, device->Context()->GetVkAllocator(), &mQueryPool);
+           CheckVkResult(vkCreateQueryPool(device->GetVkDevice(),
+                &createInfo, device->Context()->GetVkAllocator(), &mQueryPool), "Failed to create timestamp query pool!");
             if (vkSetDebugUtilsObjectNameEXT) {
                 const VkDebugUtilsObjectNameInfoEXT nameinfo = {
                     .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
@@ -46,7 +46,7 @@ namespace PyroshockStudios {
                     .objectHandle = eastl::bit_cast<uint64_t>(mQueryPool),
                     .pObjectName = info.name.c_str(),
                 };
-                CheckVkResult(vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &nameinfo));
+                vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &nameinfo);
             }
             mResultBuffer.resize(info.queryCount);
         }
@@ -61,7 +61,7 @@ namespace PyroshockStudios {
             if (result == VK_NOT_READY) {
                 return {};
             } else {
-                CheckVkResult(result);
+                CheckVkResult(result, "Failed to get timestamp query results!");
             } 
             return eastl::span<const u64>(mResultBuffer.cbegin() + startIndex, mResultBuffer.cbegin() + startIndex + count);
         }

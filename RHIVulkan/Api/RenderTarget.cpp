@@ -57,7 +57,7 @@ namespace PyroshockStudios {
             imageViewCreateInfo.subresourceRange = subresourceRange;
             imageViewCreateInfo.image = imageSlot.vkImage;
             VkResult result = vkCreateImageView(mDevice->GetVkDevice(), &imageViewCreateInfo, mDevice->Context()->GetVkAllocator(), &mImageView);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create render target image view!");
 
             if (vkSetDebugUtilsObjectNameEXT) {
                 const VkDebugUtilsObjectNameInfoEXT nameInfo = {

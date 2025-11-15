@@ -59,7 +59,7 @@ namespace PyroshockStudios::RHIVulkan {
         mImageIndices.emplace_back(swap->GetCurrentImageIndex());
     }
     void VulkanCommandQueue::WaitIdle() {
-        vkQueueWaitIdle(mQueue);
+        CheckVkResult(vkQueueWaitIdle(mQueue), "Failed to idle command queue!");
     }
     f64 VulkanCommandQueue::GetTimestampTickPeriodNs() const {
         return static_cast<f64>(mDevice->GetVkPhysicalDeviceProperties().limits.timestampPeriod);

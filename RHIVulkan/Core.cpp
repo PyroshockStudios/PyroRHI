@@ -180,10 +180,10 @@ namespace PyroshockStudios {
             return "VK_NON_1_3_COMPLIANT_ERROR";
         }
 
-        void CheckVkResult(VkResult result) {
+        void CheckVkResult(VkResult result, const char* errormsg) {
             if (result == VK_SUCCESS)
                 return;
-            Logger::Fatal(gVulkanSink, "Vulkan error! Expected VK_SUCCESS but found '{}' ({})", ToString(result), static_cast<int>(result));
+            Logger::Fatal(gVulkanSink, "Vulkan error: {}! Expected VK_SUCCESS but found '{}' ({})", errormsg, ToString(result), static_cast<int>(result));
         }
     } // namespace RHIVulkan
 } // namespace PyroshockStudios
