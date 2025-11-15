@@ -68,7 +68,6 @@ namespace PyroshockStudios {
         struct ShaderFeatureInfo {
             bool bDescriptorIndexing = false;
             bool bBufferDeviceAddress = false;
-            bool bScalarLayout = false;
             bool bDrawParameters = false;
             bool bGLSL = false;
         };

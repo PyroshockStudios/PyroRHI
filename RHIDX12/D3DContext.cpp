@@ -278,7 +278,6 @@ namespace PyroshockStudios::RHIDX12 {
         static auto features = ShaderFeatureInfo{
             .bDescriptorIndexing = true,
             .bBufferDeviceAddress = false,
-            .bScalarLayout = true,
             .bDrawParameters = false,
             .bGLSL = false,
         };

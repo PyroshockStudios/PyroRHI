@@ -98,13 +98,7 @@ namespace PyroshockStudios {
                 .timelineSemaphore = VK_TRUE,
             };
 
-            VkPhysicalDeviceScalarBlockLayoutFeatures physicalDeviceScalarBlockLayoutFeatures = {
-                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES,
-                .pNext = reinterpret_cast<void*>(&physicalDeviceFenceFeatures),
-                .scalarBlockLayout = VK_TRUE,
-            };
-
-            void* lastPhysicalDevicePnext = reinterpret_cast<void*>(&physicalDeviceScalarBlockLayoutFeatures);
+            void* lastPhysicalDevicePnext = reinterpret_cast<void*>(&physicalDeviceFenceFeatures);
 
             eastl::vector<const char*> extensions = {
                 VK_KHR_SWAPCHAIN_EXTENSION_NAME,

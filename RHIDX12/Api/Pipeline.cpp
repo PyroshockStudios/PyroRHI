@@ -47,7 +47,7 @@ namespace PyroshockStudios {
 
             // HACK: There is no clean way to get the variable names originally declared,
             if (bDxil) {
-                eastl::string disasm = DissasembleDXIL(code.data(), code.size());
+                // eastl::string disasm = DissasembleDXIL(code.data(), code.size());
                 /*
                 *   TODO: implement this for DXIL. Not entirely sure what the indicator is, but might be something like this
                 * 

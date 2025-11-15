@@ -62,8 +62,6 @@ namespace PyroshockStudios::RHIVulkan {
         AddFeatureIfMissing(features.features.wideLines, "wideLines");
         AddFeatureIfMissing(features.features.samplerAnisotropy, "samplerAnisotropy");
         AddFeatureIfMissing(features.features.fragmentStoresAndAtomics, "fragmentStoresAndAtomics");
-        AddFeatureIfMissing(features.features.shaderImageGatherExtended, "shaderImageGatherExtended");
-        AddFeatureIfMissing(features.features.shaderStorageImageMultisample, "shaderStorageImageMultisample");
         // AddFeatureIfMissing(features.features.shaderStorageImageReadWithoutFormat, "shaderStorageImageReadWithoutFormat");
         // AddFeatureIfMissing(features.features.shaderStorageImageWriteWithoutFormat, "shaderStorageImageWriteWithoutFormat");
         AddFeatureIfMissing(features.features.shaderClipDistance, "shaderClipDistance");
@@ -84,8 +82,6 @@ namespace PyroshockStudios::RHIVulkan {
         AddFeatureIfMissing(descriptorIndexingFeatures.runtimeDescriptorArray, "Descriptor Indexing: runtimeDescriptorArray");
 
         AddFeatureIfMissing(dynamicRenderingFeatures.dynamicRendering, "Vulkan 1.3 Dynamic Rendering");
-
-        AddFeatureIfMissing(scalarBlockLayoutFeatures.scalarBlockLayout, "Vulkan 1.3 Scalar Block Layout");
 
         // --- Check properties ---
         VkPhysicalDevicePushDescriptorPropertiesKHR pushDescriptorProps{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PUSH_DESCRIPTOR_PROPERTIES_KHR };
@@ -539,7 +535,6 @@ namespace PyroshockStudios::RHIVulkan {
         static auto features = ShaderFeatureInfo{
             .bDescriptorIndexing = true,
             .bBufferDeviceAddress = true,
-            .bScalarLayout = true,
             .bDrawParameters = true,
             .bGLSL = true,
         };
