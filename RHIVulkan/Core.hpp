@@ -86,7 +86,7 @@ namespace PyroshockStudios {
         constexpr u32 MAX_VK_VIRTUAL_MEMORIES = 16384;
         constexpr u32 MAX_VK_ACCELERATION_STRUCTURES = 4096;
 
-        void CheckVkResult(VkResult result);
+        void CheckVkResult(VkResult result, const char* errormsg);
 
         PYRO_FORCEINLINE static constexpr VkFormat ToVkFormat(Format type) { return static_cast<VkFormat>(type); }
         PYRO_FORCEINLINE static constexpr VkSamplerAddressMode ToVkSamplerAddressMode(SamplerAddressMode type) { return static_cast<VkSamplerAddressMode>(type); }

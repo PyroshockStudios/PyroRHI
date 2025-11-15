@@ -40,7 +40,7 @@ namespace PyroshockStudios {
             };
             VkShaderModule module = {};
             VkResult result = vkCreateShaderModule(device->GetVkDevice(), &moduleCreateInfo, device->Context()->GetVkAllocator(), &module);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to compile shader module!");
 
             VkPipelineShaderStageCreateInfo stageCreateInfo = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -278,7 +278,7 @@ namespace PyroshockStudios {
             };
 
             VkResult result = vkCreateGraphicsPipelines(mDevice->GetVkDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, mDevice->Context()->GetVkAllocator(), &mPipeline);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create raster pipeline!");
 
             if (vkSetDebugUtilsObjectNameEXT) {
                 const VkDebugUtilsObjectNameInfoEXT nameinfo = {
@@ -288,8 +288,7 @@ namespace PyroshockStudios {
                     .objectHandle = eastl::bit_cast<uint64_t>(mPipeline),
                     .pObjectName = info.name.c_str(),
                 };
-                result = vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &nameinfo);
-                CheckVkResult(result);
+                vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &nameinfo);
             }
             for (const auto& stage : shaderStages) {
                 vkDestroyShaderModule(mDevice->GetVkDevice(), stage.module, mDevice->Context()->GetVkAllocator());
@@ -310,7 +309,7 @@ namespace PyroshockStudios {
             };
 
             VkResult result = vkCreateComputePipelines(mDevice->GetVkDevice(), VK_NULL_HANDLE, 1, &createInfo, mDevice->Context()->GetVkAllocator(), &mPipeline);
-            CheckVkResult(result);
+            CheckVkResult(result, "Failed to create compute pipeline!");
 
             if (vkSetDebugUtilsObjectNameEXT) {
                 const VkDebugUtilsObjectNameInfoEXT nameinfo = {
@@ -320,8 +319,7 @@ namespace PyroshockStudios {
                     .objectHandle = eastl::bit_cast<uint64_t>(mPipeline),
                     .pObjectName = info.name.c_str(),
                 };
-                result = vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &nameinfo);
-                CheckVkResult(result);
+                vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &nameinfo);
             }
             for (const auto& stage : shaderStages) {
                 vkDestroyShaderModule(mDevice->GetVkDevice(), stage.module, mDevice->Context()->GetVkAllocator());
