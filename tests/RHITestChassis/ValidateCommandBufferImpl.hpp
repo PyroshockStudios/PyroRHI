@@ -1073,6 +1073,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
         .transform = Transform::IDENTITY,
         .instanceCustomIndex = 0,
         .mask = 0xFF,
+        .flags = AccelerationStructureGeometryInstanceFlagBits::TRIANGLE_FACING_CULL_DISABLE |
+                 AccelerationStructureGeometryInstanceFlagBits::FORCE_OPAQUE,
         .blasAddress = mDevice->BlasInstanceAddress(blasId),
     };
     BufferInfo instanceBufferInfo = {
@@ -1196,7 +1198,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
 
     // expect the ray to intersect!!!
     u32 rayIntersectResult = *mDevice->BufferHostAddressAs<u32>(readbackBuffer);
-    // EXPECT_EQ(rayIntersectResult, 1);
+    EXPECT_EQ(rayIntersectResult, 1);
 
     mDevice->DestroyTlas(tlasId, false);
     mDevice->DestroyBuffer(tlasScratchBuffer, false);
