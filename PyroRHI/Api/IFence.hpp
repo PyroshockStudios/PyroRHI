@@ -83,7 +83,7 @@ namespace PyroshockStudios {
 
         protected:
             virtual ~IFence() = default;
-            friend class IDevice;
+            friend struct IDevice;
         };
     } // namespace RHI
 } // namespace PyroshockStudios

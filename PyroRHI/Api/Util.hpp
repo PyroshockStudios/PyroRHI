@@ -528,7 +528,7 @@ namespace PyroshockStudios {
 
             default: {
                 // Uncompressed formats: width * bytesPerPixel
-                const float bpp = RHIUtil::GetFormatSize(format);
+                const float bpp = static_cast<float>(RHIUtil::GetFormatSize(format));
                 const DeviceSize rowBytes = PYRO_ALIGN(static_cast<DeviceSize>(width * bpp), static_cast<DeviceSize>(rowAlignment));
                 return rowBytes * height * depth;
             }
