@@ -703,21 +703,21 @@ namespace PyroshockStudios {
             PYRO_FORCEINLINE void Destroy(BlasId& blas, bool bDefer = false) { DestroyBlas(blas, bDefer); }
             PYRO_FORCEINLINE void Destroy(TlasId& tlas, bool bDefer = false) { DestroyTlas(tlas, bDefer); }
 
-            PYRO_FORCEINLINE void DestroyImmediately(MemoryBlock& memory) { DestroyMemoryBlock(memory, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(Buffer& buffer) { DestroyBuffer(buffer, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(Image& image) { DestroyImage(image, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(ShaderResourceId& srv) { DestroyShaderResource(srv, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(UnorderedAccessId& uav) { DestroyUnorderedAccess(uav, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(SamplerId& sampler) { DestroySampler(sampler, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(RasterPipeline& pipeline) { DestroyRasterPipeline(pipeline, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(ComputePipeline& pipeline) { DestroyComputePipeline(pipeline, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(ISwapChain*& swapChain) { DestroySwapChain(swapChain, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(RenderTarget& renderTarget) { DestroyRenderTarget(renderTarget, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(Semaphore& semaphore) { DestroySemaphore(semaphore, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(IFence*& fence) { DestroyFence(fence, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(ITimestampQueryPool*& queryPool) { DestroyTimestampQueryPool(queryPool, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(BlasId& blas) { DestroyBlas(blas, false); }
-            PYRO_FORCEINLINE void DestroyImmediately(TlasId& tlas) { DestroyTlas(tlas, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(MemoryBlock memory) { DestroyMemoryBlock(memory, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(Buffer buffer) { DestroyBuffer(buffer, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(Image image) { DestroyImage(image, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(ShaderResourceId srv) { DestroyShaderResource(srv, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(UnorderedAccessId uav) { DestroyUnorderedAccess(uav, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(SamplerId sampler) { DestroySampler(sampler, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(RasterPipeline pipeline) { DestroyRasterPipeline(pipeline, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(ComputePipeline pipeline) { DestroyComputePipeline(pipeline, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(ISwapChain* swapChain) { DestroySwapChain(swapChain, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(RenderTarget renderTarget) { DestroyRenderTarget(renderTarget, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(Semaphore semaphore) { DestroySemaphore(semaphore, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(IFence* fence) { DestroyFence(fence, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(ITimestampQueryPool* queryPool) { DestroyTimestampQueryPool(queryPool, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(BlasId blas) { DestroyBlas(blas, false); }
+            PYRO_FORCEINLINE void DestroyImmediately(TlasId tlas) { DestroyTlas(tlas, false); }
 
             PYRO_FORCEINLINE void DestroyDeferred(MemoryBlock memory) { DestroyMemoryBlock(memory, true); }
             PYRO_FORCEINLINE void DestroyDeferred(Buffer buffer) { DestroyBuffer(buffer, true); }
