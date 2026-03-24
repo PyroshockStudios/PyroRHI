@@ -1,17 +1,8 @@
 # PyroRHI
 
-### Build Tests:
 [![Windows MSVC](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-windows-msvc.yml/badge.svg)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-windows-msvc.yml)
 [![Linux GCC & Clang](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-linux.yml/badge.svg)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-linux.yml)
 [![macOS ARM/x86](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-macos.yml/badge.svg)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-macos.yml)
-
-
-### API Validation tests:
-[![Vulkan 1.3 (Ubuntu GCC)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-vulkan-linux.yml/badge.svg)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-vulkan-linux.yml)
-
-[![DirectX 12 (Windows ClangCL)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-dx12-windows.yml/badge.svg)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-dx12-windows.yml)
-
-[![Test Coverage](https://codecov.io/gh/PyroshockStudios/PyroRHI/branch/master/graph/badge.svg)](https://codecov.io/gh/PyroshockStudios/PyroRHI)
 
 > Modern C++ Rendering Hardware Interface
 
@@ -28,12 +19,6 @@ The goal is not to hide low-level rendering, but to present it through a consist
 - Shader model and backend feature queries
 - Modern GPU features including acceleration structures and ray-query-oriented workflows where supported
 
-## Testing
-
-PyroRHI includes a shared validation chassis that dynamically loads each backend and runs the same API-level tests against it. This verifies the exported backend ABI as well as real behavior for resource creation, command recording, synchronization, shader compilation, and advanced feature paths.
-
-The test suite uses GoogleTest, integrates Vulkan validation layer and DX12 debug-layer output into failures, and includes shader-driven integration tests compiled through Slang.
-
 ## Backends
 
 | Backend | Platform | Status |
@@ -41,6 +26,18 @@ The test suite uses GoogleTest, integrates Vulkan validation layer and DX12 debu
 | Vulkan 1.3 | Windows, Linux | Active |
 | DirectX 12 | Windows | Active |
 | Metal | Apple platforms | In progress |
+
+[![Vulkan 1.3 (Ubuntu GCC)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-vulkan-linux.yml/badge.svg)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-vulkan-linux.yml)
+
+[![DirectX 12 (Windows ClangCL)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-dx12-windows.yml/badge.svg)](https://github.com/PyroshockStudios/PyroRHI/actions/workflows/cmake-validate-dx12-windows.yml)
+
+## Testing
+
+PyroRHI includes a shared validation chassis that dynamically loads each backend and runs the same API-level tests against it. This verifies the exported backend ABI as well as real behavior for resource creation, command recording, synchronization, shader compilation, and advanced feature paths.
+
+The test suite uses GoogleTest, integrates Vulkan validation layer and DX12 debug-layer output into failures, and includes shader-driven integration tests compiled through Slang.
+
+[![Test Coverage](https://codecov.io/gh/PyroshockStudios/PyroRHI/branch/master/graph/badge.svg)](https://codecov.io/gh/PyroshockStudios/PyroRHI)
 
 ## License
 
