@@ -63,11 +63,9 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
 
     CommandQueueSubmitInfo submitInfo = {};
     submitInfo.queue = queue;
-    submitInfo.signalPresentReadySemaphores = eastl::span(&signalPresent, 1);
 
     CommandQueuePresentInfo presentInfo = {};
     presentInfo.queue = queue;
-    presentInfo.waitSemaphores = eastl::span(&waitPresentSemaphore, 1);
 
     i32 imageIndex = -1;
     u32 failedAcquires = 0;
@@ -85,8 +83,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
         .dstLayout = ImageLayout::PresentSrc,
     });
     commandBuffer->Complete();
-    queue->SubmitCommandBuffer(commandBuffer);
-    queue->SubmitSwapChain(swapChain);
+    mDevice->SubmitQueue({ .queue = queue, .commands = {&commandBuffer, 1}});
 
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);
@@ -122,11 +119,10 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
 
     CommandQueueSubmitInfo submitInfo = {};
     submitInfo.queue = queue;
-    submitInfo.signalPresentReadySemaphores = eastl::span(&signalPresent, 1);
+    submitInfo.signalSemaphores = eastl::span(&signalPresent, 1);
 
     CommandQueuePresentInfo presentInfo = {};
     presentInfo.queue = queue;
-    presentInfo.waitSemaphores = eastl::span(&waitPresentSemaphore, 1);
 
     i32 imageIndex = -1;
     u32 failedAcquires = 0;
@@ -144,8 +140,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
         .dstLayout = ImageLayout::PresentSrc,
     });
     commandBuffer->Complete();
-    queue->SubmitCommandBuffer(commandBuffer);
-    queue->SubmitSwapChain(swapChain);
+    mDevice->SubmitQueue({.queue = queue, .commands =  {&commandBuffer, 1}});
 
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);
@@ -183,11 +178,10 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
 
     CommandQueueSubmitInfo submitInfo = {};
     submitInfo.queue = queue;
-    submitInfo.signalPresentReadySemaphores = eastl::span(&signalPresent, 1);
+    submitInfo.signalSemaphores = eastl::span(&signalPresent, 1);
 
     CommandQueuePresentInfo presentInfo = {};
     presentInfo.queue = queue;
-    presentInfo.waitSemaphores = eastl::span(&waitPresentSemaphore, 1);
     ICommandBuffer* commandBuffer = queue->GetCommandBuffer({});
 
     for (ISwapChain* swapChain : swapChains) {
@@ -204,10 +198,9 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
             .srcLayout = ImageLayout::Undefined,
             .dstLayout = ImageLayout::PresentSrc,
         });
-        queue->SubmitSwapChain(swapChain);
     }
     commandBuffer->Complete();
-    queue->SubmitCommandBuffer(commandBuffer);
+    submitInfo.commands = {&commandBuffer, 1};
 
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);

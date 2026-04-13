@@ -195,7 +195,7 @@ protected:
         fpCreateContext(&mCreateInfo, &mApi);
         ASSERT_NE(mApi.loadedContext, nullptr) << "Failed to create " RHI_TEST_CHASSIS_API_LOG_NAME " Context";
 
-        mDevice = mApi.loadedContext->CreateDevice();
+        mDevice = mApi.loadedContext->CreateDevice({});
         ASSERT_NE(mDevice, nullptr) << "Failed to create " RHI_TEST_CHASSIS_API_LOG_NAME " Device";
 
         mShaderCompiler = new ShaderCompiler(mApi.loadedContext->ShaderFeatureSet());

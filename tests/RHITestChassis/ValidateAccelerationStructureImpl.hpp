@@ -295,8 +295,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, BuildBlas_Success) {
     cmd->Complete();
 
     // 7. Submit and Wait
-    queue->SubmitCommandBuffer(cmd);
-    mDevice->SubmitQueue({ .queue = queue });
+    mDevice->SubmitQueue({ .queue = queue, .commands =  {&cmd, 1} });
     mDevice->WaitIdle(); // Wait for the build to complete on GPU
 
     // --- Assert ---
@@ -448,8 +447,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, BuildTlas_Success) {
     cmd->Complete();
 
     // 11. Submit and Wait
-    queue->SubmitCommandBuffer(cmd);
-    mDevice->SubmitQueue({ .queue = queue });
+    mDevice->SubmitQueue({ .queue = queue, .commands = {&cmd, 1} });
     mDevice->WaitIdle();
 
     // --- Assert ---
@@ -590,8 +588,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateBlas_Success) {
     cmd->Complete();
 
     // 9. Submit and Wait
-    queue->SubmitCommandBuffer(cmd);
-    mDevice->SubmitQueue({ .queue = queue });
+    mDevice->SubmitQueue({ .queue = queue, .commands = {&cmd, 1} });
     mDevice->WaitIdle();
 
     // --- Assert ---
@@ -764,8 +761,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateTlas_Success) {
     cmd->Complete();
 
     // 10. Submit and Wait
-    queue->SubmitCommandBuffer(cmd);
-    mDevice->SubmitQueue({ .queue = queue });
+    mDevice->SubmitQueue({ .queue = queue, .commands = {&cmd, 1} });
     mDevice->WaitIdle();
 
     // --- Assert ---

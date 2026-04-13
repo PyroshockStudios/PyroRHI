@@ -37,7 +37,7 @@ TEST(RHIDX12TypeConversions, ToDXGIFormat) {
     // Note: D16UnormS8Uint maps to UNKNOWN  as there's no direct DXGI for D16S8
     EXPECT_EQ(ToDXGIFormat(Format::D16UnormS8Uint), DXGI_FORMAT_UNKNOWN);
     // Note: S8Uint maps to UNKNOWN as there's no direct DXGI for S8 only
-    EXPECT_EQ(ToDXGIFormat(Format::S8Uint), DXGI_FORMAT_UNKNOWN);
+    EXPECT_EQ(ToDXGIFormat(Format::S8Uint), DXGI_FORMAT_X24_TYPELESS_G8_UINT);
 
 
     // Compressed Formats

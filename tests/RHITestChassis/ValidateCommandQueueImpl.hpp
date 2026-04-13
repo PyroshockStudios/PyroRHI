@@ -108,8 +108,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
     TRACK_RHI_HANDLE(graphicsDest);
 
     // Record copy commands
+    ICommandBuffer* copyCommands = (*pCopyQueue)->GetCommandBuffer({});
     {
-        ICommandBuffer* copyCommands = (*pCopyQueue)->GetCommandBuffer({});
         TRACK_RHI_HANDLE(copyCommands);
 
         CopyImageToImageInfo copyInfo{};
@@ -139,11 +139,11 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
         EXPECT_NO_THROW(copyCommands->TransferImageOwnership(dst, *pGraphicsQueue));
 
         copyCommands->Complete();
-        (*pCopyQueue)->SubmitCommandBuffer(copyCommands);
+        copySubmitInfo.commands = {&copyCommands, 1};
     }
     // Record graphics commands
+    ICommandBuffer* graphicsCommands = (*pGraphicsQueue)->GetCommandBuffer({});
     {
-        ICommandBuffer* graphicsCommands = (*pGraphicsQueue)->GetCommandBuffer({});
         TRACK_RHI_HANDLE(graphicsCommands);
 
         // Acquire queue ownership transfer! Very important!
@@ -175,7 +175,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
         EXPECT_NO_THROW(graphicsCommands->BlitImageToImage(blitInfo));
 
         graphicsCommands->Complete();
-        (*pGraphicsQueue)->SubmitCommandBuffer(graphicsCommands);
+        graphicsSubmitInfo.commands = {&graphicsCommands, 1};
     }
 
     // While execution is concurrent, submission must be in order
@@ -251,8 +251,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ComputeQueueToGraphicsQueueSyncUAV) {
     TRACK_RHI_HANDLE(uav);
 
     // Record compute commands
+    ICommandBuffer* computeCommands = (*pComputeQueue)->GetCommandBuffer({});
     {
-        ICommandBuffer* computeCommands = (*pComputeQueue)->GetCommandBuffer({});
         TRACK_RHI_HANDLE(computeCommands);
 
         EXPECT_NO_THROW(computeCommands->ImageBarrier({
@@ -271,11 +271,11 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ComputeQueueToGraphicsQueueSyncUAV) {
         EXPECT_NO_THROW(computeCommands->TransferImageOwnership(uavImage, *pGraphicsQueue));
 
         computeCommands->Complete();
-        (*pComputeQueue)->SubmitCommandBuffer(computeCommands);
+        computeSubmitInfo.commands = {&computeCommands, 1};
     }
     // Record graphics commands
+    ICommandBuffer* graphicsCommands = (*pGraphicsQueue)->GetCommandBuffer({});
     {
-        ICommandBuffer* graphicsCommands = (*pGraphicsQueue)->GetCommandBuffer({});
         TRACK_RHI_HANDLE(graphicsCommands);
 
         // Acquire queue ownership transfer! Very important!
@@ -287,7 +287,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ComputeQueueToGraphicsQueueSyncUAV) {
         EXPECT_NO_THROW(graphicsCommands->ClearUnorderedAccessView(clearUAVInfo));
 
         graphicsCommands->Complete();
-        (*pGraphicsQueue)->SubmitCommandBuffer(graphicsCommands);
+        graphicsSubmitInfo.commands = {&graphicsCommands, 1};
     }
 
     // While execution is concurrent, submission must be in order
@@ -317,7 +317,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, QueueSubmitAgainIsOkay) {
     ICommandBuffer* commandBuffer = submitInfo.queue->GetCommandBuffer({ .name = "test1 cmds" });
     TRACK_RHI_HANDLE(commandBuffer);
     commandBuffer->Complete();
-    submitInfo.queue->SubmitCommandBuffer(commandBuffer);
+    submitInfo.commands = {&commandBuffer, 1};
     // Submit 1
     mDevice->SubmitQueue(submitInfo);
     // Wait
@@ -326,7 +326,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, QueueSubmitAgainIsOkay) {
     commandBuffer = submitInfo.queue->GetCommandBuffer({ .name = "test2 cmds" });
     TRACK_RHI_HANDLE(commandBuffer);
     commandBuffer->Complete();
-    submitInfo.queue->SubmitCommandBuffer(commandBuffer);
+    submitInfo.commands = {&commandBuffer, 1};
     // Submit 2
     mDevice->SubmitQueue(submitInfo);
     // Finally wait for queue to finish.
@@ -423,8 +423,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SingleQueueDestroyDeferredSuccess) {
             cb->EndLabel();
 
             cb->Complete();
-            cq->SubmitCommandBuffer(cb);
-            mDevice->SubmitQueue({ .queue = cq });
+            mDevice->SubmitQueue({ .queue = cq, .commands = {&cb, 1} });
 
             // Clean up anything ready for destruction
             mDevice->CollectGarbage();
@@ -527,8 +526,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueDestroyDeferredSuccess) {
                 cb1->EndLabel();
 
                 cb1->Complete();
-                tq1->SubmitCommandBuffer(cb1);
-                mDevice->SubmitQueue({ .queue = tq1, .signalSemaphores = { &currFrameSemaphoreSubmit, 1 } });
+                mDevice->SubmitQueue({ .queue = tq1, .commands = {&cb1, 1}, .signalSemaphores = { &currFrameSemaphoreSubmit, 1 } });
             }
 
             // Use buffer in Queue 2
@@ -550,8 +548,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueDestroyDeferredSuccess) {
                 cb2->EndLabel();
 
                 cb2->Complete();
-                tq2->SubmitCommandBuffer(cb2);
-                mDevice->SubmitQueue({ .queue = tq2, .waitSemaphores = { &currFrameSemaphoreSubmit, 1 } });
+                mDevice->SubmitQueue({ .queue = tq2, .commands = {&cb2, 1}, .waitSemaphores = { &currFrameSemaphoreSubmit, 1 } });
             }
             // Clean up anything ready for destruction
             mDevice->CollectGarbage();
@@ -644,8 +641,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueResourceTransferSuccess) {
         cb1->EndLabel();
 
         cb1->Complete();
-        tq1->SubmitCommandBuffer(cb1);
-        mDevice->SubmitQueue({ .queue = tq1 });
+        mDevice->SubmitQueue({ .queue = tq1, .commands = {&cb1, 1} });
     }
     tq1->WaitIdle(); // wait
     // Use buffer & image in Queue 2
@@ -661,8 +657,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueResourceTransferSuccess) {
         cb2->EndLabel();
 
         cb2->Complete();
-        tq2->SubmitCommandBuffer(cb2);
-        mDevice->SubmitQueue({ .queue = tq2 });
+        mDevice->SubmitQueue({ .queue = tq2, .commands = {&cb2, 1} });
     }
     mDevice->WaitIdle();
     mDevice->DestroyImmediately(srcImage);
