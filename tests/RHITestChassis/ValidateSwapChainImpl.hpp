@@ -77,7 +77,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
         .dstLayout = ImageLayout::PresentSrc,
     });
     commandBuffer->Complete();
-    mDevice->SubmitQueue({ .queue = queue, .commands = {&commandBuffer, 1}});
+    submitInfo.commands = {&commandBuffer, 1};
 
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);
