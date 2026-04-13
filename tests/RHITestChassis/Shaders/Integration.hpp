@@ -120,7 +120,7 @@ VSOutput vertexMain(uint vertexID : SV_VertexID)
 }
 
 // Geometry shader: expands one triangle into 6 triangles in a fan
-[maxvertexcount(18)] // 6 triangles × 3 vertices each
+[maxvertexcount(18)] // 6 triangles * 3 vertices each = 18 vertices
 void geometryMain(triangle VSOutput input[3], inout TriangleStream<VSOutput> triStream)
 {
     // Emit original triangle

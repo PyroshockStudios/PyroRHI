@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include <PyroRHI/Api/ToString.hpp>
+#include <PyroRHI/ToString.hpp>
 
 using namespace PyroshockStudios;
 using namespace PyroshockStudios::RHI;
@@ -657,9 +657,6 @@ TEST(RHICommonToStringTests, CommandQueueSubmitInfoToString) {
         "  ]\n"
         "  signalSemaphores: [\n"
         "    SemaphoreSubmitInfo { semaphore=0x0000000022222222, stage=8192 }\n"
-        "  ]\n"
-        "  signalPresentSemaphores: [\n"
-        "    SemaphoreSubmitInfo { semaphore=0x0000000011111111, stage=32768 }\n"
         "  ]\n"
         "  signalFences: [\n"
         "    FenceSubmitInfo { fence=0x0000000033333333, value=3 }\n"

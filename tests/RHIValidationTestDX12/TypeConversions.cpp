@@ -36,9 +36,8 @@ TEST(RHIDX12TypeConversions, ToDXGIFormat) {
     EXPECT_EQ(ToDXGIFormat(Format::D32SfloatS8Uint), DXGI_FORMAT_D32_FLOAT_S8X24_UINT);
     // Note: D16UnormS8Uint maps to UNKNOWN  as there's no direct DXGI for D16S8
     EXPECT_EQ(ToDXGIFormat(Format::D16UnormS8Uint), DXGI_FORMAT_UNKNOWN);
-    // Note: S8Uint maps to UNKNOWN as there's no direct DXGI for S8 only
-    EXPECT_EQ(ToDXGIFormat(Format::S8Uint), DXGI_FORMAT_UNKNOWN);
-
+    // Note: S8Uint maps to DXGI_FORMAT_X24_TYPELESS_G8_UINT, which is used as a stencil-view format
+    EXPECT_EQ(ToDXGIFormat(Format::S8Uint), DXGI_FORMAT_X24_TYPELESS_G8_UINT);
 
     // Compressed Formats
     EXPECT_EQ(ToDXGIFormat(Format::BC1RGBUnormBlock), DXGI_FORMAT_BC1_UNORM);

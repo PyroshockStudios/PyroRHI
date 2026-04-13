@@ -1800,6 +1800,11 @@ namespace PyroshockStudios {
 
         VulkanSwapChainSupportInfo VulkanDevice::GetSwapChainSupport(VkSurfaceKHR surface) const {
             VulkanSwapChainSupportInfo support{};
+            VkBool32 bSupported = VK_FALSE;
+            CheckVkResult(vkGetPhysicalDeviceSurfaceSupportKHR(mPhysicalDevice, mPresentQueueFamilyIndex, surface, &bSupported), "Failed to query surface support!");
+            if (bSupported == VK_FALSE) {
+                return support; // no support whatsoever??
+            }
             CheckVkResult(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, surface, &support.capabilities), "Failed to query windowing surface capabilities!");
             u32 formatCount = 0;
             CheckVkResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, surface, &formatCount, nullptr), "Failed to query windowing surface formats!");

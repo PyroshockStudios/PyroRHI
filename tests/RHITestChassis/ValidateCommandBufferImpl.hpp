@@ -1147,8 +1147,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
     cmd->Complete();
 
     // 11. Submit and Wait
-    queue->SubmitCommandBuffer(cmd);
-    mDevice->SubmitQueue({ .queue = queue });
+    mDevice->SubmitQueue({ .queue = queue, .commands = {&cmd, 1} });
     queue->WaitIdle();
 
     // Now run the ray tracing
@@ -1210,8 +1209,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CommandsSuccessfullyDoRayQueryCSH) {
     EXPECT_NO_FATAL_FAILURE(cmd->CopyBufferToBuffer(copyReadbackInfo));
 
     cmd->Complete();
-    queue->SubmitCommandBuffer(cmd);
-    mDevice->SubmitQueue({ .queue = queue });
+    mDevice->SubmitQueue({ .queue = queue, .commands = {&cmd, 1} });
     queue->WaitIdle();
 
     // expect the ray to intersect!!!
