@@ -892,8 +892,8 @@ namespace PyroshockStudios {
                 return { result, count };
             }
 
-            PYRO_NODISCARD PYRO_FORCEINLINE ImageArraySlice Slice(u32 mipLevel = 0) const noexcept;
-            PYRO_NODISCARD PYRO_FORCEINLINE ImageSlice Slice(u32 mipLevel = 0, u32 arrayLevel = 0) const noexcept;
+            PYRO_NODISCARD PYRO_FORCEINLINE ImageArraySlice Slice(u32 mipLevel) const noexcept;
+            PYRO_NODISCARD PYRO_FORCEINLINE ImageSlice Slice(u32 mipLevel, u32 arrayLevel) const noexcept;
             PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 

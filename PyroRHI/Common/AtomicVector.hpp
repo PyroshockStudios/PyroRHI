@@ -3,7 +3,7 @@
 #include <PyroCommon/Core.hpp>
 
 #include <EASTL/hash_map.h>
-#include <EASTL/optional.h>
+#include <EASTL/vector.h>
 
 #include <cassert>
 #include <condition_variable>
