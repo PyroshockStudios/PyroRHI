@@ -44,8 +44,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
     ICommandQueue* queue = mDevice->GetPresentQueue();
     ASSERT_NE(queue, nullptr);
 
-    Semaphore waitPresentSemaphore = mDevice->CreateSemaphore({ .name = "waitPresentSemaphore" });
-
     SwapChainInfo info = {
         .format = SwapChainFormat::Unorm8BitLDR,
         .bufferCount = 2,
@@ -56,16 +54,12 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
 
     ISwapChain* swapChain = mDevice->CreateSwapChain(info);
 
-    const SemaphoreSubmitInfo signalPresent{
-        .semaphore = waitPresentSemaphore,
-        .stage = PipelineStageFlagBits::ALL_COMMANDS
-    };
-
     CommandQueueSubmitInfo submitInfo = {};
     submitInfo.queue = queue;
 
     CommandQueuePresentInfo presentInfo = {};
     presentInfo.queue = queue;
+    presentInfo.swapChains = {&swapChain, 1};
 
     i32 imageIndex = -1;
     u32 failedAcquires = 0;
@@ -88,7 +82,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);
     mDevice->WaitIdle();
-    mDevice->DestroySemaphore(waitPresentSemaphore);
     mDevice->DestroySwapChain(swapChain);
 }
 
@@ -123,6 +116,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
 
     CommandQueuePresentInfo presentInfo = {};
     presentInfo.queue = queue;
+    presentInfo.swapChains = {&swapChain, 1};
 
     i32 imageIndex = -1;
     u32 failedAcquires = 0;
@@ -182,6 +176,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
 
     CommandQueuePresentInfo presentInfo = {};
     presentInfo.queue = queue;
+    presentInfo.swapChains = swapChains;
     ICommandBuffer* commandBuffer = queue->GetCommandBuffer({});
 
     for (ISwapChain* swapChain : swapChains) {
