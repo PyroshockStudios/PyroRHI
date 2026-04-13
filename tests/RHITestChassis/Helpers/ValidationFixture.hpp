@@ -21,10 +21,10 @@
 #endif
 
 #include "ShaderCompiler.hpp"
+#include <PyroRHI/ToString.hpp>
 #include <PyroCommon/Logger.hpp>
 #include <PyroCommon/Util/String.hpp>
 #include <PyroRHI/Api/IDevice.hpp>
-#include <PyroRHI/Api/ToString.hpp>
 #include <PyroRHI/Context.hpp>
 #include <PyroRHI/Exports.hpp>
 #include <filesystem>
@@ -114,6 +114,7 @@ class RHI_CONTEXT_FIXTURE_NAME : public ::testing::Test, public ILogStream {
     bool bFailed = false;
 
 protected:
+    bool bCreateDevice = true;
     LibraryHandle mLibrary = nullptr;
     RHIInfo mInfo = {};
     RHIContextApiInfo mApi = {};
@@ -195,14 +196,16 @@ protected:
         fpCreateContext(&mCreateInfo, &mApi);
         ASSERT_NE(mApi.loadedContext, nullptr) << "Failed to create " RHI_TEST_CHASSIS_API_LOG_NAME " Context";
 
-        mDevice = mApi.loadedContext->CreateDevice({});
-        ASSERT_NE(mDevice, nullptr) << "Failed to create " RHI_TEST_CHASSIS_API_LOG_NAME " Device";
+        if (bCreateDevice) {
+            mDevice = mApi.loadedContext->CreateDevice({});
+            ASSERT_NE(mDevice, nullptr) << "Failed to create " RHI_TEST_CHASSIS_API_LOG_NAME " Device";
 
-        mShaderCompiler = new ShaderCompiler(mApi.loadedContext->ShaderFeatureSet());
-        mShaderCompiler->InjectLogger(&mLogStream2);
-        mUsedData.emplace_back("Device Info", mDevice->Info().ToString());
-        mUsedData.emplace_back("Device Properties", mDevice->Properties().ToString());
-        mUsedData.emplace_back("Device Features", mDevice->Features().ToString());
+            mShaderCompiler = new ShaderCompiler(mApi.loadedContext->ShaderFeatureSet());
+            mShaderCompiler->InjectLogger(&mLogStream2);
+            mUsedData.emplace_back("Device Info", mDevice->Info().ToString());
+            mUsedData.emplace_back("Device Properties", mDevice->Properties().ToString());
+            mUsedData.emplace_back("Device Features", mDevice->Features().ToString());
+        }
     }
 
     void TearDown() override {

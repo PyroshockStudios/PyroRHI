@@ -93,6 +93,7 @@ namespace PyroshockStudios::RHIVulkan {
         }
         if (finalFormat.format == VK_FORMAT_UNDEFINED) {
             Logger::Fatal(gVulkanSink, "SwapChain format is not available!");
+            return;
         }
         TrySetPresentMode(info.presentMode);
 

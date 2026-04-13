@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include <PyroRHI/Api/ToString.hpp>
+#include <../../PyroRHI/ToString.hpp>
 
 using namespace PyroshockStudios;
 using namespace PyroshockStudios::RHI;

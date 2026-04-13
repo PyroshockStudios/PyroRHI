@@ -573,7 +573,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateBlas_Success) {
     eastl::array<BlasTriangleGeometryInfo, 1> updatedGeoArray = { updatedTriangleGeo };
 
     BlasBuildInfo updateBuildInfo = {
-        .flags = AccelerationStructureCreateFlagBits::PREFER_FAST_BUILD, // Flags for the *operation*
+        .flags =initialBuildInfo.flags,// Flags for the *operation*
         .bUpdate = true,
         .srcBlas = blasId,
         .dstBlas = blasId,
@@ -745,7 +745,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, UpdateTlas_Success) {
     TlasInstanceInfo updatedTlasInstanceInfo = { .data = updatedInstanceBuffer, .count = 1 };
 
     TlasBuildInfo updateBuildInfo = {
-        .flags = AccelerationStructureCreateFlagBits::PREFER_FAST_BUILD,
+        .flags = initialBuildInfo.flags,
         .update = true,
         .srcTlas = tlasId,
         .dstTlas = tlasId,

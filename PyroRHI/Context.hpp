@@ -65,6 +65,8 @@ namespace PyroshockStudios {
             u64 deviceLUID = {};
             // Only valid on vulkan!
             GUID deviceUUID = {};
+
+            eastl::string ToString(usize indentation = 0) const;
         };
         static constexpr i32 RHI_DEVICE_INDEX_AUTO = -1;
         struct RHIDeviceCreateInfo {

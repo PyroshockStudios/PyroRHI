@@ -1,10 +1,12 @@
 #pragma once
-#include "ICommandBuffer.hpp"
-#include "ICommandQueue.hpp"
-#include "IDevice.hpp"
-#include "IFence.hpp"
-#include "ISwapChain.hpp"
-#include "Types.hpp"
+#include "Api/ICommandBuffer.hpp"
+#include "Api/ICommandQueue.hpp"
+#include "Api/IDevice.hpp"
+#include "Api/IFence.hpp"
+#include "Api/ISwapChain.hpp"
+#include "Api/Types.hpp"
+#include "PyroRHI/Context.hpp"
+
 #include <EASTL/bit.h>
 #include <cinttypes>
 
@@ -1193,6 +1195,20 @@ namespace PyroshockStudios {
             s += "FenceInfo {\n";
             s += Indent(indentation + 2) + "initialValue: " + eastl::to_string(initialValue) + "\n";
             s += Indent(indentation + 2) + "name: \"" + name + "\"\n";
+            s += Indent(indentation) + "}";
+            return s;
+        }
+
+        inline eastl::string RHIPhysicalDeviceInfo::ToString(usize indentation) const {
+            eastl::string s;
+            s += "RHIPhysicalDeviceInfo {\n";
+            s += Indent(indentation + 2) + "deviceName: \"" + deviceName + "\"\n";
+            s += Indent(indentation + 2) + "vendorName: \"" + vendorName + "\"\n";
+            s += Indent(indentation + 2) + "driverVersion: \"" + driverVersion + "\"\n";
+            s += Indent(indentation + 2) + "deviceID:" + eastl::to_string(deviceID) + "\n";
+            s += Indent(indentation + 2) + "vendorID:" + eastl::to_string(vendorID) + "\n";
+            s += Indent(indentation + 2) + "deviceLUID:" + eastl::to_string(deviceLUID) + "\n";
+            s += Indent(indentation + 2) + "deviceUUID:" + deviceUUID.ToString() + "\n";
             s += Indent(indentation) + "}";
             return s;
         }

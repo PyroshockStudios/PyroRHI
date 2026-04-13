@@ -1,7 +1,4 @@
 #include "Helpers/ValidationFixture.hpp"
-#ifdef CreateSemaphore
-#undef CreateSemaphore
-#endif
 using namespace PyroshockStudios;
 using namespace PyroshockStudios::RHI;
 using namespace PyroshockStudios::Types;
@@ -93,8 +90,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
     ICommandQueue* queue = mDevice->GetPresentQueue();
     ASSERT_NE(queue, nullptr);
 
-    Semaphore waitPresentSemaphore = mDevice->CreateSemaphore({ .name = "waitPresentSemaphore" });
-
     ISwapChain* swapChain = mDevice->CreateSwapChain({
         .format = SwapChainFormat::Unorm8BitLDR,
         .alphaMode = SwapChainAlphaMode::Premultiplied,
@@ -105,14 +100,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
         .name = "Headless Swap Chain",
     });
 
-    const SemaphoreSubmitInfo signalPresent{
-        .semaphore = waitPresentSemaphore,
-        .stage = PipelineStageFlagBits::ALL_COMMANDS
-    };
-
     CommandQueueSubmitInfo submitInfo = {};
     submitInfo.queue = queue;
-    submitInfo.signalSemaphores = eastl::span(&signalPresent, 1);
 
     CommandQueuePresentInfo presentInfo = {};
     presentInfo.queue = queue;
@@ -134,12 +123,10 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
         .dstLayout = ImageLayout::PresentSrc,
     });
     commandBuffer->Complete();
-    mDevice->SubmitQueue({.queue = queue, .commands =  {&commandBuffer, 1}});
-
+    submitInfo.commands = {&commandBuffer,1};
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);
     mDevice->WaitIdle();
-    mDevice->DestroySemaphore(waitPresentSemaphore);
     mDevice->DestroySwapChain(swapChain);
 }
 
@@ -153,8 +140,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
     ICommandQueue* queue = mDevice->GetPresentQueue();
     ASSERT_NE(queue, nullptr);
 
-    Semaphore waitPresentSemaphore = mDevice->CreateSemaphore({ .name = "waitPresentSemaphore" });
-
     eastl::vector<ISwapChain*> swapChains = {};
     for (i32 i = 0; i < NUM_SWAPCHAINS; ++i) {
         swapChains.push_back(mDevice->CreateSwapChain({
@@ -165,14 +150,9 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
             .name = "Headless Swap Chain #" + eastl::to_string(i),
         }));
     }
-    const SemaphoreSubmitInfo signalPresent{
-        .semaphore = waitPresentSemaphore,
-        .stage = PipelineStageFlagBits::ALL_COMMANDS
-    };
 
     CommandQueueSubmitInfo submitInfo = {};
     submitInfo.queue = queue;
-    submitInfo.signalSemaphores = eastl::span(&signalPresent, 1);
 
     CommandQueuePresentInfo presentInfo = {};
     presentInfo.queue = queue;
@@ -200,7 +180,6 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);
     mDevice->WaitIdle();
-    mDevice->DestroySemaphore(waitPresentSemaphore);
     for (ISwapChain* swapChain : swapChains) {
         mDevice->DestroySwapChain(swapChain);
     }

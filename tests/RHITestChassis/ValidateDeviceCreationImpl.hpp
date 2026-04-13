@@ -36,3 +36,17 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ValidateDeviceCreation) {
     EXPECT_GT(mDevice->GetActiveShaderModel(), 0);
     EXPECT_LE(mDevice->GetActiveShaderModel(), feats.maxSupportedShaderModel);
 }
+
+struct NoDeviceRHIContext : RHI_CONTEXT_FIXTURE_NAME {
+    void SetUp() override {
+        bCreateDevice = false;
+        RHI_CONTEXT_FIXTURE_NAME::SetUp();
+    }
+};
+
+TEST_F(NoDeviceRHIContext, ValidateDeviceQuery) {
+    for (const auto& physicalDevice : mApi.loadedContext->QueryPhysicalDevices()) {
+        TRACK_RHI_PARAMETER(physicalDevice);
+    }
+    EXPECT_TRUE(true);
+}
