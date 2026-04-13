@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #pragma once
+#include <EASTL/hash_set.h>
 #include <EASTL/unique_ptr.h>
 
 #include <PyroRHI/Api/ICommandBuffer.hpp>
@@ -31,6 +32,7 @@ namespace PyroshockStudios {
     namespace RHIVulkan {
         class VulkanDevice;
         class VulkanCommandQueue;
+        class VulkanSwapChain;
         struct CommandBufferPool : DeleteCopy, DeleteMove {
             eastl::pair<VkCommandPool, VkCommandBuffer> Get(VulkanDevice* device, VulkanCommandQueue* queue);
             void PutBack(eastl::pair<VkCommandPool, VkCommandBuffer> poolAndBuffer);
@@ -91,10 +93,16 @@ namespace PyroshockStudios {
                 return mCommandPool;
             }
 
+            const eastl::hash_set<VulkanSwapChain*>& GetSwapchainReferences()const {
+                return mSwapchainRefs;
+            }
         private:
             inline void FlushBarriers();
             // TODO
             // void FlushPipelineLayout();
+            inline void CheckIfSwapchainReference(const ImplImageSlot& slot);
+
+            eastl::hash_set<VulkanSwapChain*> mSwapchainRefs;
 
             eastl::vector<VkMemoryBarrier2> mMemoryBarriers = {};
             eastl::vector<VkBufferMemoryBarrier2> mBufferBarriers = {};

@@ -34,23 +34,26 @@ namespace PyroshockStudios {
               mDSVHeap(device->InternalDevice(), maxDsvs, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false, "Global DSV Heap") {
         }
         GPUResourcePool::~GPUResourcePool() {
-            if (mMemoryBlockResources.size() > 0) {
-                Logger::Warn(gDX12Sink, "Leaked {} memory block resources!", mMemoryBlockResources.size());
-                for (auto& [k, v] : mMemoryBlockResources) {
-                    Logger::Warn(gDX12Sink, "    - memory block {}", v.info.name);
-                }
+            if (mMemoryBlockResources.Size() > 0) {
+                Logger::Warn(gDX12Sink, "Leaked {} memory block resources!", mMemoryBlockResources.Size());
+                mMemoryBlockResources.ForEach([this](const auto& k, auto& v) {
+                    Logger::Warn(gDX12Sink, "    - memory block {}", v->info.name);
+                    delete v;
+                });
             }
-            if (mBufferResources.size() > 0) {
-                Logger::Warn(gDX12Sink, "Leaked {} buffer resources!", mBufferResources.size());
-                for (auto& [k, v] : mBufferResources) {
-                    Logger::Warn(gDX12Sink, "    - buffer {}", v.info.name);
-                }
+            if (mBufferResources.Size() > 0) {
+                Logger::Warn(gDX12Sink, "Leaked {} buffer resources!", mBufferResources.Size());
+                mBufferResources.ForEach([this](const auto& k, auto& v) {
+                    Logger::Warn(gDX12Sink, "    - buffer {}", v->info.name);
+                    delete v;
+                });
             }
-            if (mImageResources.size() > 0) {
-                Logger::Warn(gDX12Sink, "Leaked {} image resources!", mImageResources.size());
-                for (auto& [k, v] : mImageResources) {
-                    Logger::Warn(gDX12Sink, "    - image {}", v.info.name);
-                }
+            if (mImageResources.Size() > 0) {
+                Logger::Warn(gDX12Sink, "Leaked {} image resources!", mImageResources.Size());
+                mImageResources.ForEach([this](const auto& k, auto& v) {
+                    Logger::Warn(gDX12Sink, "    - image {}", v->info.name);
+                    delete v;
+                });
             }
         }
 
@@ -63,64 +66,68 @@ namespace PyroshockStudios {
             handle.unused = 0xDEADBEEF;
             handle.counter = mMemoryBlockCounter++;
             MemoryBlock buff = eastl::bit_cast<MemoryBlock>(handle);
-            return { buff, mMemoryBlockResources[buff] };
+            auto data = new D3DMemoryBlockResourceData;
+            mMemoryBlockResources.Emplace(buff, data);
+            return { buff, *data };
         }
         eastl::pair<Buffer, D3DBufferResourceData&> GPUResourcePool::AllocBuffer() {
             ResourceHandle handle;
             handle.unused = 0xDEADBEEF;
             handle.counter = mBufferCounter++;
             Buffer buff = eastl::bit_cast<Buffer>(handle);
-            return { buff, mBufferResources[buff] };
+            auto data = new D3DBufferResourceData;
+            mBufferResources.Emplace(buff, data);
+            return { buff, *data };
         }
         eastl::pair<Image, D3DImageResourceData&> GPUResourcePool::AllocImage() {
             ResourceHandle handle;
             handle.unused = 0xDEADBEEF;
             handle.counter = mImageCounter++;
-            Image buff = eastl::bit_cast<Image>(handle);
-            return { buff, mImageResources[buff] };
+            Image img = eastl::bit_cast<Image>(handle);
+            auto data = new D3DImageResourceData;
+            mImageResources.Emplace(img, data);
+            return { img, *data };
         }
         eastl::pair<BlasId, D3DBlasData&> GPUResourcePool::AllocBlas() {
             ResourceHandle handle;
             handle.unused = 0xDEADBEEF;
             handle.counter = mBlasCounter++;
             BlasId blas = eastl::bit_cast<BlasId>(handle);
-            return { blas, mBlasResources[blas] };
+            auto data = new D3DBlasData;
+            mBlasResources.Emplace(blas, data);
+            return { blas, *data };
         }
         void GPUResourcePool::ReleaseMemoryBlock(MemoryBlock memory) {
-            ASSERT(mMemoryBlockResources.contains(memory), "Double free occurred!");
-
-            mMemoryBlockResources.erase(memory);
+            ASSERT(mMemoryBlockResources.Contains(memory), "Double free occurred!");
+            delete mMemoryBlockResources.Extract(memory);
         }
         void GPUResourcePool::ReleaseBuffer(Buffer buffer) {
-            ASSERT(mBufferResources.contains(buffer), "Double free occurred!");
-
-            mBufferResources.erase(buffer);
+            ASSERT(mBufferResources.Contains(buffer), "Double free occurred!");
+            delete mBufferResources.Extract(buffer);
         }
         void GPUResourcePool::ReleaseImage(Image image) {
-            ASSERT(mImageResources.contains(image), "Double free occurred!");
-
-            mImageResources.erase(image);
+            ASSERT(mImageResources.Contains(image), "Double free occurred!");
+            delete mImageResources.Extract(image);
         }
         void GPUResourcePool::ReleaseBlas(BlasId blas) {
-            ASSERT(mBlasResources.contains(blas), "Double free occurred!");
-
-            mBlasResources.erase(blas);
+            ASSERT(mBlasResources.Contains(blas), "Double free occurred!");
+            delete mBlasResources.Extract(blas);
         }
         D3DMemoryBlockResourceData& GPUResourcePool::Get(MemoryBlock handle) {
-            ASSERT(mMemoryBlockResources.contains(handle), "Invalid handle!");
-            return mMemoryBlockResources.at(handle);
+            ASSERT(mMemoryBlockResources.Contains(handle), "Invalid handle!");
+            return *mMemoryBlockResources.Get(handle);
         }
         D3DBufferResourceData& GPUResourcePool::Get(Buffer handle) {
-            ASSERT(mBufferResources.contains(handle), "Invalid handle!");
-            return mBufferResources.at(handle);
+            ASSERT(mBufferResources.Contains(handle), "Invalid handle!");
+            return *mBufferResources.Get(handle);
         }
         D3DImageResourceData& GPUResourcePool::Get(Image handle) {
-            ASSERT(mImageResources.contains(handle), "Invalid handle!");
-            return mImageResources.at(handle);
+            ASSERT(mImageResources.Contains(handle), "Invalid handle!");
+            return *mImageResources.Get(handle);
         }
         D3DBlasData& GPUResourcePool::Get(BlasId handle) {
-            ASSERT(mBlasResources.contains(handle), "Invalid handle!");
-            return mBlasResources.at(handle);
+            ASSERT(mBlasResources.Contains(handle), "Invalid handle!");
+            return *mBlasResources.Get(handle);
         }
     } // namespace RHIDX12
 } // namespace PyroshockStudios

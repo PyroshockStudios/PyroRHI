@@ -56,6 +56,7 @@ PYRO_EXPORT void PYRO_CDECL GetCustomRHIInfo(RHIInfo* pInfo) {
     strncpy(pInfo->author, "V.O.F. Pyroshock Studios", PYRO_RHI_NAME_MAX_LENGTH);
     strncpy(pInfo->name, "Vulkan 1.3", PYRO_RHI_AUTH_MAX_LENGTH);
     strncpy(pInfo->shorthand, "vk13", PYRO_RHI_SHORTHAND_MAX_LENGTH);
+    strncpy(pInfo->codename, "Carbon", PYRO_RHI_CODENAME_MAX_LENGTH);
 
     for (i32 i = 0; i < eMAX_OPTIONS; ++i) {
         pInfo->availableOptions[i] = gRhiOptions[i];

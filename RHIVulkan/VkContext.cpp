@@ -62,8 +62,6 @@ namespace PyroshockStudios::RHIVulkan {
         AddFeatureIfMissing(features.features.wideLines, "wideLines");
         AddFeatureIfMissing(features.features.samplerAnisotropy, "samplerAnisotropy");
         AddFeatureIfMissing(features.features.fragmentStoresAndAtomics, "fragmentStoresAndAtomics");
-        AddFeatureIfMissing(features.features.shaderImageGatherExtended, "shaderImageGatherExtended");
-        AddFeatureIfMissing(features.features.shaderStorageImageMultisample, "shaderStorageImageMultisample");
         // AddFeatureIfMissing(features.features.shaderStorageImageReadWithoutFormat, "shaderStorageImageReadWithoutFormat");
         // AddFeatureIfMissing(features.features.shaderStorageImageWriteWithoutFormat, "shaderStorageImageWriteWithoutFormat");
         AddFeatureIfMissing(features.features.shaderClipDistance, "shaderClipDistance");
@@ -84,8 +82,6 @@ namespace PyroshockStudios::RHIVulkan {
         AddFeatureIfMissing(descriptorIndexingFeatures.runtimeDescriptorArray, "Descriptor Indexing: runtimeDescriptorArray");
 
         AddFeatureIfMissing(dynamicRenderingFeatures.dynamicRendering, "Vulkan 1.3 Dynamic Rendering");
-
-        AddFeatureIfMissing(scalarBlockLayoutFeatures.scalarBlockLayout, "Vulkan 1.3 Scalar Block Layout");
 
         // --- Check properties ---
         VkPhysicalDevicePushDescriptorPropertiesKHR pushDescriptorProps{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PUSH_DESCRIPTOR_PROPERTIES_KHR };
@@ -345,6 +341,11 @@ namespace PyroshockStudios::RHIVulkan {
     }
 
     VulkanContext::~VulkanContext() {
+        for (auto& info : mPhysicalDevices) {
+            delete[] info.driverVersion;
+            delete[] info.deviceName;
+            // info.vendorName is a string literal!
+        }
         for (VulkanDevice* device : mCreatedDevices) {
             delete device;
         }
@@ -356,8 +357,79 @@ namespace PyroshockStudios::RHIVulkan {
             Logger::Error(gVulkanSink, "Leaked " + eastl::to_string(mNumAllocatedBytes) + " bytes! (" + eastl::to_string(mNumAllocations) + " leaked allocations)");
         }
     }
+    eastl::span<RHIPhysicalDeviceInfo> VulkanContext::QueryPhysicalDevices() {
+        if (!mPhysicalDevices.empty()) {
+            return mPhysicalDevices;
+        }
 
-    IDevice* VulkanContext::CreateDevice() {
+        if (mInstance == VK_NULL_HANDLE) {
+            return {};
+        }
+
+        uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr);
+        if (deviceCount == 0) {
+            return {};
+        }
+
+        eastl::vector<VkPhysicalDevice> physicalDevices(deviceCount);
+        vkEnumeratePhysicalDevices(mInstance, &deviceCount, physicalDevices.data());
+
+        for (const auto& device : physicalDevices) {
+            VkPhysicalDeviceDriverProperties driverProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
+            VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
+            idProps.pNext = &driverProps;
+            VkPhysicalDeviceProperties2 props2 = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+            props2.pNext = &idProps;
+
+            vkGetPhysicalDeviceProperties2(device, &props2);
+
+            const auto& props = props2.properties;
+            RHIPhysicalDeviceInfo info = {};
+
+            char* deviceNameStr = new char[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
+            strncpy(deviceNameStr, props.deviceName, VK_MAX_PHYSICAL_DEVICE_NAME_SIZE);
+            info.deviceName = deviceNameStr;
+            char* driverVersionStr = new char[VK_MAX_DRIVER_INFO_SIZE];
+            strncpy(driverVersionStr, driverProps.driverInfo, VK_MAX_DRIVER_INFO_SIZE);
+            info.driverVersion = driverVersionStr;
+
+            switch (props.vendorID) {
+            case 0x10DE:
+                info.vendorName = "NVIDIA";
+                break;
+            case 0x1002:
+                info.vendorName = "AMD";
+                break;
+            case 0x8086:
+                info.vendorName = "Intel";
+                break;
+            case 0x13B5:
+                info.vendorName = "ARM";
+                break;
+            case 0x5143:
+                info.vendorName = "Qualcomm";
+                break;
+            case 0x1414:
+                info.vendorName = "Microsoft";
+                break;
+            default:
+                info.vendorName = "Unknown";
+                break;
+            }
+
+            info.vendorID = props.vendorID;
+            info.deviceID = props.deviceID;
+
+            info.deviceLUID = eastl::bit_cast<u64>(idProps.deviceLUID);
+            info.deviceUUID = eastl::bit_cast<GUID>(idProps.deviceUUID);
+
+            mPhysicalDevices.push_back(info);
+        }
+
+        return mPhysicalDevices;
+    }
+    IDevice* VulkanContext::CreateDevice(const RHIDeviceCreateInfo& createInfo) {
         u32 deviceCount = 0;
         CheckVkResult(vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr), "Failed to enumerate vulkan devices!");
 
@@ -371,7 +443,8 @@ namespace PyroshockStudios::RHIVulkan {
 
         eastl::hash_set<VkPhysicalDevice> unsuitableDevices = {};
         eastl::hash_map<VkPhysicalDevice, eastl::vector<eastl::string>> unsuitableDeviceInfos = {};
-        if (mPreferredDeviceIndex == -1) { // automatically pick most suitable device
+        i32 preferredDevice = mPreferredDeviceIndex == -1 ? createInfo.deviceIndex : mPreferredDeviceIndex;
+        if (preferredDevice == -1) { // automatically pick most suitable device
             for (const auto& device : vkPhysicalDevices) {
                 vkGetPhysicalDeviceProperties(device, &vkPhysicalDeviceProperties);
                 eastl::vector<eastl::string> whatNotFound;
@@ -387,8 +460,8 @@ namespace PyroshockStudios::RHIVulkan {
                 }
             }
         } else {
-            if (mPreferredDeviceIndex < vkPhysicalDevices.size() && mPreferredDeviceIndex >= 0) {
-                vkPhysicalDevice = vkPhysicalDevices[mPreferredDeviceIndex];
+            if (preferredDevice < vkPhysicalDevices.size() && preferredDevice >= 0) {
+                vkPhysicalDevice = vkPhysicalDevices[preferredDevice];
                 vkGetPhysicalDeviceProperties(vkPhysicalDevice, &vkPhysicalDeviceProperties);
                 eastl::vector<eastl::string> whatNotFound;
                 if (!IsDeviceSuitable(vkPhysicalDevice, whatNotFound)) {
@@ -539,7 +612,6 @@ namespace PyroshockStudios::RHIVulkan {
         static auto features = ShaderFeatureInfo{
             .bDescriptorIndexing = true,
             .bBufferDeviceAddress = true,
-            .bScalarLayout = true,
             .bDrawParameters = true,
             .bGLSL = true,
         };

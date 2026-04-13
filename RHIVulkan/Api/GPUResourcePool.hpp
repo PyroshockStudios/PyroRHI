@@ -26,25 +26,26 @@
 
 #include <EASTL/array.h>
 #include <EASTL/atomic.h>
-#include <shared_mutex>
 #include <mutex>
+#include <shared_mutex>
 // TODO?
-//#include<EATHREAD / eathread_mutex.h>
+// #include<EATHREAD / eathread_mutex.h>
 #include <EASTL/bit.h>
 #include <EASTL/optional.h>
 #include <EASTL/unique_ptr.h>
 
-#include <RHIVulkan/Core.hpp>
-#include <PyroRHI/Api/GPUResource.hpp>
 #include <PyroRHI/Api/AccelerationStructure.hpp>
+#include <PyroRHI/Api/GPUResource.hpp>
+#include <RHIVulkan/Core.hpp>
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
-        struct VulkanDevice;
+        class VulkanSwapChain;
+        class VulkanDevice;
         struct ZombieDeleter {
             void* resource = {};
             FunctionPtr<void(VulkanDevice* device, void* resource)> deleter = {};
-            eastl::vector<u64> queueTimelineSnapshot {};
+            eastl::vector<u64> queueTimelineSnapshot{};
         };
 
         struct ImplBufferSlot {
@@ -71,6 +72,7 @@ namespace PyroshockStudios {
             Union<VmaVirtualAllocation, VmaAllocation> vmaAllocation = {};
             Union<VmaVirtualAllocationInfo, VmaAllocationInfo> allocationInfo = {};
             i32 swapchainImageIndex = NOT_OWNED_BY_SWAPCHAIN;
+            VulkanSwapChain* ownedSwapchain = nullptr;
             VkImageAspectFlags aspectFlags = {}; // Inferred from format.
             bool zombie = {};
         };
@@ -254,7 +256,7 @@ namespace PyroshockStudios {
                 VkDevice device,
                 const VkAllocationCallbacks* allocator,
                 VkBuffer deviceAddressBuffer,
-                PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT);
+                PFN_vkSetDebugUtilsObjectNameEXT fn_VkSetDebugUtilsObjectNameEXT);
 
             void Cleanup(VkDevice device, const VkAllocationCallbacks* allocator);
 
@@ -267,5 +269,5 @@ namespace PyroshockStudios {
             void CreateBindlessDescriptorSetLayout(VkDevice device, const VkAllocationCallbacks* allocator);
             void CreatePushDescriptorSetLayout(VkDevice device, const VkAllocationCallbacks* allocator);
         };
-    }
-}
+    } // namespace RHIVulkan
+} // namespace PyroshockStudios

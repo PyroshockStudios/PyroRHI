@@ -21,9 +21,11 @@
 // SOFTWARE.
 
 #pragma once
-#include <RHIDX12/Core.hpp>
-#include <PyroRHI/Api/ICommandQueue.hpp>
 #include <EASTL/atomic.h>
+#include <PyroRHI/Api/ICommandQueue.hpp>
+#include <PyroRHI/Common/AtomicQueue.hpp>
+#include <PyroRHI/Common/AtomicVector.hpp>
+#include <RHIDX12/Core.hpp>
 namespace PyroshockStudios {
     namespace RHIDX12 {
         class D3DCommandBuffer;
@@ -34,8 +36,6 @@ namespace PyroshockStudios {
             ~D3DCommandQueue();
 
             ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) override;
-            void SubmitCommandBuffer(ICommandBuffer*& commandBuffer) override;
-            void SubmitSwapChain(ISwapChain* swapChain) override;
             void WaitIdle() override;
             const CommandQueueInfo& Info() const override;
             f64 GetTimestampTickPeriodNs() const override;
@@ -44,12 +44,9 @@ namespace PyroshockStudios {
                 return mCommandQueue.Get();
             }
             void RestoreCommandBuffer(D3DCommandBuffer* cmb) {
-                mPooledCommandBuffers.emplace_back(cmb, static_cast<UINT64>(mCurrentQueueFenceValue));
+                mPooledCommandBuffers.EmplaceBack(cmb, static_cast<UINT64>(mCurrentQueueFenceValue));
             }
-            eastl::vector<D3DCommandBuffer*> mSubmittedCommands = {};
-            eastl::vector<ID3D12CommandList*> mPendingCommandListExecutes = {};
-            eastl::vector<eastl::pair<IDXGISwapChain3*, UINT>> mPendingSwapPresents = {};
-
+          
             // Used for tracking which command buffers can be resurrected and when. Also for resource destruction
             void SignalQueueFence(UINT64 value);
 
@@ -70,7 +67,7 @@ namespace PyroshockStudios {
             eastl::atomic<UINT64> mCurrentQueueFenceValue = 0;
             ComPtr<ID3D12Fence> mQueueTracker = {};
 
-            eastl::vector<eastl::pair<D3DCommandBuffer*, UINT64>> mPooledCommandBuffers = {};
+            Common::AtomicVector<eastl::pair<D3DCommandBuffer*, UINT64>> mPooledCommandBuffers = {};
         };
-    }
-}
+    } // namespace RHIDX12
+} // namespace PyroshockStudios

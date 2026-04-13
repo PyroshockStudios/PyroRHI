@@ -23,8 +23,8 @@
 #pragma once
 #include <RHIVulkan/Core.hpp>
 
-#include <RHIVulkan/Api/Device.hpp>
 #include <PyroRHI/Api/ISwapChain.hpp>
+#include <RHIVulkan/Api/Device.hpp>
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
@@ -55,11 +55,14 @@ namespace PyroshockStudios {
             VkSemaphore GetCurrentImageAcquireSemaphore() {
                 return mImageAcquireSemaphores[mImageAcquireIndex];
             }
+            VkSemaphore GetCurrentRenderFinishSemaphore() {
+                return mRenderFinishSemaphores[mImageIndex];
+            }
 
         private:
             void CreateSurface();
             void CreateSwapChain(VkSwapchainKHR oldSwapChain);
-            void CreateSemaphores();
+            void CreateSync();
             void TrySetPresentMode(SwapChainPresentMode presentMode);
 
             VulkanDevice* mDevice;
@@ -75,6 +78,8 @@ namespace PyroshockStudios {
 
             i32 mImageAcquireIndex = -1;
             eastl::vector<VkSemaphore> mImageAcquireSemaphores = {};
+            eastl::vector<VkSemaphore> mRenderFinishSemaphores = {};
+            VkFence mSwapchainAcquireFence = VK_NULL_HANDLE;
 
             u32 mImageIndex = 0;
 

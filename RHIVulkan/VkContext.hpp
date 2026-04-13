@@ -43,7 +43,8 @@ namespace PyroshockStudios {
             VulkanContext(const VulkanContextArgs& args, ILogStream* logSink, ILogStream* vvlSink);
             ~VulkanContext();
 
-            IDevice* CreateDevice() override;
+            eastl::span<RHIPhysicalDeviceInfo> QueryPhysicalDevices() override;
+            IDevice* CreateDevice(const RHIDeviceCreateInfo& createInfo) override;
             const RHIProperties& Properties() const override;
             const IShaderFeatureSet* ShaderFeatureSet() const override;
             u32 GetMinimumShaderModelFeatureTier(ShaderModelFeatureFlags shaderModelFeatures) const override;
@@ -91,6 +92,7 @@ namespace PyroshockStudios {
             RHIProperties rhiProps = {};
 
             bool bHeadlessEnabled = false;
+            eastl::vector<RHIPhysicalDeviceInfo> mPhysicalDevices = {};
         };
     } // namespace RHIVulkan
 } // namespace PyroshockStudios

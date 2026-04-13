@@ -61,7 +61,7 @@ namespace PyroshockStudios {
                 UINT64 requiredSize = {};
                 mDevice->InternalDevice()->GetCopyableFootprints(&dst.desc, dstSubresource, 1, info.bufferOffset,
                     &footprint, &numRows, &rowSizesInBytes, &requiredSize);
-                ASSERT(PYRO_VERIFY_ALIGNMENT(info.rowPitch, rowSizesInBytes), "Row Pitch MUST be aligned to device requirements!");
+                ASSERT(PYRO_VERIFY_ALIGNMENT(info.rowPitch, footprint.Footprint.RowPitch), "Row Pitch MUST be aligned to device requirements!");
                 footprint.Footprint.RowPitch = info.rowPitch;
                 footprint.Footprint.Width = info.imageExtent.width;
                 footprint.Footprint.Height = info.imageExtent.height;
@@ -101,7 +101,7 @@ namespace PyroshockStudios {
                     &rowSizeInBytes,
                     &requiredSize);
 
-                ASSERT(PYRO_VERIFY_ALIGNMENT(info.rowPitch, rowSizeInBytes),
+                ASSERT(PYRO_VERIFY_ALIGNMENT(info.rowPitch, footprint.Footprint.RowPitch),
                     "Row Pitch MUST be aligned to device requirements!");
 
                 // Update the footprint to reflect the desired copy region
@@ -236,13 +236,15 @@ namespace PyroshockStudios {
                 UINT dstSubresource = D3D12CalcSubresource(info.dstImageSlice.mipLevel, info.dstImageSlice.baseArrayLayer + j, 0,
                     dstImage.info.mipLevelCount, dstImage.info.arrayLayerCount);
 
+                ASSERT(srcImage.blitImageSRVHeaps.size() > srcSubresource, "Src image is missing blit_src support!");
+                ASSERT(dstImage.blitImageRTVs.size() > dstSubresource, "Dst image is missing blit_dst support!");
+
                 D3D12_DISCARD_REGION region = {};
                 region.FirstSubresource = dstSubresource;
                 region.NumRects = 1;
                 region.NumSubresources = 1;
                 region.pRects = &scissorRect; /* dst rect */
                 mCommandList->DiscardResource(dstImage.resource.Get(), &region);
-
                 ID3D12DescriptorHeap* heaps[] = {
                     srcImage.blitImageSRVHeaps[srcSubresource].mHeap.Get(),
                     info.filter == Filter::Linear
@@ -523,16 +525,19 @@ namespace PyroshockStudios {
         void D3DCommandBuffer::BeginLabel(const CommandLabelInfo& info) {
             if (!gPixBeginEventOnCommandListFn)
                 return;
-            UINT64 col = (u64)(info.labelColor.r * 255) << 24 |
-                         (u64)(info.labelColor.g * 255) << 16 |
-                         (u64)(info.labelColor.b * 255) << 8 |
-                         (u64)(info.labelColor.a * 255) << 0;
+
+            // PIX expects ARGB format: (A << 24) | (R << 16) | (G << 8) | B
+            UINT64 col = ((UINT64)(info.labelColor.a * 255.0f) & 0xFF) << 24 |
+                         ((UINT64)(info.labelColor.r * 255.0f) & 0xFF) << 16 |
+                         ((UINT64)(info.labelColor.g * 255.0f) & 0xFF) << 8 |
+                         ((UINT64)(info.labelColor.b * 255.0f) & 0xFF) << 0;
+
             gPixBeginEventOnCommandListFn(mCommandList.Get(), col, info.name.data());
             gDx12Context->FlushDebugMessages();
         }
 
         void D3DCommandBuffer::EndLabel() {
-            if (!gPixBeginEventOnCommandListFn)
+            if (!gPixEndEventOnCommandListFn) 
                 return;
             gPixEndEventOnCommandListFn(mCommandList.Get());
             gDx12Context->FlushDebugMessages();
@@ -623,9 +628,9 @@ namespace PyroshockStudios {
 
             D3D12_VIEWPORT viewport{
                 .TopLeftX = static_cast<FLOAT>(info.renderArea.x),
-                .TopLeftY = static_cast<FLOAT>(info.renderArea.y),
+                .TopLeftY = static_cast<FLOAT>(info.renderArea.height) - static_cast<FLOAT>(info.renderArea.y),
                 .Width = static_cast<FLOAT>(info.renderArea.width),
-                .Height = static_cast<FLOAT>(info.renderArea.height),
+                .Height = -static_cast<FLOAT>(info.renderArea.height),
                 .MinDepth = 0.0f,
                 .MaxDepth = 1.0f,
             };
@@ -677,6 +682,7 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::PushConstantVPtr(const PushConstantInfo& info) {
+            RequireNonBlitState();
             ASSERT(PYRO_VERIFY_ALIGNMENT(info.size, 4), "Push constants must be DWord aligned!");
             ASSERT(PYRO_VERIFY_ALIGNMENT(info.offset, 4), "Push constants must be DWord aligned!");
 
@@ -690,6 +696,7 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::SetUniformBufferView(const SetUniformBufferViewInfo& info) {
+            RequireNonBlitState();
             D3D12_GPU_VIRTUAL_ADDRESS gpuAddress =
                 mDevice->ResourcePool().Get(info.buffer).resource->GetGPUVirtualAddress() + info.region.offset;
 
@@ -717,9 +724,10 @@ namespace PyroshockStudios {
             mInvalidatedVertexBufferBindings.clear();
             u32 slot = 0;
             for (UINT stride : pipe->mVertexBufferStrides) {
-                if (stride == 0)
-                    continue;
-                mInvalidatedVertexBufferBindings.emplace(slot);
+                if (stride != 0) {
+                    mInvalidatedVertexBufferBindings.emplace(slot);
+                }
+                ++slot;
             }
             for (UINT i = 0; i < pipe->mEmulatedSpecialisationConstants.size(); ++i) {
                 if (pipe->mEmulatedSpecialisationConstants[i]) {
@@ -728,17 +736,8 @@ namespace PyroshockStudios {
                 }
             }
             bIsComputePipeline = false;
-            if (bBlitImageState) {
-                mCommandList->SetGraphicsRootSignature(mDevice->mRootSignature.Get());
-                eastl::array<ID3D12DescriptorHeap* const, 2u> descriptorHeaps{
-                    mDevice->mDefaultUAVDescriptorTable.mHeap.Get(),
-                    mDevice->ResourcePool().mSamplerHeap.InternalHeap()
-                };
-                mComputeLastBoundUAVDescriptorTable = mDevice->mDefaultUAVDescriptorTable;
-                mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
-                bBlitImageState = false;
-            }
             gDx12Context->FlushDebugMessages();
+            RequireNonBlitState();
         }
 
         void D3DCommandBuffer::SetComputePipeline(ComputePipeline pipeline) {
@@ -754,9 +753,9 @@ namespace PyroshockStudios {
         void D3DCommandBuffer::SetViewport(const ViewportInfo& info) {
             D3D12_VIEWPORT viewport{
                 .TopLeftX = info.x,
-                .TopLeftY = info.y,
+                .TopLeftY = info.height - info.y,
                 .Width = info.width,
-                .Height = info.height,
+                .Height = -info.height,
                 .MinDepth = info.minDepth,
                 .MaxDepth = info.maxDepth,
             };
@@ -941,6 +940,7 @@ namespace PyroshockStudios {
             mPendingQueryPoolMinMaxResolves.clear();
             CheckD3DResult(mCommandList->Close(), "Failed to close command list!");
             mCurrentRasterPipeline = nullptr;
+            bBlitImageState = false;
             mInvalidatedVertexBufferBindings.clear();
             mPendingVertexBufferBinds.clear();
             mPendingUAVBinds = {};
@@ -950,6 +950,20 @@ namespace PyroshockStudios {
             if (mCurrentLinearUploadBuffer) {
                 mPendingReturnLinearUploadBuffers.push_back(mCurrentLinearUploadBuffer);
                 mCurrentLinearUploadBuffer = nullptr;
+            }
+            gDx12Context->FlushDebugMessages();
+        }
+
+        void D3DCommandBuffer::RequireNonBlitState() {
+            if (bBlitImageState) {
+                mCommandList->SetGraphicsRootSignature(mDevice->mRootSignature.Get());
+                eastl::array<ID3D12DescriptorHeap* const, 2u> descriptorHeaps{
+                    mDevice->mDefaultUAVDescriptorTable.mHeap.Get(),
+                    mDevice->ResourcePool().mSamplerHeap.InternalHeap()
+                };
+                mComputeLastBoundUAVDescriptorTable = mDevice->mDefaultUAVDescriptorTable;
+                mCommandList->SetDescriptorHeaps(static_cast<UINT>(descriptorHeaps.size()), descriptorHeaps.data());
+                bBlitImageState = false;
             }
             gDx12Context->FlushDebugMessages();
         }

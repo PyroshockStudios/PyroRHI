@@ -190,7 +190,7 @@ namespace PyroshockStudios {
             case Format::D32SfloatS8Uint:
                 return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
             case Format::S8Uint:
-                return DXGI_FORMAT_UNKNOWN; // No DXGI_FORMAT for S8 only
+                return DXGI_FORMAT_X24_TYPELESS_G8_UINT; // TODO, is this correct?
             case Format::BC1RGBUnormBlock:
             case Format::BC1RGBAUnormBlock:
                 return DXGI_FORMAT_BC1_UNORM;
@@ -229,6 +229,115 @@ namespace PyroshockStudios {
                 return DXGI_FORMAT_UNKNOWN;
             }
         }
+
+        PYRO_FORCEINLINE static constexpr DXGI_FORMAT ToDXGIFormatTypeless(Format type) {
+            switch (type) {
+                // case Format::RGBA4Unorm:
+            case Format::BGRA4Unorm:
+                return DXGI_FORMAT_B4G4R4A4_UNORM;
+                // case Format::RGB565Unorm:
+            case Format::BGR565Unorm:
+                return DXGI_FORMAT_B5G6R5_UNORM;
+                // case Format::RGB5A1Unorm:
+            case Format::BGR5A1Unorm:
+                return DXGI_FORMAT_B5G5R5A1_UNORM;
+            case Format::R8Unorm:
+            case Format::R8Snorm:
+            case Format::R8Uint:
+            case Format::R8Sint:
+                return DXGI_FORMAT_R8_TYPELESS;
+            case Format::RG8Unorm:
+            case Format::RG8Snorm:
+            case Format::RG8Uint:
+            case Format::RG8Sint:
+                return DXGI_FORMAT_R8G8_TYPELESS;
+            case Format::RGBA8Unorm:
+            case Format::RGBA8Snorm:
+            case Format::RGBA8Uint:
+            case Format::RGBA8Sint:
+            case Format::RGBA8Srgb:
+                return DXGI_FORMAT_R8G8B8A8_TYPELESS;
+            case Format::BGRA8Unorm:
+            case Format::BGRA8Srgb:
+                return DXGI_FORMAT_B8G8R8A8_TYPELESS;
+            case Format::A2RGB10Unorm:
+            case Format::A2RGB10Uint:
+                return DXGI_FORMAT_R10G10B10A2_TYPELESS;
+            case Format::R16Unorm:
+            case Format::R16Snorm:
+            case Format::R16Uint:
+            case Format::R16Sint:
+            case Format::R16Sfloat:
+            case Format::D16Unorm:
+                return DXGI_FORMAT_R16_TYPELESS;
+            case Format::RG16Unorm:
+                return DXGI_FORMAT_R16G16_UNORM;
+            case Format::RG16Snorm:
+            case Format::RG16Uint:
+            case Format::RG16Sint:
+            case Format::RG16Sfloat:
+                return DXGI_FORMAT_R16G16_TYPELESS;
+            case Format::RGBA16Unorm:
+            case Format::RGBA16Snorm:
+            case Format::RGBA16Uint:
+            case Format::RGBA16Sint:
+            case Format::RGBA16Sfloat:
+                return DXGI_FORMAT_R16G16B16A16_TYPELESS;
+            case Format::R32Uint:
+            case Format::R32Sint:
+            case Format::R32Sfloat:
+            case Format::D32Sfloat:
+                return DXGI_FORMAT_R32_TYPELESS;
+            case Format::RG32Uint:
+            case Format::RG32Sint:
+            case Format::RG32Sfloat:
+                return DXGI_FORMAT_R32G32_TYPELESS;
+            case Format::RGB32Uint:
+            case Format::RGB32Sint:
+            case Format::RGB32Sfloat:
+                return DXGI_FORMAT_R32G32B32_TYPELESS;
+            case Format::RGBA32Uint:
+            case Format::RGBA32Sint:
+            case Format::RGBA32Sfloat:
+                return DXGI_FORMAT_R32G32B32A32_TYPELESS;
+            case Format::D24UnormS8Uint:
+                return DXGI_FORMAT_R24G8_TYPELESS;
+            case Format::D32SfloatS8Uint:
+                return DXGI_FORMAT_R32G8X24_TYPELESS;
+            case Format::S8Uint:
+                return DXGI_FORMAT_X24_TYPELESS_G8_UINT; // TODO, is this correct?
+            case Format::BC1RGBUnormBlock:
+            case Format::BC1RGBAUnormBlock:
+            case Format::BC1RGBSrgbBlock:
+            case Format::BC1RGBASrgbBlock:
+                return DXGI_FORMAT_BC1_TYPELESS;
+            case Format::BC2UnormBlock:
+            case Format::BC2SrgbBlock:
+                return DXGI_FORMAT_BC2_TYPELESS;
+            case Format::BC3UnormBlock:
+            case Format::BC3SrgbBlock:
+                return DXGI_FORMAT_BC3_TYPELESS;
+            case Format::BC4UnormBlock:
+            case Format::BC4SnormBlock:
+                return DXGI_FORMAT_BC4_TYPELESS;
+            case Format::BC5UnormBlock:
+            case Format::BC5SnormBlock:
+                return DXGI_FORMAT_BC5_TYPELESS;
+            case Format::BC6HUfloatBlock:
+            case Format::BC6HSfloatBlock:
+                return DXGI_FORMAT_BC6H_TYPELESS;
+            case Format::BC7UnormBlock:
+            case Format::BC7SrgbBlock:
+                return DXGI_FORMAT_BC7_TYPELESS;
+            case Format::E5BGR9Ufloat:
+                return DXGI_FORMAT_P8;
+            case Format::B10GR11Ufloat:
+                return DXGI_FORMAT_R11G11B10_FLOAT;
+            default:
+                return DXGI_FORMAT_UNKNOWN;
+            }
+        }
+
 
         // Sampler Address Mode
         PYRO_FORCEINLINE static constexpr D3D12_TEXTURE_ADDRESS_MODE ToD3D12SamplerAddressMode(SamplerAddressMode mode) {

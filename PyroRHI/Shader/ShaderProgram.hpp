@@ -30,7 +30,7 @@
 
 namespace PyroshockStudios {
     inline namespace RHI {
-        class ShaderReflection;
+        struct ShaderReflection;
         enum struct ShaderStage : i32 {
             None,
             Vertex,   // vsh

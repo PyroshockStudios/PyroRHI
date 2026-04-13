@@ -21,13 +21,13 @@
 // SOFTWARE.
 
 #pragma once
-#include <EASTL/array.h>
-#include <EASTL/atomic.h>
-#include <EASTL/deque.h>
 #include <EASTL/stack.h>
 #include <EASTL/unordered_set.h>
 
 #include <PyroRHI/Api/IDevice.hpp>
+#include <PyroRHI/Common/AtomicMap.hpp>
+#include <PyroRHI/Common/AtomicQueue.hpp>
+#include <PyroRHI/Common/AtomicVector.hpp>
 #include <RHIVulkan/Api/CommandBuffer.hpp>
 #include <RHIVulkan/Api/GPUResourcePool.hpp>
 #include <RHIVulkan/Core.hpp>
@@ -72,7 +72,7 @@ namespace PyroshockStudios {
         class VulkanDevice : public IDevice, DeleteCopy, DeleteMove {
         public:
             VulkanDevice(VulkanContext* context, VkPhysicalDevice physicalDevice, const VkPhysicalDeviceFeatures& features, bool bHeadlessEnabled);
-            virtual ~VulkanDevice() override;
+            ~VulkanDevice() override;
 
             bool IsMemoryBlockValid(MemoryBlock handle) const override;
             bool IsBufferValid(Buffer handle) const override;
@@ -151,7 +151,7 @@ namespace PyroshockStudios {
             }
 
         public:
-            Image NewSwapChainImage(VkImage swapchainImage, VkFormat format, u32 index, ImageUsageFlags usage, const ImageInfo& imageInfo);
+            Image NewSwapChainImage(VulkanSwapChain* owner, VkImage swapchainImage, VkFormat format, u32 index, ImageUsageFlags usage, const ImageInfo& imageInfo);
 
             VulkanSwapChainSupportInfo GetSwapChainSupport(VkSurfaceKHR surface) const;
 
@@ -212,11 +212,12 @@ namespace PyroshockStudios {
                 eastl::vector<const u32*>& primitiveCountsPtrs) const;
 
         public:
-            eastl::vector<eastl::pair<QueueTimelineSnapshot, ZombieDeleter>> mResourceZombies = {};
+            Common::AtomicVector<eastl::pair<QueueTimelineSnapshot, ZombieDeleter>> mResourceZombies = {};
 
             VulkanDeviceCapabilities mVulkanCaps = {};
 
             u32 mActiveShaderModel = 0x14;
+
         private:
             QueueTimelineSnapshot SnapshotQueueTimelineValues() const;
 
@@ -225,8 +226,8 @@ namespace PyroshockStudios {
             void PopulateDeviceFeatures();
 
         private:
-            eastl::vector<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
-            eastl::vector<PendingQueueSubmitZombie> mQueuePendingSubmits = {};
+            Common::AtomicVector<eastl::pair<u64, CommandListZombie>> mMainQueueCommandListZombies = {};
+            Common::AtomicVector<PendingQueueSubmitZombie> mQueuePendingSubmits = {};
 
             GpuResourceId CreateImageView(const GpuResourceInfo& info, bool uav);
             GpuResourceId CreateBufferView(const GpuResourceInfo& info);
@@ -251,11 +252,9 @@ namespace PyroshockStudios {
             eastl::vector<u32> mUniqueCommandQueueFamilies = {};
             u32 mPresentQueueFamilyIndex = 0xFFFFFFFF;
 
-            eastl::unordered_set<VulkanSwapChain*> mActiveSwapChains = {};
-            eastl::unordered_set<VulkanCommandBuffer*> mAllocatedCommandBuffers = {};
+            Common::AtomicVector<VulkanCommandBuffer*> mAllocatedCommandBuffers = {};
 
             usize mNumAllocatedCommandPools = 0;
-
         };
     } // namespace RHIVulkan
 } // namespace PyroshockStudios

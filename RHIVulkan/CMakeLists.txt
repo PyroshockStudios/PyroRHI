@@ -26,15 +26,16 @@ foreach(_source IN ITEMS ${ENDF6_SRC})
     source_group("${_group_path}" FILES "${_source}")
 endforeach()
 
+# LUKAS WHY ARE THERE SO MANY WARNINGS!!!
+# target_compile_options(RHIVulkan PRIVATE ${S3D_COMPILER_WARNINGS})
+
 target_compile_features(RHIVulkan PRIVATE cxx_std_23)
 
 target_link_libraries(RHIVulkan PRIVATE PyroRHI::PyroRHI volk::volk VulkanMemoryAllocator)
 
 if (UNIX AND NOT APPLE) 
 # needed for surface creation
-target_link_libraries(RHIVulkan PRIVATE 
-xkbcommon
-)
+target_link_libraries(RHIVulkan PRIVATE xkbcommon)
 endif()
 
 add_custom_target(BuildPyroImplRHIVulkan ALL DEPENDS RHIVulkan)

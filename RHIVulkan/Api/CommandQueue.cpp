@@ -23,8 +23,8 @@
 #include "CommandQueue.hpp"
 
 #include <RHIVulkan/Api/CommandBuffer.hpp>
-#include <RHIVulkan/Api/Sync.hpp>
 #include <RHIVulkan/Api/SwapChain.hpp>
+#include <RHIVulkan/Api/Sync.hpp>
 
 #include <libassert/assert.hpp>
 
@@ -46,17 +46,6 @@ namespace PyroshockStudios::RHIVulkan {
     ICommandBuffer* VulkanCommandQueue::GetCommandBuffer(const CommandBufferInfo& info) {
         auto [pool, buffer] = mCommandBufferPool->Get(mDevice, this);
         return new VulkanCommandBuffer(mDevice, this, pool, buffer, info);
-    }
-
-    void VulkanCommandQueue::SubmitCommandBuffer(ICommandBuffer*& commandBuffer) {
-        mCommandBuffers.push_back(static_cast<VulkanCommandBuffer*>(commandBuffer));
-        commandBuffer = nullptr;
-    }
-    void VulkanCommandQueue::SubmitSwapChain(ISwapChain* swapChain) {
-        auto* swap = static_cast<VulkanSwapChain*>(swapChain);
-        mSwapChains.emplace_back(swap->GetVkSwapChain());
-        mSwapChainAcquireSemaphores.emplace_back(swap->GetCurrentImageAcquireSemaphore());
-        mImageIndices.emplace_back(swap->GetCurrentImageIndex());
     }
     void VulkanCommandQueue::WaitIdle() {
         CheckVkResult(vkQueueWaitIdle(mQueue), "Failed to idle command queue!");

@@ -630,7 +630,6 @@ TEST(RHICommonToStringTests, CommandQueueSubmitInfoToString) {
     auto array4 = eastl::array<FenceSubmitInfo, 1>({ signalFence1, 3 });
     info.waitSemaphores = array1;
     info.signalSemaphores = array2;
-    info.signalPresentReadySemaphores = array3;
     info.signalFences = array4;
 
     eastl::string expected =
@@ -641,9 +640,6 @@ TEST(RHICommonToStringTests, CommandQueueSubmitInfoToString) {
         "  ]\n"
         "  signalSemaphores: [\n"
         "    SemaphoreSubmitInfo { semaphore=0x0000000022222222, stage=8192 }\n"
-        "  ]\n"
-        "  signalPresentSemaphores: [\n"
-        "    SemaphoreSubmitInfo { semaphore=0x0000000011111111, stage=32768 }\n"
         "  ]\n"
         "  signalFences: [\n"
         "    FenceSubmitInfo { fence=0x0000000033333333, value=3 }\n"
@@ -674,16 +670,16 @@ TEST(RHICommonToStringTests, CommandQueueSubmitInfoToString) {
 
 TEST(RHICommonToStringTests, CommandQueuePresentInfoToString) {
     ICommandQueue* testQueue = reinterpret_cast<ICommandQueue*>(0xCAFEFEED);
-    Semaphore waitSemaphore1 = reinterpret_cast<Semaphore>(0x00000000EEEEAAAA);
+    ISwapChain* swapchain = reinterpret_cast<ISwapChain*>(0xEEEEAAAA);
 
     CommandQueuePresentInfo info = {};
     info.queue = testQueue;
-    info.waitSemaphores = eastl::span(&waitSemaphore1, 1);
+    info.swapChains = eastl::span(&swapchain, 1);
 
     eastl::string expected =
         "CommandQueuePresentInfo {\n"
         "  queue: 0x00000000CAFEFEED\n"
-        "  waitSemaphores: [\n"
+        "  swapChains: [\n"
         "    0x00000000EEEEAAAA\n"
         "  ]\n"
         "}";

@@ -32,20 +32,25 @@ namespace PyroshockStudios {
             CheckD3DResult(mDevice->InternalDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mQueueTracker)), "Failed to create queue resource fence!");
         }
         D3DCommandQueue::~D3DCommandQueue() {
-            for (auto& [cmb, fenceVal] : mPooledCommandBuffers) {
+            mPooledCommandBuffers.ForEach([](auto kv) {
+                auto [cmb, fenceVal] = kv;
                 delete cmb;
-            }
+            });
         }
         ICommandBuffer* D3DCommandQueue::GetCommandBuffer(const CommandBufferInfo& info) {
             D3DCommandBuffer* commands = nullptr;
 
             UINT64 completedVal = mQueueTracker->GetCompletedValue();
-            for (i32 i = 0; i < mPooledCommandBuffers.size(); ++i) {
-                auto& [cmb, fenceVal] = mPooledCommandBuffers[i];
-                if (completedVal > fenceVal) {
-                    commands = cmb;
-                    mPooledCommandBuffers.erase(mPooledCommandBuffers.begin() + i);
-                    break;
+            {
+                std::lock_guard guard(mPooledCommandBuffers.GetLock());
+                auto& vec = mPooledCommandBuffers.UnderlyingVector();
+                for (usize i = 0; i < vec.size(); ++i) {
+                    auto& [cmb, fenceVal] = vec[i];
+                    if (completedVal > fenceVal) {
+                        commands = cmb;
+                        vec.erase(vec.begin() + i);
+                        break;
+                    }
                 }
             }
             if (!commands) {
@@ -63,6 +68,7 @@ namespace PyroshockStudios {
 
             if (commands->bUsedBefore) {
                 commands->Reset();
+                gDx12Context->FlushDebugMessages();
             } else {
                 commands->bUsedBefore = true;
             }
@@ -90,17 +96,6 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
 
             return commands;
-        }
-        void D3DCommandQueue::SubmitCommandBuffer(ICommandBuffer*& commandBuffer) {
-            auto* d3dcmd = static_cast<D3DCommandBuffer*>(commandBuffer);
-            mSubmittedCommands.emplace_back(d3dcmd);
-            mPendingCommandListExecutes.emplace_back(d3dcmd->GetCommands());
-            commandBuffer = nullptr;
-        }
-        void D3DCommandQueue::SubmitSwapChain(ISwapChain* swapChain) {
-            auto* swap = static_cast<D3DSwapChain*>(swapChain);
-            mPendingSwapPresents.emplace_back(swap->InternalSwapChain(), swap->mSyncInterval);
-            swapChain = nullptr;
         }
         void D3DCommandQueue::WaitIdle() {
             ComPtr<ID3D12Fence> fence;

@@ -76,9 +76,9 @@ ShaderObject ShaderCompiler::CompileShaderFromSource(const eastl::string& code_,
     slang::TargetDesc targetDesc = {};
     targetDesc.format = (SlangCompileTarget)mFeatureSet->GetTarget();
     targetDesc.profile = mGlobalSession->findProfile(profileName);
-    targetDesc.forceGLSLScalarBufferLayout = mFeatureSet->Features().bScalarLayout;
+    targetDesc.forceGLSLScalarBufferLayout = false;
 
-    eastl::vector<const char*> searchPaths = { };
+    eastl::vector<const char*> searchPaths = {};
 
     slang::SessionDesc sessionDesc = {};
     sessionDesc.targets = &targetDesc;
@@ -110,9 +110,9 @@ ShaderObject ShaderCompiler::CompileShaderFromSource(const eastl::string& code_,
         // https://github.com/shader-slang/slang/issues/3532
         // Disables warning for aliasing bindings.
         // clang-format off
-                "-warnings-disable", "39001",
-                "-O0",
-                "-g2",
+        "-warnings-disable", "39001",
+        "-O0",
+        "-g2",
         // clang-format on
     };
     result = slangRequest->processCommandLineArguments(args.data(), args.size());

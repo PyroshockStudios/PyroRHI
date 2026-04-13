@@ -55,7 +55,10 @@ eastl::string GetCurrentDllDirectory() {
 namespace PyroshockStudios::RHIDX12 {
     D3DContext* gDx12Context = nullptr;
     using namespace ::Microsoft::WRL;
-    D3DContext::D3DContext(const D3DContextArgs& args, ILogStream* logSink, ILogStream* debugSink) : mDebugSink(debugSink) {
+    D3DContext::D3DContext(const D3DContextArgs& args, ILogStream* logSink, ILogStream* debugSink) : mDebugSink(debugSink),
+                                                                                                     bWarpDriver(args.bWarpDriver),
+                                                                                                     bDebug(args.bDebug),
+                                                                                                     mOverrideDeviceIndex(args.deviceIndex) {
         gDx12Context = this;
         D3DContext::InjectLogger(logSink);
 
@@ -92,6 +95,12 @@ namespace PyroshockStudios::RHIDX12 {
             if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&mDebugController)))) {
                 mDebugController->EnableDebugLayer();
 
+                ID3D12Debug1* dbg1;
+                if (SUCCEEDED(mDebugController->QueryInterface(IID_PPV_ARGS(&dbg1)))) {
+                    //dbg1->SetEnableGPUBasedValidation(TRUE);
+                    dbg1->SetEnableSynchronizedCommandQueueValidation(TRUE);
+                }
+
                 // Enable additional debug layers.
                 dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
                 Logger::Info(gDX12Sink, "Enabled Debug Layer");
@@ -102,50 +111,13 @@ namespace PyroshockStudios::RHIDX12 {
 
         CheckD3DResult(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&mFactory)), "Failed to CreateDXGIFactory2!");
         D3DSetDebugName(mFactory, "DXGI Factory 4");
-
-        ComPtr<IDXGIAdapter1> adapter;
-
-        if (args.bWarpDriver) {
-            mFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter));
-            if (!adapter) {
-                Logger::Fatal(gDX12Sink, "Failed to get the DX12 WARP device!");
-                return;
-            }
-            D3DSetDebugName(adapter, "Warp Adaptor");
-        } else {
-            GetHardwareAdapter(mFactory.Get(), &adapter);
-            D3DSetDebugName(adapter, "Hardware Adaptor");
-        }
-
-        ComPtr<ID3D12Device> device;
-        CheckD3DResult(D3D12CreateDevice(
-            adapter.Get(),
-            D3D_FEATURE_LEVEL_11_0,
-            IID_PPV_ARGS(&device)), "Failed to create D3D12 Device with D3D_FEATURE_LEVEL = 11_0");
-        D3DSetDebugName(device, "D3D12 Device (Feature level 11_0)");
-
-        if (args.bDebug) {
-            if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&mInfoQueue)))) {
-                D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO, D3D12_MESSAGE_SEVERITY_WARNING };
-                // Suprress the following
-                D3D12_MESSAGE_ID denyIds[] = {
-                    // D3D12 WARNING: ID3D12CommandList::ClearRenderTargetView: The clear values do not match those passed to resource creation.
-                    D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
-                    // D3D12 WARNING: ID3D12CommandList::ClearDepthStencilView: The clear values do not match those passed to resource creation.
-                    D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
-                };
-
-                D3D12_INFO_QUEUE_FILTER filter = {};
-                filter.DenyList.NumIDs = _countof(denyIds);
-                filter.DenyList.pIDList = denyIds;
-
-                mInfoQueue->AddStorageFilterEntries(&filter);
-            }
-        }
-        ComPtr<IDXGIFactory4> factoryCopy = mFactory;
-        mDevice = new D3DDevice(eastl::move(device), eastl::move(factoryCopy), eastl::move(adapter));
     }
     D3DContext::~D3DContext() {
+        for (auto& info : mPhysicalDevices) {
+            delete info.driverVersion;
+            delete info.deviceName;
+            // info.vendorName is a string literal!
+        }
         if (mPixRuntimeDll) {
             FreeLibrary(mPixRuntimeDll);
         }
@@ -163,23 +135,28 @@ namespace PyroshockStudios::RHIDX12 {
 
         ComPtr<IDXGIFactory6> factory6;
         if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6)))) {
-            for (
-                UINT adapterIndex = 0;
-                SUCCEEDED(factory6->EnumAdapterByGpuPreference(
-                    adapterIndex,
-                    deviceIndex == -1 ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
-                    IID_PPV_ARGS(&adapter)));
-                ++adapterIndex) {
-                DXGI_ADAPTER_DESC1 desc;
-                adapter->GetDesc1(&desc);
+            while (!adapter) {
+                for (
+                    UINT adapterIndex = 0;
+                    SUCCEEDED(factory6->EnumAdapterByGpuPreference(
+                        adapterIndex,
+                        deviceIndex == -1 ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
+                        IID_PPV_ARGS(&adapter)));
+                    ++adapterIndex) {
+                    if (deviceIndex != -1 && deviceIndex != adapterIndex)
+                        continue;
 
-                if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
-                    continue;
+                    DXGI_ADAPTER_DESC1 desc;
+                    adapter->GetDesc1(&desc);
+
+                    // Check to see whether the adapter supports Direct3D 12, but don't create the
+                    // actual device yet.
+                    if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr))) {
+                        break;
+                    }
                 }
-                // Check to see whether the adapter supports Direct3D 12, but don't create the
-                // actual device yet.
-                if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr))) {
-                    break;
+                if (!adapter) {
+                    deviceIndex = -1;
                 }
             }
         }
@@ -189,10 +166,6 @@ namespace PyroshockStudios::RHIDX12 {
                 DXGI_ADAPTER_DESC1 desc;
                 adapter->GetDesc1(&desc);
 
-                if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
-                    // force WARP selection
-                    continue;
-                }
                 // Check to see whether the adapter supports Direct3D 12, but don't create the
                 // actual device yet.
                 if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr))) {
@@ -206,7 +179,125 @@ namespace PyroshockStudios::RHIDX12 {
             Logger::Fatal(gDX12Sink, "Failed to pick a suitable DX12 device!");
         }
     }
-    IDevice* D3DContext::CreateDevice() {
+
+    eastl::span<RHIPhysicalDeviceInfo> D3DContext::QueryPhysicalDevices() {
+        if (!mPhysicalDevices.empty()) {
+            return mPhysicalDevices;
+        }
+
+        if (!mFactory) {
+            return {};
+        }
+
+        ComPtr<IDXGIAdapter1> pAdapter;
+        for (UINT adapterIndex = 0;
+            mFactory->EnumAdapters1(adapterIndex, &pAdapter) != DXGI_ERROR_NOT_FOUND;
+            ++adapterIndex) {
+            DXGI_ADAPTER_DESC1 desc;
+            if (FAILED(pAdapter->GetDesc1(&desc))) {
+                continue;
+            }
+            RHIPhysicalDeviceInfo info = {};
+
+            int bufferSize = WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, nullptr, 0, nullptr, nullptr);
+            char* deviceNameStr = new char[bufferSize];
+            WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, deviceNameStr, bufferSize, nullptr, nullptr);
+            info.deviceName = deviceNameStr;
+
+            switch (desc.VendorId) {
+            case 0x10DE:
+                info.vendorName = "NVIDIA";
+                break;
+            case 0x1002:
+                info.vendorName = "AMD";
+                break;
+            case 0x8086:
+                info.vendorName = "Intel";
+                break;
+            case 0x13B5:
+                info.vendorName = "ARM";
+                break;
+            case 0x5143:
+                info.vendorName = "Qualcomm";
+                break;
+            case 0x1414:
+                info.vendorName = "Microsoft";
+                break;
+            default:
+                info.vendorName = "Unknown";
+                break;
+            }
+            info.deviceID = desc.DeviceId;
+            info.vendorID = desc.VendorId;
+            LARGE_INTEGER umdVersion = {};
+            HRESULT hr = pAdapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umdVersion);
+            if (SUCCEEDED(hr)) {
+                u64 q = static_cast<u64>(umdVersion.QuadPart);
+                unsigned major = static_cast<unsigned>((q >> 48) & 0xFFFF);
+                unsigned minor = static_cast<unsigned>((q >> 32) & 0xFFFF);
+                unsigned sub = static_cast<unsigned>((q >> 16) & 0xFFFF);
+                unsigned build = static_cast<unsigned>(q & 0xFFFF);
+
+                char* driverVersionStr = new char[32];
+                snprintf(driverVersionStr, 32, "%u.%u.%u.%u", major, minor, sub, build);
+                info.driverVersion = driverVersionStr;
+            }
+            info.deviceLUID = eastl::bit_cast<u64>(desc.AdapterLuid);
+            mPhysicalDevices.push_back(info);
+        }
+
+        return mPhysicalDevices;
+    }
+
+    IDevice* D3DContext::CreateDevice(const RHIDeviceCreateInfo& createInfo) {
+        ComPtr<IDXGIAdapter1> adapter;
+
+        if (bWarpDriver) {
+            mFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter));
+            if (!adapter) {
+                Logger::Fatal(gDX12Sink, "Failed to get the DX12 WARP device!");
+                return nullptr;
+            }
+            D3DSetDebugName(adapter, "Warp Adaptor");
+        } else {
+            GetHardwareAdapter(mFactory.Get(), &adapter, mOverrideDeviceIndex == -1 ? createInfo.deviceIndex : mOverrideDeviceIndex);
+            D3DSetDebugName(adapter, "Hardware Adaptor");
+        }
+
+        ComPtr<ID3D12Device> device;
+        CheckD3DResult(D3D12CreateDevice(
+                           adapter.Get(),
+                           D3D_FEATURE_LEVEL_11_0,
+                           IID_PPV_ARGS(&device)),
+            "Failed to create D3D12 Device with D3D_FEATURE_LEVEL = 11_0");
+        D3DSetDebugName(device, "D3D12 Device (Feature level 11_0)");
+
+
+        if (bDebug) {
+            if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&mInfoQueue)))) {
+                D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO, D3D12_MESSAGE_SEVERITY_WARNING };
+                // Suprress the following
+                D3D12_MESSAGE_ID denyIds[] = {
+                    // D3D12 WARNING: ID3D12CommandList::ClearRenderTargetView: The clear values do not match those passed to resource creation.
+                    D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+                    // D3D12 WARNING: ID3D12CommandList::ClearDepthStencilView: The clear values do not match those passed to resource creation.
+                    D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
+                };
+
+                D3D12_INFO_QUEUE_FILTER filter = {};
+                filter.DenyList.NumIDs = _countof(denyIds);
+                filter.DenyList.pIDList = denyIds;
+
+                mInfoQueue->AddStorageFilterEntries(&filter);
+
+                mInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+                mInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+                // pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+            }
+        }
+        ComPtr<IDXGIFactory4> factoryCopy = mFactory;
+        mDevice = new D3DDevice(eastl::move(device), eastl::move(factoryCopy), eastl::move(adapter));
+        mDevice->SetShaderModel(0x60);
         return mDevice;
     }
 
@@ -278,7 +369,6 @@ namespace PyroshockStudios::RHIDX12 {
         static auto features = ShaderFeatureInfo{
             .bDescriptorIndexing = true,
             .bBufferDeviceAddress = false,
-            .bScalarLayout = true,
             .bDrawParameters = false,
             .bGLSL = false,
         };
@@ -342,6 +432,15 @@ namespace PyroshockStudios::RHIDX12 {
             std::vector<char> messageData(messageLength);
             auto* message = reinterpret_cast<D3D12_MESSAGE*>(messageData.data());
             mInfoQueue->GetMessageA(i, message, &messageLength);
+
+            bool bDred = message->Severity == D3D12_MESSAGE_SEVERITY_CORRUPTION || message->Severity == D3D12_MESSAGE_SEVERITY_ERROR;
+            if (bDred) {
+                ComPtr<ID3D12DeviceRemovedExtendedData> pDred;
+                mDevice->InternalDevice()->QueryInterface(IID_PPV_ARGS(&pDred));
+                D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
+                pDred->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput);
+            }
+
             switch (message->Severity) {
             case D3D12_MESSAGE_SEVERITY_CORRUPTION:
                 Logger::Fatal(mDebugSink, message->pDescription);

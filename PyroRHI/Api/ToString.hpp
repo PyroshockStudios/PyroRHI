@@ -740,12 +740,6 @@ namespace PyroshockStudios {
             }
             s += indent + "  ]\n";
 
-            s += indent + "  signalPresentSemaphores: [\n";
-            for (const auto& subInfo : signalPresentReadySemaphores) {
-                s += indent + "    " + subInfo.ToString(indentation + 4) + "\n";
-            }
-            s += indent + "  ]\n";
-
             s += indent + "  signalFences: [\n";
             for (const auto& subInfo : signalFences) {
                 s += indent + "    " + subInfo.ToString(indentation + 4) + "\n";
@@ -760,11 +754,11 @@ namespace PyroshockStudios {
             eastl::string s;
             s += "CommandQueuePresentInfo {\n";
             s += indent + "  queue: " + (ToHexH64(queue)) + "\n";
-            s += indent + "  waitSemaphores: [\n";
-            for (const auto& subInfo : waitSemaphores) {
+            s += indent + "  swapChains: [\n";
+            for (const auto& swapChain : swapChains) {
                 s += indent + "  "
                               "  " +
-                     ToHexH64(subInfo) + "\n";
+                     ToHexH64((u64)(void*)swapChain) + "\n";
             }
             s += indent + "  ]\n";
             s += indent + "}";

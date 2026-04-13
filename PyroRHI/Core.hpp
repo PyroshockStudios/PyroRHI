@@ -46,10 +46,12 @@
 #define RHI_TYPED_HANDLE64(x)                                                                    \
     typedef struct x##_T {                                                                       \
         u64 m_unused = 0;                              /**< Raw handle value. */                 \
+        x##_T(std::nullptr_t) : m_unused(0) {}         /**< Implicit conversion of nullptr. */   \
         operator u64() { return m_unused; }            /**< Implicit conversion to raw value. */ \
         operator bool() { return m_unused > 0; }       /**< Returns true if handle is valid. */  \
         bool operator==(const x##_T&) const = default; /**< Equality comparison operator. */     \
         bool operator!=(const x##_T&) const = default; /**< Inequality comparison operator. */   \
     } x
-#define RHI_MOCK_TYPED_HANDLE64(handleType, x) x##_T{x}
+#define RHI_MOCK_TYPED_HANDLE64(handleType, x) \
+    x##_T { x }
 #endif

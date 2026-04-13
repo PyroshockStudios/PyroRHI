@@ -31,7 +31,7 @@ namespace PyroshockStudios {
     namespace RHIVulkan {
         VkResult GPUShaderResourceTable::Initialize(u32 maxBuffersViews, u32 maxImageViews, u32 maxSamplers, u32 maxMemoryBlocks, u32 maxAccelerationStructures,
             VkDevice device, const VkAllocationCallbacks* allocator, VkBuffer deviceAddressBuffer,
-            PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT) {
+            PFN_vkSetDebugUtilsObjectNameEXT fn_VkSetDebugUtilsObjectNameEXT) {
             mBufferSlots.mMaxResources = maxBuffersViews;
             mImageSlots.mMaxResources = maxImageViews;
             mResourceViewSlots.mMaxResources = eastl::max(maxBuffersViews, maxImageViews);
@@ -96,7 +96,7 @@ namespace PyroshockStudios {
             VkResult result = vkCreateDescriptorPool(device, &vkDescriptorPoolCreateInfo, allocator, &mDescriptorPool);
             CheckVkResult(result, "Failed to create descriptor pool!");
 
-            if (vkSetDebugUtilsObjectNameEXT != nullptr) {
+            if (fn_VkSetDebugUtilsObjectNameEXT != nullptr) {
                 const char* descriptorPoolName = "Mega Descriptor Pool";
                 const VkDebugUtilsObjectNameInfoEXT descriptorPoolNameInfo = {
                     .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
@@ -105,7 +105,7 @@ namespace PyroshockStudios {
                     .objectHandle = eastl::bit_cast<uint64_t>(mDescriptorPool),
                     .pObjectName = descriptorPoolName,
                 };
-                vkSetDebugUtilsObjectNameEXT(device, &descriptorPoolNameInfo);
+                fn_VkSetDebugUtilsObjectNameEXT(device, &descriptorPoolNameInfo);
             }
 
 

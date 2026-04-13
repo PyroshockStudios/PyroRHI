@@ -2,16 +2,21 @@
 
 # Default path for PyroCommon if user does not provide one
 if(NOT TARGET PyroCommon)
+    include(FetchContent)
+    # find the package locally first
     find_package(PyroCommon CONFIG QUIET)
+    # If not found, fetch it directly from repository
     if(NOT PyroCommon_FOUND)
-        set(PYRO_COMMON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/PyroCommon" CACHE PATH "Path to PyroCommon")
-        if(NOT EXISTS "${PYRO_COMMON_DIR}/CMakeLists.txt")
-            message(FATAL_ERROR "PyroCommon not found at ${PYRO_COMMON_DIR}")
-        endif()
-        set(PYRO_COMMON_BINARY_DIR "${CMAKE_BINARY_DIR}/PyroCommon")
-        add_subdirectory(${PYRO_COMMON_DIR} ${PYRO_COMMON_BINARY_DIR})
+        message(STATUS "PyroCommon not found locally. Fetching from GitHub...")
+        FetchContent_Declare(
+            PyroCommon
+            GIT_REPOSITORY https://github.com/PyroshockStudios/PyroCommon.git
+            GIT_TAG        master
+        )
+        FetchContent_MakeAvailable(PyroCommon)
     endif()
 endif()
+
 
 if(PYRO_RHI_BUILD_VULKAN)
     # vulkan

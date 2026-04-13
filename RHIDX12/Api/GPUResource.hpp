@@ -29,6 +29,9 @@
 #undef OPAQUE
 #include <PyroRHI/Api/AccelerationStructure.hpp>
 #include <PyroRHI/Api/GPUResource.hpp>
+#include <PyroRHI/Common/AtomicMap.hpp>
+#include <PyroRHI/Common/AtomicQueue.hpp>
+#include <PyroRHI/Common/AtomicVector.hpp>
 #include <RHIDX12/Core.hpp>
 
 namespace PyroshockStudios {
@@ -58,6 +61,10 @@ namespace PyroshockStudios {
         public:
             D3DHeapManager(ID3D12Device* device, UINT maxDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE heapType, bool gpuVisible, const char* debugName) : mDebugName(debugName) {
                 Logger::Debug(gDX12Sink, "Initialising Resource Pool named '{}'", debugName);
+                mTombstones.PushBack({ 1, 0 });
+                // FIXME, use a StableVector?
+                mSlots.PushBack(nullptr);
+
                 D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
                 heapDesc.NumDescriptors = maxDescriptors;
                 heapDesc.Type = heapType;
@@ -68,28 +75,33 @@ namespace PyroshockStudios {
                 mDescriptorBase = mHeap->GetCPUDescriptorHandleForHeapStart();
             }
             ~D3DHeapManager() {
-                if (mTombstones.size() != mHeapCounter) {
-                    Logger::Warn(gDX12Sink, "Leaked {} resources in Resource Pool named '{}'", mHeapCounter - mTombstones.size(), mDebugName);
+                if (mTombstones.Size() != mHeapCounter) {
+                    Logger::Warn(gDX12Sink, "Leaked {} resources in Resource Pool named '{}'", mHeapCounter - mTombstones.Size(), mDebugName);
                 }
+                mSlots.ForEach([](auto p) { delete p; });
             }
             eastl::pair<GpuResourceId, TInfo&> AcquireSlot() {
                 UINT slot, version = 0;
-                if (mTombstones.size() == 1) {
+                TInfo* pinfo = nullptr;
+                if (mTombstones.Size() == 1) {
                     slot = mHeapCounter++;
-                    mSlots.push_back({});
+                    pinfo = new TInfo;
+                    mSlots.PushBack(pinfo);
                 } else {
-                    auto kv = mTombstones.back();
+                    auto kv = mTombstones.PopBack();
                     slot = kv.first;
                     version = kv.second;
-                    mTombstones.pop_back();
+                    pinfo = mSlots.At(slot);
+                    *pinfo = TInfo();
                 }
-                return { { .index = slot, .version = version }, mSlots[slot] };
+
+                return { { .index = slot, .version = version }, *pinfo };
             }
             void ReleaseSlot(GpuResourceId handle) {
-                mTombstones.emplace_back(handle.index, ++handle.version);
+                mTombstones.PushBack({ handle.index, ++handle.version });
             }
             void ReleaseSlot(D3D12_CPU_DESCRIPTOR_HANDLE handle) {
-                mTombstones.emplace_back(static_cast<UINT>((handle.ptr - mDescriptorBase.ptr) / mIncSz), 0);
+                mTombstones.PushBack({ static_cast<UINT>((handle.ptr - mDescriptorBase.ptr) / mIncSz), 0 });
             }
 
             D3D12_CPU_DESCRIPTOR_HANDLE Resolve(GpuResourceId slot) {
@@ -99,7 +111,7 @@ namespace PyroshockStudios {
             }
 
             TInfo& GetInfo(GpuResourceId slot) {
-                return mSlots[slot.index];
+                return *mSlots.At(slot.index);
             }
 
             D3D12_CPU_DESCRIPTOR_HANDLE HostHandle() {
@@ -113,8 +125,8 @@ namespace PyroshockStudios {
             }
 
         private:
-            eastl::vector<eastl::pair<UINT, UINT>> mTombstones = { { 1, 0 } };
-            eastl::vector<TInfo> mSlots = { TInfo{} };
+            Common::AtomicVector<eastl::pair<UINT, UINT>> mTombstones;
+            Common::AtomicVector<TInfo*> mSlots;
             D3D12_CPU_DESCRIPTOR_HANDLE mDescriptorBase = {};
             UINT mHeapCounter = 1;
             ComPtr<ID3D12DescriptorHeap> mHeap = {};
@@ -193,10 +205,10 @@ namespace PyroshockStudios {
             D3DHeapManager<D3DRenderTargetData> mDSVHeap;
 
         private:
-            eastl::hash_map<MemoryBlock, D3DMemoryBlockResourceData> mMemoryBlockResources = {};
-            eastl::hash_map<Buffer, D3DBufferResourceData> mBufferResources = {};
-            eastl::hash_map<Image, D3DImageResourceData> mImageResources = {};
-            eastl::hash_map<BlasId, D3DBlasData> mBlasResources = {};
+            Common::AtomicMap<MemoryBlock, D3DMemoryBlockResourceData*> mMemoryBlockResources = {};
+            Common::AtomicMap<Buffer, D3DBufferResourceData*> mBufferResources = {};
+            Common::AtomicMap<Image, D3DImageResourceData*> mImageResources = {};
+            Common::AtomicMap<BlasId, D3DBlasData*> mBlasResources = {};
 
             eastl::atomic<u32> mMemoryBlockCounter = 1;
             eastl::atomic<u32> mBufferCounter = 1;

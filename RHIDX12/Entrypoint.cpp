@@ -56,9 +56,10 @@ static const RHIOptionInfo gRhiOptions[PYRO_RHI_MAX_OPTIONS] = {
 
 PYRO_EXPORT void PYRO_CDECL GetCustomRHIInfo(RHIInfo* pInfo) {
     pInfo->guid = gDX12RhiGuid;
-    strncpy(pInfo->author, "V.O.F. Pyroshock Studios", PYRO_RHI_NAME_MAX_LENGTH);
-    strncpy(pInfo->name, "DirectX 12", PYRO_RHI_AUTH_MAX_LENGTH);
+    strncpy(pInfo->author, "V.O.F. Pyroshock Studios", PYRO_RHI_AUTH_MAX_LENGTH);
+    strncpy(pInfo->name, "Direct3D 12 FL 11_0", PYRO_RHI_NAME_MAX_LENGTH);
     strncpy(pInfo->shorthand, "dx12", PYRO_RHI_SHORTHAND_MAX_LENGTH);
+    strncpy(pInfo->codename, "Xenon", PYRO_RHI_CODENAME_MAX_LENGTH);
 
     for (i32 i = 0; i < eMAX_OPTIONS; ++i) {
         pInfo->availableOptions[i] = gRhiOptions[i];

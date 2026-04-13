@@ -29,6 +29,9 @@
 #include <PyroRHI/Api/IDevice.hpp>
 #include <RHIDX12/Api/GPUResource.hpp>
 #include <RHIDX12/Helper/LinearUploadBuffer.hpp>
+#include <PyroRHI/Common/AtomicMap.hpp>
+#include <PyroRHI/Common/AtomicQueue.hpp>
+#include <PyroRHI/Common/AtomicVector.hpp>
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
@@ -168,7 +171,7 @@ namespace PyroshockStudios {
             void SetShaderModel(u32 shaderModel) override;
 
             void ImageAddIfNecessaryBlitSupport(D3DImageResourceData& data);
-            const DescriptorTableInfo& GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc);
+            DescriptorTableInfo GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc);
             ID3D12PipelineState* GetBlitImagePipeline(DXGI_FORMAT format, bool bArray);
 
             LinearUploadBuffer* GetLinearBufferAllocation(UINT64 minSize = 65536ULL);
@@ -235,7 +238,7 @@ namespace PyroshockStudios {
             ComPtr<ID3D12RootSignature> mRootSignature = {};
 
             ComPtr<ID3D12RootSignature> mBlitImageRootSignature = {};
-            eastl::hash_map<UINT64, ComPtr<ID3D12PipelineState>> mBlitImagePipelineStates = {};
+            Common::AtomicMap<UINT64, ComPtr<ID3D12PipelineState>> mBlitImagePipelineStates = {};
             DescriptorTableInfo mDefaultUAVDescriptorTable = {};
             DescriptorTableInfo mNearestSamplerDescriptorTable = {};
             DescriptorTableInfo mLinearSamplerDescriptorTable = {};
@@ -244,14 +247,14 @@ namespace PyroshockStudios {
 
         private:
             eastl::vector<ICommandQueue*> mCommandQueueList = {};
-            D3DCommandQueue* mCommandQueue = {};
+            D3DCommandQueue* mPrimaryCommandQueue = {};
             eastl::unique_ptr<GPUResourcePool> mResourcePool = {};
 
-            eastl::vector<eastl::pair<UINT64 /*frames unused*/, LinearUploadBuffer*>> mAvailableLinearUploadBuffers = {};
+            Common::AtomicVector<eastl::pair<UINT64 /*frames unused*/, LinearUploadBuffer*>> mAvailableLinearUploadBuffers = {};
 
-            eastl::vector<eastl::pair<UINT64 /* cpu fence value @*/, D3DCommandQueue*>> mQueuePendingSubmits;
+            Common::AtomicVector<eastl::pair<UINT64 /* cpu fence value @*/, D3DCommandQueue*>> mQueuePendingSubmits;
 
-            eastl::vector<eastl::pair<QueueFenceSnapshot, ZombieDeleter>>
+            Common::AtomicVector<eastl::pair<QueueFenceSnapshot, ZombieDeleter>>
                 mDeferredDeletes;
 
             CD3DX12FeatureSupport mDx12FeatureSupport{};
@@ -263,7 +266,7 @@ namespace PyroshockStudios {
             ComPtr<ID3D12CommandSignature> mIndirectDrawSignature = {};
             ComPtr<ID3D12CommandSignature> mIndirectDrawIndexedSignature = {};
             ComPtr<ID3D12CommandSignature> mIndirectDispatchSignature = {};
-            eastl::hash_map<UAVDescriptorTableCache, eastl::pair<UINT64 /*frames unused*/, DescriptorTableInfo>> mUAVDescriptorTableCache = {};
+            Common::AtomicMap<UAVDescriptorTableCache, eastl::pair<UINT64 /*frames unused*/, DescriptorTableInfo>> mUAVDescriptorTableCache = {};
         };
     } // namespace RHIDX12
 } // namespace PyroshockStudios

@@ -126,10 +126,13 @@ namespace PyroshockStudios::RHIVulkan {
         FlushBarriers();
 
         ImplImageSlot& imageSlot = mDevice->Slot(info.image);
+        CheckIfSwapchainReference(imageSlot);
 
+
+        auto blockInfo = RHIUtil::GetFormatBlockInfo(imageSlot.info.format);
         const VkBufferImageCopy region = {
             .bufferOffset = info.bufferOffset,
-            .bufferRowLength = info.rowPitch == 0 ? 0 : (info.rowPitch / RHIUtil::GetFormatSize(imageSlot.info.format)),
+            .bufferRowLength = info.rowPitch == 0 ? 0 : (info.rowPitch / blockInfo.bytesPerBlock * blockInfo.blockWidth ),
             .bufferImageHeight = info.imageExtent.height,
             .imageSubresource = {
                 .aspectMask = imageSlot.aspectFlags,
@@ -150,6 +153,7 @@ namespace PyroshockStudios::RHIVulkan {
 
         ImplImageSlot& imageSlot = mDevice->Slot(info.image);
         ImplBufferSlot& bufferSlot = mDevice->Slot(info.buffer);
+        CheckIfSwapchainReference(imageSlot);
 
         const VkBufferImageCopy region = {
             .bufferOffset = info.bufferOffset,
@@ -174,6 +178,8 @@ namespace PyroshockStudios::RHIVulkan {
 
         ImplImageSlot& srcImageSlot = mDevice->Slot(info.srcImage);
         ImplImageSlot& dstImageSlot = mDevice->Slot(info.dstImage);
+        CheckIfSwapchainReference(srcImageSlot);
+        CheckIfSwapchainReference(dstImageSlot);
 
         const VkImageCopy region = {
             .srcSubresource = {
@@ -203,6 +209,8 @@ namespace PyroshockStudios::RHIVulkan {
 
         ImplImageSlot& srcImageSlot = mDevice->Slot(info.srcImage);
         ImplImageSlot& dstImageSlot = mDevice->Slot(info.dstImage);
+        CheckIfSwapchainReference(srcImageSlot);
+        CheckIfSwapchainReference(dstImageSlot);
 
         const VkImageBlit region{
             .srcSubresource = {
@@ -244,6 +252,7 @@ namespace PyroshockStudios::RHIVulkan {
         } else if (eastl::holds_alternative<ImageResourceInfo>(uav.info)) {
             auto& imageViewInfo = eastl::get<ImageResourceInfo>(uav.info);
             auto& imageInfo = mDevice->Slot(imageViewInfo.image);
+            CheckIfSwapchainReference(imageInfo);
             VkImage image = imageInfo.vkImage;
             VkImageSubresourceRange range = {
                 .aspectMask = imageInfo.aspectFlags,
@@ -310,6 +319,7 @@ namespace PyroshockStudios::RHIVulkan {
         ASSERT(mCompleted == false, "can not record commands to completed command list");
 
         ImplImageSlot& imageSlot = mDevice->Slot(info.image);
+        CheckIfSwapchainReference(imageSlot);
 
         VkImageMemoryBarrier2 barrier = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
@@ -373,6 +383,7 @@ namespace PyroshockStudios::RHIVulkan {
         ASSERT(mCompleted == false, "can not record commands to completed command list");
 
         ImplImageSlot& imageSlot = mDevice->Slot(image);
+        CheckIfSwapchainReference(imageSlot);
 
         VkImageMemoryBarrier2 barrier = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
@@ -401,7 +412,7 @@ namespace PyroshockStudios::RHIVulkan {
             .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
             .buffer = bufferSlot.vkBuffer,
             .offset = 0,
-                .size = VK_WHOLE_SIZE,
+            .size = VK_WHOLE_SIZE,
         };
         ASSERT(srcQueue != nullptr && mQueue != srcQueue, "Queue ownerships must define BOTH a correct SRC and DST DIFFERENT ICommandQueue's!!");
         barrier.srcQueueFamilyIndex = static_cast<VulkanCommandQueue*>(srcQueue)->GetQueueFamily();
@@ -415,6 +426,7 @@ namespace PyroshockStudios::RHIVulkan {
 
         ImplImageSlot& imageSlot = mDevice->Slot(image);
 
+        CheckIfSwapchainReference(imageSlot);
         VkImageMemoryBarrier2 barrier = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
             .image = imageSlot.vkImage,
@@ -492,7 +504,7 @@ namespace PyroshockStudios::RHIVulkan {
                 .loadOp = ToVkLoadOp(info.loadOp),
                 .storeOp = ToVkStoreOp(info.storeOp),
             };
-            memcpy(&attachment.clearValue.color, &info.clearValue, 16);
+            memcpy(&attachment.clearValue.color, &info.clearValue, sizeof(VkClearColorValue));
             if (info.resolve.has_value()) {
                 attachment.resolveMode = ToVkResolveMode(info.resolve->mode);
                 attachment.resolveImageView = eastl::bit_cast<VulkanRenderTarget*>(info.resolve->target)->GetVkImageView();
@@ -504,6 +516,13 @@ namespace PyroshockStudios::RHIVulkan {
         VkRenderingAttachmentInfo colorAttachments[8];
         for (i32 i = 0; i < info.colorAttachments.size(); ++i) {
             colorAttachments[i] = ToRenderingAttachmentInfo(info.colorAttachments[i]);
+            // check if it's a swapchain!
+            Image img = eastl::bit_cast<VulkanRenderTarget*>(info.colorAttachments[i].target)->Info().image;
+            CheckIfSwapchainReference(mDevice->Slot(img));
+            if (info.colorAttachments[i].resolve) {
+                Image resolveImg = eastl::bit_cast<VulkanRenderTarget*>(info.colorAttachments[i].resolve->target)->Info().image;
+                CheckIfSwapchainReference(mDevice->Slot(resolveImg));
+            }
         }
         if (info.colorAttachments.size() > 0) {
             renderingInfo.pColorAttachments = colorAttachments;
@@ -564,7 +583,7 @@ namespace PyroshockStudios::RHIVulkan {
 
     void VulkanCommandBuffer::PushConstantVPtr(const PushConstantInfo& info) {
         ASSERT(mCompleted == false, "can not record commands to completed command list");
-        ASSERT(info.size < Limits::MAX_PUSH_CONSTANT_SIZE, "Push constant is too big!");
+        ASSERT(info.size <= Limits::MAX_PUSH_CONSTANT_SIZE, "Push constant is too big!");
         ASSERT(PYRO_VERIFY_ALIGNMENT(info.size, 4), "Push constants must be DWord aligned!");
         ASSERT(PYRO_VERIFY_ALIGNMENT(info.offset, 4), "Push constants must be DWord aligned!");
 
@@ -759,9 +778,9 @@ namespace PyroshockStudios::RHIVulkan {
         eastl::vector<VkAccelerationStructureGeometryKHR> vkGeometryInfos;
         eastl::vector<u32> primitiveCounts;
         eastl::vector<const u32*> primitiveCountsPtrs;
-        
+
         mDevice->CreateAccelerationStructureBuildInfo(info.tlasBuildInfos, info.blasBuildInfos, vkBuildGeometryInfos, vkGeometryInfos, primitiveCounts, primitiveCountsPtrs);
-        
+
         eastl::vector<VkAccelerationStructureBuildRangeInfoKHR> vkBuildRanges;
         vkBuildRanges.reserve(primitiveCounts.size());
         for (auto primitiveCount : primitiveCounts) {
@@ -772,7 +791,7 @@ namespace PyroshockStudios::RHIVulkan {
                 .transformOffset = {},
             });
         }
-        
+
         eastl::vector<const VkAccelerationStructureBuildRangeInfoKHR*> vkBuildRangesPtrs;
         vkBuildRangesPtrs.reserve(primitiveCountsPtrs.size());
         for (const auto* primCountsPtr : primitiveCountsPtrs) {
@@ -809,6 +828,11 @@ namespace PyroshockStudios::RHIVulkan {
             mMemoryBarriers.clear();
             mBufferBarriers.clear();
             mImageBarriers.clear();
+        }
+    }
+    void VulkanCommandBuffer::CheckIfSwapchainReference(const ImplImageSlot& slot) {
+        if (slot.ownedSwapchain) {
+            mSwapchainRefs.emplace(slot.ownedSwapchain);
         }
     }
 } // namespace PyroshockStudios::RHIVulkan

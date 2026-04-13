@@ -70,7 +70,7 @@ namespace PyroshockStudios {
 
             // --- Driver and API details ---
             eastl::string driverVersion;     ///< Driver version string (parsed from DXGI or Vulkan driver info).
-            eastl::string apiVersion;        ///< Graphics API version (e.g., "D3D12.3" or "Vulkan 1.3.290").
+            eastl::string apiVersion;        ///< Graphics API version (e.g., "D3D12 (11.0)" or "Vulkan 1.3.290").
             eastl::string driverDescription; ///< Optional additional text from the driver or runtime.
             eastl::string architecture;      ///< e.g. "Ada Lovelace", "RDNA3", "Xe-LPG", etc., if identifiable.
 
@@ -240,6 +240,12 @@ namespace PyroshockStudios {
              * @brief the command queue to submit. *MUST* be non-null;
              */
             ICommandQueue* queue = nullptr;
+
+            /**
+            * @brief The command buffers to submit in this queue. These will be executed in **order**
+            */
+            eastl::span<ICommandBuffer*> commands = {};
+
             /**
              * @brief Semaphores to wait on, if applicable
              * This is required for multiple command queue synchronisation, e.g.
@@ -255,13 +261,6 @@ namespace PyroshockStudios {
              * @brief Semaphores to signal, if applicable
              */
             eastl::span<const SemaphoreSubmitInfo> signalSemaphores = {};
-            /**
-             * @brief Semaphores to signal that the swapchain can present the rendered image, if applicable
-             * @note: this is *NOT* for swapchain acquiring the next available image, but rather a signal from
-             * the queue to the presenting engine that the frame is ready to be presented. This is to cope with
-             * the seperation of frames in flight and swap chain buffer count.
-             */
-            eastl::span<const SemaphoreSubmitInfo> signalPresentReadySemaphores = {};
             /**
              * @brief Pairs of fences to signal, with a value.
              */
@@ -281,9 +280,9 @@ namespace PyroshockStudios {
              */
             ICommandQueue* queue = nullptr;
             /**
-             * @brief Semaphores that the present operation must wait on, if applicable
+             * @brief the swap chains to present. Note: the swap chain's images must be owned by this queue to successfully present.
              */
-            eastl::span<Semaphore> waitSemaphores = {};
+            eastl::span<ISwapChain*> swapChains = {};
 
             PYRO_NODISCARD bool operator==(const CommandQueuePresentInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const CommandQueuePresentInfo&) const = default;

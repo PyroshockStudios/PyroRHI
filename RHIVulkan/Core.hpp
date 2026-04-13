@@ -114,9 +114,9 @@ namespace PyroshockStudios {
             case IndexType::None:
                 return 0;
             default:
-                return -1;
+                return u32(- 1);
             }
-            return -1;
+            return u32(-1);
         }
         PYRO_FORCEINLINE static constexpr VkAttachmentLoadOp ToVkAttachmentLoadOp(AttachmentLoadOp type) { return static_cast<VkAttachmentLoadOp>(type); }
         PYRO_FORCEINLINE static constexpr VkAttachmentStoreOp ToVkAttachmentStoreOp(AttachmentStoreOp type) { return static_cast<VkAttachmentStoreOp>(type); }
@@ -173,7 +173,7 @@ namespace PyroshockStudios {
             case ImageLayout::RenderTarget:
                 return VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
             case ImageLayout::RenderTargetReadOnly:
-                return VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+                return VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL /*VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL*/;
             case ImageLayout::TransferSrc:
                 return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
             case ImageLayout::TransferDst:

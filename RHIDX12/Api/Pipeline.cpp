@@ -47,7 +47,7 @@ namespace PyroshockStudios {
 
             // HACK: There is no clean way to get the variable names originally declared,
             if (bDxil) {
-                eastl::string disasm = DissasembleDXIL(code.data(), code.size());
+                // eastl::string disasm = DissasembleDXIL(code.data(), code.size());
                 /*
                 *   TODO: implement this for DXIL. Not entirely sure what the indicator is, but might be something like this
                 * 
@@ -99,7 +99,7 @@ namespace PyroshockStudios {
                 memcpy(ptr, shaderSpecializationData.data(), desc.Width);
                 outResource->Unmap(0, &range);
             }
-        };
+        }
 
         D3DRasterPipeline::D3DRasterPipeline(D3DDevice* device, const RasterPipelineInfo& info, ID3D12RootSignature* rootSig, const RasterPipelineShaderStages& stages)
             : mDevice(device), mInfo(info) {

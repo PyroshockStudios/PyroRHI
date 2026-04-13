@@ -61,15 +61,6 @@ namespace PyroshockStudios {
              * @note Command buffers must ALWAYS be submitted back to the queue they came from.
              */
             virtual ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) = 0;
-            
-            /**
-             * @brief Submits a command buffer and recycles it. The command buffer is set to NULL.
-             */
-            virtual void SubmitCommandBuffer(ICommandBuffer*& commandBuffer) = 0;
-            /**
-             * @brief Submits the swap chain and prepares it for presentation (only allowed if this is a present queue).
-             */
-            virtual void SubmitSwapChain(ISwapChain* swapChain) = 0;
             /**
              * @brief Waits for all commands and present operations to have complete.
              */

@@ -114,6 +114,7 @@ namespace PyroshockStudios {
              * Typically 2 or 3 for double or triple buffering.
              * @note This value may be clamped to the swapchain's requirements. Never assume the input bufferCount is the created bufferCount,
              * make sure to query this true value by calling ISwapChain::Info()
+             * NOTE: this MUST be larger or equal to number of frames in flight!
              */
             u32 bufferCount = 2;
 

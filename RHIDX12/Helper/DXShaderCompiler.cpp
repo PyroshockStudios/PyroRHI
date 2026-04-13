@@ -67,6 +67,9 @@ namespace PyroshockStudios {
             for (UINT i = 0; i < shaderDesc.InputParameters; ++i) {
                 D3D12_SIGNATURE_PARAMETER_DESC paramDesc;
                 CheckD3DResult(reflector->GetInputParameterDesc(i, &paramDesc), "Failed to get shader input parameter description!");
+                // only add custom semantics!
+                if (paramDesc.SystemValueType != D3D_NAME_UNDEFINED && paramDesc.SystemValueType != D3D_NAME_POSITION)
+                    continue;
                 list.emplace_back(paramDesc);
             }
 

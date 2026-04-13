@@ -51,8 +51,8 @@ namespace PyroshockStudios {
              */
             Union<b32, i32, u32, f32> data = {};
 
-            PYRO_NODISCARD  bool operator==(const SpecializationConstantInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const SpecializationConstantInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const SpecializationConstantInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const SpecializationConstantInfo&) const = default;
         };
 
         /**
@@ -69,8 +69,8 @@ namespace PyroshockStudios {
              */
             eastl::span<const SpecializationConstantInfo> specializationConstants = {};
 
-            PYRO_NODISCARD  bool operator==(const ShaderInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const ShaderInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const ShaderInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const ShaderInfo&) const = default;
         };
 
         /**
@@ -82,8 +82,8 @@ namespace PyroshockStudios {
              */
             eastl::string name = {};
 
-            PYRO_NODISCARD  bool operator==(const ComputePipelineInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const ComputePipelineInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const ComputePipelineInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const ComputePipelineInfo&) const = default;
         };
 
         /**
@@ -115,8 +115,8 @@ namespace PyroshockStudios {
              */
             u32 offset = 0;
 
-            PYRO_NODISCARD  bool operator==(const VertexAttributeInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const VertexAttributeInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const VertexAttributeInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const VertexAttributeInfo&) const = default;
         };
 
         /**
@@ -138,8 +138,8 @@ namespace PyroshockStudios {
              */
             bool bPerInstance = false;
 
-            PYRO_NODISCARD  bool operator==(const VertexBindingInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const VertexBindingInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const VertexBindingInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const VertexBindingInfo&) const = default;
         };
 
         /**
@@ -171,8 +171,8 @@ namespace PyroshockStudios {
             f32 minDepthBounds = 0.0f;
             f32 maxDepthBounds = 1.0f;
 
-            PYRO_NODISCARD  bool operator==(const DepthTestInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DepthTestInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const DepthTestInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DepthTestInfo&) const = default;
         };
 
         /**
@@ -211,8 +211,8 @@ namespace PyroshockStudios {
              */
             u32 reference = 0xFFFFFFFF;
 
-            PYRO_NODISCARD  bool operator==(const StencilTestInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const StencilTestInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const StencilTestInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const StencilTestInfo&) const = default;
         };
 
         /**
@@ -246,8 +246,8 @@ namespace PyroshockStudios {
              */
             StencilTestInfo backStencilTest = {};
 
-            PYRO_NODISCARD  bool operator==(const DepthStencilStateInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const DepthStencilStateInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const DepthStencilStateInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const DepthStencilStateInfo&) const = default;
         };
 
         /**
@@ -283,8 +283,8 @@ namespace PyroshockStudios {
              */
             eastl::span<const VertexBindingInfo> vertexBindings = {};
 
-            PYRO_NODISCARD  bool operator==(const InputAssemblyStateInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const InputAssemblyStateInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const InputAssemblyStateInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const InputAssemblyStateInfo&) const = default;
         };
 
         /**
@@ -347,8 +347,8 @@ namespace PyroshockStudios {
              */
             bool bRasterizerDiscard = false;
 
-            PYRO_NODISCARD  bool operator==(const RasterizerStateInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const RasterizerStateInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const RasterizerStateInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const RasterizerStateInfo&) const = default;
         };
 
         /**
@@ -379,8 +379,8 @@ namespace PyroshockStudios {
              */
             float minSampleShading = 1.0f;
 
-            PYRO_NODISCARD  bool operator==(const MultiSampleStateInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const MultiSampleStateInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const MultiSampleStateInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const MultiSampleStateInfo&) const = default;
         };
 
         /**
@@ -417,7 +417,7 @@ namespace PyroshockStudios {
              */
             BlendFactor dstAlphaBlendFactor = BlendFactor::Zero;
 
-            PYRO_NODISCARD  friend auto operator<=>(BlendInfo const&, BlendInfo const&) = default;
+            PYRO_NODISCARD friend auto operator<=>(BlendInfo const&, BlendInfo const&) = default;
         };
 
         /**
@@ -443,8 +443,8 @@ namespace PyroshockStudios {
              */
             eastl::optional<BlendInfo> blend = eastl::nullopt;
 
-            PYRO_NODISCARD  bool operator==(const ColorTargetStateInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const ColorTargetStateInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const ColorTargetStateInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const ColorTargetStateInfo&) const = default;
         };
 
         /**
@@ -461,8 +461,8 @@ namespace PyroshockStudios {
              */
             TesselationDomainOrigin origin = TesselationDomainOrigin::LowerLeft;
 
-            PYRO_NODISCARD  bool operator==(const TesselationStateInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const TesselationStateInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const TesselationStateInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const TesselationStateInfo&) const = default;
         };
 
         /**
@@ -504,8 +504,8 @@ namespace PyroshockStudios {
              */
             eastl::string name = {};
 
-            PYRO_NODISCARD  bool operator==(const RasterPipelineInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const RasterPipelineInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const RasterPipelineInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const RasterPipelineInfo&) const = default;
         };
 
         struct RasterPipelineShaderStages {
@@ -534,8 +534,8 @@ namespace PyroshockStudios {
              */
             eastl::optional<ShaderInfo> fragmentShaderInfo = {};
 
-            PYRO_NODISCARD  bool operator==(const RasterPipelineShaderStages&) const = default;
-            PYRO_NODISCARD  bool operator!=(const RasterPipelineShaderStages&) const = default;
+            PYRO_NODISCARD bool operator==(const RasterPipelineShaderStages&) const = default;
+            PYRO_NODISCARD bool operator!=(const RasterPipelineShaderStages&) const = default;
         };
 
         /**

@@ -38,7 +38,6 @@
 
 namespace PyroshockStudios::RHIVulkan {
     PYRO_FORCEINLINE static constexpr VkPresentModeKHR ToVkPresentMode(SwapChainPresentMode type) { return static_cast<VkPresentModeKHR>(type); }
-
     VulkanSwapChain::VulkanSwapChain(VulkanDevice* device, const SwapChainInfo& info) : mInfo(info), mDevice(device) {
         CreateSurface();
         mSupportInfo = device->GetSwapChainSupport(mSurface);
@@ -98,13 +97,18 @@ namespace PyroshockStudios::RHIVulkan {
         TrySetPresentMode(info.presentMode);
 
         CreateSwapChain(VK_NULL_HANDLE);
-        CreateSemaphores();
+        CreateSync();
     }
     VulkanSwapChain::~VulkanSwapChain() {
-        for (i32 i = 0; i < mInfo.bufferCount; ++i) {
+        for (u32 i = 0; i < mInfo.bufferCount; ++i) {
             mDevice->DestroyImmediately(mWrappedImages[i]);
-            vkDestroySemaphore(mDevice->GetVkDevice(), mImageAcquireSemaphores[i], mDevice->Context()->GetVkAllocator());
         }
+        auto destroySemaphore = [this](VkSemaphore semaphore) {
+            vkDestroySemaphore(mDevice->GetVkDevice(), semaphore, mDevice->Context()->GetVkAllocator());
+        };
+        eastl::for_each(mImageAcquireSemaphores.begin(), mImageAcquireSemaphores.end(), destroySemaphore);
+        eastl::for_each(mRenderFinishSemaphores.begin(), mRenderFinishSemaphores.end(), destroySemaphore);
+        vkDestroyFence(mDevice->GetVkDevice(), mSwapchainAcquireFence, mDevice->Context()->GetVkAllocator());
         vkDestroySwapchainKHR(mDevice->GetVkDevice(), mSwapChain, mDevice->Context()->GetVkAllocator());
         vkDestroySurfaceKHR(mDevice->Context()->GetVkInstance(), mSurface, mDevice->Context()->GetVkAllocator());
     }
@@ -115,20 +119,23 @@ namespace PyroshockStudios::RHIVulkan {
         return mWrappedImages[imageIndex];
     }
     i32 VulkanSwapChain::AcquireNextImage() {
+        CheckVkResult(vkResetFences(mDevice->GetVkDevice(), 1, &mSwapchainAcquireFence), "Failed to reset swapchain fence!");
         mImageAcquireIndex = (mImageAcquireIndex + 1) % mInfo.bufferCount;
         VkResult result = vkAcquireNextImageKHR(mDevice->GetVkDevice(),
             mSwapChain,
             eastl::numeric_limits<u64>::max(),
             mImageAcquireSemaphores[mImageAcquireIndex],
-            VK_NULL_HANDLE,
+            mSwapchainAcquireFence,
             &mImageIndex);
-        return result == VK_SUCCESS ? mImageIndex : PYRO_SWAPCHAIN_ACQUIRE_FAIL;
+
+        CheckVkResult(vkWaitForFences(mDevice->GetVkDevice(), 1, &mSwapchainAcquireFence, VK_TRUE, UINT64_MAX), "Failed to wait for swapchain fence!");
+
+        return (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) ? mImageIndex : PYRO_SWAPCHAIN_ACQUIRE_FAIL;
     }
 
     void VulkanSwapChain::Resize() {
         mSupportInfo = mDevice->GetSwapChainSupport(mSurface);
         mInfo.extent = { mSupportInfo.capabilities.currentExtent.width, mSupportInfo.capabilities.currentExtent.height };
-        mImageIndex = 0;
         for (Image img : mWrappedImages) {
             mDevice->DestroyImmediately(img);
         }
@@ -268,7 +275,7 @@ namespace PyroshockStudios::RHIVulkan {
                 .name = mInfo.name + " Image #" + eastl::to_string(i),
             };
 
-            mWrappedImages[i] = mDevice->NewSwapChainImage(mSwapImages[i], ToVkFormat(mFormat), i, usage, image_info);
+            mWrappedImages[i] = mDevice->NewSwapChainImage(this, mSwapImages[i], ToVkFormat(mFormat), i, usage, image_info);
         }
 
         if (vkSetDebugUtilsObjectNameEXT) {
@@ -282,9 +289,8 @@ namespace PyroshockStudios::RHIVulkan {
             vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &nameInfoo);
         }
     }
-    void VulkanSwapChain::CreateSemaphores() {
-        mImageAcquireSemaphores.resize(mInfo.bufferCount);
-        for (i32 i = 0; i < mInfo.bufferCount; ++i) {
+    void VulkanSwapChain::CreateSync() {
+        auto CreateSemaphore = [this](const char* name, i32 index, VkSemaphore* pSemaphore) {
             VkSemaphoreCreateInfo createInfo{
                 .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
                 .pNext = nullptr,
@@ -292,21 +298,31 @@ namespace PyroshockStudios::RHIVulkan {
             };
 
             VkResult result = vkCreateSemaphore(mDevice->GetVkDevice(),
-                &createInfo, mDevice->Context()->GetVkAllocator(), &mImageAcquireSemaphores[i]);
+                &createInfo, mDevice->Context()->GetVkAllocator(), pSemaphore);
             CheckVkResult(result, "Failed to create swap chain acquire semaphore!");
 
             if (vkSetDebugUtilsObjectNameEXT) {
-                eastl::string name1 = mInfo.name + " Acquire Image Semaphore #" + eastl::to_string(i);
+                eastl::string name1 = mInfo.name + " " + name + " Semaphore #" + eastl::to_string(index);
                 VkDebugUtilsObjectNameInfoEXT semaphoreNameInfo = {
                     .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
                     .pNext = nullptr,
                     .objectType = VK_OBJECT_TYPE_SEMAPHORE,
-                    .objectHandle = eastl::bit_cast<uint64_t>(mImageAcquireSemaphores[i]),
+                    .objectHandle = eastl::bit_cast<uint64_t>(*pSemaphore),
                     .pObjectName = name1.c_str(),
                 };
                 vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &semaphoreNameInfo);
             }
+        };
+        mRenderFinishSemaphores.resize(mInfo.bufferCount);
+        // NOTE: acquire image only needs to be synchronised to FIF amount.
+        // However, FIF <= bufferCount so this overestimation is fine and negligible.
+        mImageAcquireSemaphores.resize(mInfo.bufferCount);
+        for (i32 i = 0; i < mInfo.bufferCount; ++i) {
+            CreateSemaphore("Render Finish", i, &mRenderFinishSemaphores[i]);
+            CreateSemaphore("Acquire Image", i, &mImageAcquireSemaphores[i]);
         }
+        VkFenceCreateInfo fenceInfo{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+        CheckVkResult(vkCreateFence(mDevice->GetVkDevice(), &fenceInfo, mDevice->Context()->GetVkAllocator(), &mSwapchainAcquireFence), "Failed to create swapchain fence!");
     }
 
     void VulkanSwapChain::TrySetPresentMode(SwapChainPresentMode presentMode) {

@@ -69,7 +69,7 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             CollectGarbage();
             gDx12Context->FlushDebugMessages();
-            ASSERT(mDeferredDeletes.empty(), "Command buffers must finish execution before device destruction! Deferred destruction was leaked!");
+            ASSERT(mDeferredDeletes.Empty(), "Command buffers must finish execution before device destruction! Deferred destruction was leaked!");
             DestroyCommandQueues();
             DestroyUploadBuffers();
             ReportDeviceRemovalReason();
@@ -396,7 +396,6 @@ namespace PyroshockStudios {
             // Describe the texture
             D3D12_RESOURCE_DESC textureDesc = {};
             textureDesc.MipLevels = info.mipLevelCount;
-            textureDesc.Format = ToDXGIFormat(info.format);
             textureDesc.Width = static_cast<UINT64>(info.size.width);
             textureDesc.Height = info.size.height;
             textureDesc.DepthOrArraySize = static_cast<UINT16>(eastl::max(info.size.depth, info.arrayLayerCount));
@@ -418,6 +417,11 @@ namespace PyroshockStudios {
 
             if (info.usage & ImageUsageFlagBits::UNORDERED_ACCESS) {
                 textureDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+            }
+            if (info.usage & ImageUsageFlagBits::SHADER_RESOURCE && dsv || info.flags & ImageCreateFlagBits::MUTABLE_FORMAT) {
+                textureDesc.Format = ToDXGIFormatTypeless(info.format);
+            } else {
+                textureDesc.Format = ToDXGIFormat(info.format);
             }
 
             textureDesc.SampleDesc.Count = static_cast<UINT>(info.sampleCount);
@@ -507,12 +511,13 @@ namespace PyroshockStudios {
                 auto& srcBuf = mResourcePool->Get(bufInfo.buffer);
                 resource = srcBuf.resource.Get();
 
-                srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+                srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
                 srvDesc.Buffer.StructureByteStride = 0;
                 srvDesc.Buffer.FirstElement = static_cast<UINT>(bufInfo.region.offset);
                 srvDesc.Buffer.NumElements = eastl::min(static_cast<UINT>(srcBuf.info.size), static_cast<UINT>(bufInfo.region.size)) / 4;
                 srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
                 srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+                srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
             } else if (eastl::holds_alternative<ImageResourceInfo>(info)) {
                 auto& imgInfo = eastl::get<ImageResourceInfo>(info);
@@ -520,7 +525,23 @@ namespace PyroshockStudios {
                 resource = srcImg.resource.Get();
                 bool bMS = srcImg.info.sampleCount > RasterizationSamples::e1;
 
-                srvDesc.Format = ToDXGIFormat(imgInfo.format == Format::Inherit ? srcImg.info.format : imgInfo.format);
+                Format fmt = imgInfo.format == Format::Inherit ? srcImg.info.format : imgInfo.format;
+                if (RHIUtil::FormatIsDepthStencil(fmt)) {
+                    // FIXME how to read stencil only data?
+                    switch (fmt) {
+                    case Format::D16Unorm:
+                        srvDesc.Format = DXGI_FORMAT_R16_UNORM;
+                        break;
+                    case Format::D32Sfloat:
+                        srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+                        break;
+                    default:
+                        ASSERT(false, "TODO implement the rest of the formats");
+                        break;
+                    }
+                } else {
+                    srvDesc.Format = ToDXGIFormat(fmt);
+                }
 
                 srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
@@ -857,7 +878,7 @@ namespace PyroshockStudios {
                     .resource = reinterpret_cast<void*>(memory),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<MemoryBlock>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             auto& data = mResourcePool->Get(memory);
@@ -872,7 +893,7 @@ namespace PyroshockStudios {
                     .resource = reinterpret_cast<void*>(buffer),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Buffer>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             auto& data = mResourcePool->Get(buffer);
@@ -900,7 +921,7 @@ namespace PyroshockStudios {
                     .resource = reinterpret_cast<void*>(image),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Image>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             auto& imgSlot = mResourcePool->Get(image);
@@ -922,7 +943,7 @@ namespace PyroshockStudios {
                     .resource = eastl::bit_cast<void*>(srv),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<ShaderResourceId>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             mResourcePool->mSRVHeap.ReleaseSlot(srv);
@@ -935,7 +956,7 @@ namespace PyroshockStudios {
                     .resource = eastl::bit_cast<void*>(uav),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<UnorderedAccessId>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             // HACK: invalidate the cache! the handle might be reused
@@ -953,7 +974,7 @@ namespace PyroshockStudios {
                     .resource = eastl::bit_cast<void*>(sampler),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<SamplerId>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             mResourcePool->mSamplerHeap.ReleaseSlot(sampler);
@@ -966,7 +987,7 @@ namespace PyroshockStudios {
                     .resource = eastl::bit_cast<void*>(renderTarget),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<RenderTarget>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             auto* rt = eastl::bit_cast<D3DRenderTarget*>(renderTarget);
@@ -982,7 +1003,7 @@ namespace PyroshockStudios {
                     .resource = eastl::bit_cast<void*>(pipeline),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<RasterPipeline>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             delete eastl::bit_cast<D3DRasterPipeline*>(pipeline);
@@ -995,7 +1016,7 @@ namespace PyroshockStudios {
                     .resource = eastl::bit_cast<void*>(pipeline),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<ComputePipeline>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             delete eastl::bit_cast<D3DComputePipeline*>(pipeline);
@@ -1008,7 +1029,7 @@ namespace PyroshockStudios {
                     .resource = reinterpret_cast<void*>(swapChain),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ISwapChain*>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             delete static_cast<D3DSwapChain*>(swapChain);
@@ -1021,7 +1042,7 @@ namespace PyroshockStudios {
                     .resource = eastl::bit_cast<void*>(semaphore),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<Semaphore>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             delete eastl::bit_cast<D3DSemaphore*>(semaphore);
@@ -1034,7 +1055,7 @@ namespace PyroshockStudios {
                     .resource = reinterpret_cast<void*>(fence),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<IFence*>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             delete static_cast<D3DFence*>(fence);
@@ -1047,7 +1068,7 @@ namespace PyroshockStudios {
                     .resource = reinterpret_cast<void*>(queryPool),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ITimestampQueryPool*>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             delete static_cast<D3DTimestampQueryPool*>(queryPool);
@@ -1060,7 +1081,7 @@ namespace PyroshockStudios {
                     .resource = eastl::bit_cast<void*>(blas),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<BlasId>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
             mResourcePool->ReleaseBlas(blas);
@@ -1073,7 +1094,7 @@ namespace PyroshockStudios {
                     .resource = eastl::bit_cast<void*>(tlas),
                     .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<TlasId>(res)); }
                 };
-                mDeferredDeletes.emplace_back(eastl::move(SnapshotQueueFenceValues()), zombie);
+                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
                 return;
             }
 
@@ -1088,10 +1109,12 @@ namespace PyroshockStudios {
             return mCommandQueueList;
         }
         ICommandQueue* D3DDevice::GetPresentQueue() {
-            return mCommandQueue;
+            return mPrimaryCommandQueue;
         }
         void D3DDevice::WaitIdle() {
-            mCommandQueue->WaitIdle();
+            for (ICommandQueue* q : GetCommandQueues()) {
+                q->WaitIdle();
+            }
             gDx12Context->FlushDebugMessages();
         }
 
@@ -1104,11 +1127,15 @@ namespace PyroshockStudios {
             }
             const UINT64 cpuFenceValue = q->IncGetCpuValue();
             // avoid race condition by adding this to the queue immediately before any execution!
-            mQueuePendingSubmits.emplace_back(cpuFenceValue, q);
+            mQueuePendingSubmits.EmplaceBack(cpuFenceValue, q);
 
-            q->InternalQueue()->ExecuteCommandLists(static_cast<UINT>(q->mPendingCommandListExecutes.size()), q->mPendingCommandListExecutes.data());
+            eastl::vector<ID3D12CommandList*> commands;
+            commands.reserve(info.commands.size());
+            for (ICommandBuffer* c : info.commands) {
+                commands.push_back(static_cast<D3DCommandBuffer*>(c)->GetCommands());
+            }
+            q->InternalQueue()->ExecuteCommandLists(static_cast<UINT>(commands.size()), commands.data());
             gDx12Context->FlushDebugMessages();
-            q->mPendingCommandListExecutes.clear();
 
             // Fences for deferred resource destruction from incoming command buffers
             QueueFenceSnapshot fencesForThisFrame = SnapshotQueueFenceValues();
@@ -1133,35 +1160,40 @@ namespace PyroshockStudios {
 
             // pool back the submitted command buffers for later reuse
             // and also add the zombies to the destroy queue
-            for (D3DCommandBuffer* cmb : q->mSubmittedCommands) {
+            for (ICommandBuffer* c : info.commands) {
+                D3DCommandBuffer* cmb = static_cast<D3DCommandBuffer*>(c);
                 q->RestoreCommandBuffer(cmb);
                 for (i32 i = 0; i < cmb->mDeferredDeleteOps.size(); ++i) {
-                    mDeferredDeletes.emplace_back(fencesForThisFrame, eastl::move(cmb->mDeferredDeleteOps[i]));
+                    mDeferredDeletes.EmplaceBack(fencesForThisFrame, eastl::move(cmb->mDeferredDeleteOps[i]));
                 }
                 cmb->mDeferredDeleteOps.clear();
                 for (i32 i = 0; i < cmb->mPendingReturnLinearUploadBuffers.size(); ++i) {
-                    mDeferredDeletes.emplace_back(
+                    mDeferredDeletes.EmplaceBack(
                         fencesForThisFrame,
                         ZombieDeleter{
                             .resource = reinterpret_cast<void*>(cmb->mPendingReturnLinearUploadBuffers[i]),
                             .deleter = [](D3DDevice* device, void* resource) {
-                                device->mAvailableLinearUploadBuffers.emplace_back(0ULL, reinterpret_cast<LinearUploadBuffer*>(resource));
+                                device->mAvailableLinearUploadBuffers.EmplaceBack(0ULL, reinterpret_cast<LinearUploadBuffer*>(resource));
                             },
                         });
                 }
                 cmb->mPendingReturnLinearUploadBuffers.clear();
             }
-            q->mSubmittedCommands.clear();
             gDx12Context->FlushDebugMessages();
         }
         void D3DDevice::PresentQueue(const CommandQueuePresentInfo& info) {
-            auto* q = static_cast<D3DCommandQueue*>(info.queue);
-            for (auto [swapChain, syncInterval] : q->mPendingSwapPresents) {
+            for (ISwapChain* s : info.swapChains) {
+                D3DSwapChain* swapChain = static_cast<D3DSwapChain*>(s);
                 // TODO: how to get rid of the stupid dxgi delay?
-                swapChain->Present(syncInterval, DXGI_PRESENT_DO_NOT_WAIT);
+                HRESULT hrTest = swapChain->InternalSwapChain()->Present(0, DXGI_PRESENT_TEST);
+                if (hrTest == DXGI_STATUS_OCCLUDED) {
+                    continue;
+                }
+                CheckD3DResult(hrTest, "Swapchain present failed!");
+                HRESULT hr = swapChain->InternalSwapChain()->Present(swapChain->mSyncInterval, 0);
+                CheckD3DResult(hr, "Swapchain present failed!");
                 gDx12Context->FlushDebugMessages();
             }
-            q->mPendingSwapPresents.clear();
         }
         const DeviceInfo& D3DDevice::Info() const {
             return mInfo;
@@ -1246,14 +1278,16 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
         }
 
-        const DescriptorTableInfo& D3DDevice::GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc) {
+        DescriptorTableInfo D3DDevice::GetUnorderedAccessViewDescriptorTable(const UAVDescriptorTableCache& desc) {
             if (desc.EffectivelyEmpty()) {
                 return mDefaultUAVDescriptorTable;
             }
-            auto it = mUAVDescriptorTableCache.find(desc);
-            if (it != mUAVDescriptorTableCache.end()) {
-                it->second.first = 0;
-                return it->second.second;
+            auto table = mUAVDescriptorTableCache.GetOpt(desc);
+            if (table.has_value()) {
+                mUAVDescriptorTableCache.Ref(desc, [](auto& table) {
+                    table.first = 0;
+                });
+                return table->second;
             }
             Logger::Trace(gDX12Sink, "[D3D12] Copying descriptor tables");
 
@@ -1287,15 +1321,16 @@ namespace PyroshockStudios {
                 ++index;
             }
 
-            return mUAVDescriptorTableCache.emplace(desc, eastl::pair{ 0, eastl::move(tableInfo) }).first->second.second;
+            mUAVDescriptorTableCache.Emplace(desc, eastl::pair{ 0, tableInfo });
+            return tableInfo;
         }
 
         ID3D12PipelineState* D3DDevice::GetBlitImagePipeline(DXGI_FORMAT format, bool bArray) {
             UINT64 hash = static_cast<UINT>(format) | (bArray ? 0x100000000ULL : 0x0000000ULL);
 
-            auto it = mBlitImagePipelineStates.find(hash);
-            if (it != mBlitImagePipelineStates.end())
-                return it->second.Get();
+            auto pipelineOpt = mBlitImagePipelineStates.GetOpt(hash);
+            if (pipelineOpt.has_value())
+                return pipelineOpt->Get();
 
 
             D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -1343,10 +1378,10 @@ namespace PyroshockStudios {
 
 
             Logger::Trace(gDX12Sink, "[D3D12] Creating image blit pipeline state object");
-            ComPtr<ID3D12PipelineState>& entry = mBlitImagePipelineStates[hash];
+            ComPtr<ID3D12PipelineState> entry;
             // --- Create PSO ---
             CheckD3DResult(mDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&entry)), "Failed to create image blit pipeline state object!");
-
+            mBlitImagePipelineStates.Emplace(hash, entry);
             eastl::string name = eastl::string("Blit image pipeline state DXGI format=") + eastl::to_string((UINT)format) + ", Array=" +
                                  (bArray ? "true" : "false");
             D3DSetDebugName(entry, name.c_str());
@@ -1356,13 +1391,12 @@ namespace PyroshockStudios {
         }
 
         LinearUploadBuffer* D3DDevice::GetLinearBufferAllocation(UINT64 minSize) {
-            if (mAvailableLinearUploadBuffers.empty()) {
+            if (mAvailableLinearUploadBuffers.Empty()) {
                 auto lub = new LinearUploadBuffer(mDevice.Get(), minSize);
                 gDx12Context->FlushDebugMessages();
                 return lub;
             } else {
-                LinearUploadBuffer* buff = mAvailableLinearUploadBuffers.back().second;
-                mAvailableLinearUploadBuffers.pop_back();
+                LinearUploadBuffer* buff = mAvailableLinearUploadBuffers.PopBack().second;
                 buff->Reset();
                 gDx12Context->FlushDebugMessages();
                 return buff;
@@ -1384,23 +1418,23 @@ namespace PyroshockStudios {
             CD3DX12_CPU_DESCRIPTOR_HANDLE h = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDefaultUAVDescriptorTable.cpuDescriptor);
             mDevice->CreateShaderResourceView(pResource, pDesc, h.Offset(handle.index * incSz));
             gDx12Context->FlushDebugMessages();
-            for (auto& [cache, data] : mUAVDescriptorTableCache) {
+            mUAVDescriptorTableCache.ForEach([=, &h](const auto& cache, auto& data) {
                 h = CD3DX12_CPU_DESCRIPTOR_HANDLE(data.second.cpuDescriptor);
                 mDevice->CreateShaderResourceView(pResource, pDesc, h.Offset(handle.index * incSz));
                 gDx12Context->FlushDebugMessages();
-            }
+            });
         }
         void D3DDevice::DestroyAllUAVDescriptorHeapCopies(UnorderedAccessId handle) {
             eastl::vector<UAVDescriptorTableCache> destroyCaches = {};
-            for (auto& [cache, data] : mUAVDescriptorTableCache) {
+            mUAVDescriptorTableCache.ForEach([&](const auto& cache, auto& data) {
                 for (i32 i = 0; i < cache.boundUavs.size(); ++i) {
                     if (cache.boundUavs[i] == handle) {
                         destroyCaches.emplace_back(cache);
                     }
                 }
-            }
+            });
             for (const auto& cache : destroyCaches) {
-                mUAVDescriptorTableCache.erase(cache);
+                mUAVDescriptorTableCache.Erase(cache);
             }
         }
 
@@ -1464,69 +1498,78 @@ namespace PyroshockStudios {
             for (ICommandQueue* commandQueue : mCommandQueueList) {
                 oldestQueueTimelines.emplace_back(static_cast<D3DCommandQueue*>(commandQueue), UINT64_MAX);
             }
-
-            for (int i = 0; i < mQueuePendingSubmits.size(); ++i) {
-                auto [queueTimeline, queue] = mQueuePendingSubmits[i];
-                u64 completedValue = queue->GetFenceValue();
-                if (completedValue >= queueTimeline) {
-                    mQueuePendingSubmits.erase(mQueuePendingSubmits.begin() + i);
-                    --i;
-                } else {
-                    for (auto& [oldestTimelineQueue, oldestVal] : oldestQueueTimelines) {
-                        if (queue != oldestTimelineQueue)
-                            continue;
-                        oldestVal = eastl::min(oldestVal, completedValue);
+            {
+                std::lock_guard l(mQueuePendingSubmits.GetLock());
+                auto& vec = mQueuePendingSubmits.UnderlyingVector();
+                for (usize i = 0; i < vec.size(); ++i) {
+                    auto [queueTimeline, queue] = vec[i];
+                    u64 completedValue = queue->GetFenceValue();
+                    if (completedValue >= queueTimeline) {
+                        vec.erase(vec.begin() + i);
+                        --i;
+                    } else {
+                        for (auto& [oldestTimelineQueue, oldestVal] : oldestQueueTimelines) {
+                            if (queue != oldestTimelineQueue)
+                                continue;
+                            oldestVal = eastl::min(oldestVal, completedValue);
+                        }
                     }
                 }
             }
+            {
+                std::lock_guard l(mDeferredDeletes.GetLock());
+                auto& vec = mDeferredDeletes.UnderlyingVector();
+                for (usize i = 0; i < vec.size(); ++i) {
+                    auto [deleteTimelineSnapshot, zombie] = vec[i];
 
-            for (int i = 0; i < mDeferredDeletes.size(); ++i) {
-                auto [deleteTimelineSnapshot, zombie] = mDeferredDeletes[i];
-
-                bool bReady = true;
-                // Check across all queues to see what is pending.
-                // Queues that are not participating will just have a value of UINT64_MAX and naturally skip the check
-                for (int j = 0; j < oldestQueueTimelines.size(); ++j) {
-                    auto [queue, completedTimeline] = oldestQueueTimelines[j];
-                    // resources should NEVER catch up to the main cpu timeline,
-                    // otherwise they were scheduled for destruction after a final queue submission (BAD)
-                    // So a "less than equal" condition is necessary to determine if this is not ready.
-                    if (completedTimeline <= deleteTimelineSnapshot[j]) {
-                        bReady = false;
-                        break;
+                    bool bReady = true;
+                    // Check across all queues to see what is pending.
+                    // Queues that are not participating will just have a value of UINT64_MAX and naturally skip the check
+                    for (usize j = 0; j < oldestQueueTimelines.size(); ++j) {
+                        auto [queue, completedTimeline] = oldestQueueTimelines[j];
+                        // resources should NEVER catch up to the main cpu timeline,
+                        // otherwise they were scheduled for destruction after a final queue submission (BAD)
+                        // So a "less than equal" condition is necessary to determine if this is not ready.
+                        if (completedTimeline <= deleteTimelineSnapshot[j]) {
+                            bReady = false;
+                            break;
+                        }
                     }
-                }
-                if (bReady) {
-                    zombie.deleter(this, zombie.resource); // destroy
-                    gDx12Context->FlushDebugMessages();
-                    mDeferredDeletes.erase(mDeferredDeletes.begin() + i);
-                    --i;
+                    if (bReady) {
+                        zombie.deleter(this, zombie.resource); // destroy
+                        gDx12Context->FlushDebugMessages();
+                        vec.erase(vec.begin() + i);
+                        --i;
+                    }
                 }
             }
 
             // === Miscellaneous garbage collection ===
 
             // Delete linear upload buffers that haven't been used in a long time
-            for (usize i = 0; i < mAvailableLinearUploadBuffers.size(); ++i) {
-                auto& [unusedFrames, zombie] = mAvailableLinearUploadBuffers[i];
-                if (unusedFrames++ > MAX_FRAMES_LINEAR_UPLOAD_BUFFER_UNSUED_LIFETIME) {
-                    delete zombie;
-                    gDx12Context->FlushDebugMessages();
-                    mAvailableLinearUploadBuffers.erase(mAvailableLinearUploadBuffers.begin() + i);
-                    --i;
+            {
+                std::lock_guard l(mAvailableLinearUploadBuffers.GetLock());
+                auto& vec = mAvailableLinearUploadBuffers.UnderlyingVector();
+                for (usize i = 0; i < vec.size(); ++i) {
+                    auto& [unusedFrames, zombie] = vec[i];
+                    if (unusedFrames++ > MAX_FRAMES_LINEAR_UPLOAD_BUFFER_UNSUED_LIFETIME) {
+                        delete zombie;
+                        gDx12Context->FlushDebugMessages();
+                        vec.erase(vec.begin() + i);
+                        --i;
+                    }
                 }
             }
 
             // cleanup UAV tables that haven't been used in a long time
             eastl::vector<UAVDescriptorTableCache> deleteUAVTableCacheHandles = {};
-            for (auto& [cacheHandle, h] : mUAVDescriptorTableCache) {
-                auto& [unusedFrames, signature] = h;
-                if (unusedFrames++ > MAX_FRAMES_UAV_TABLE_CACHE_UNUSED_LIFETIME) {
-                    deleteUAVTableCacheHandles.emplace_back(cacheHandle);
+            mUAVDescriptorTableCache.ForEach([&](const auto& cache, auto& data) mutable {
+                if (data.first++ > MAX_FRAMES_UAV_TABLE_CACHE_UNUSED_LIFETIME) {
+                    deleteUAVTableCacheHandles.emplace_back(cache);
                 }
-            }
+            });
             for (auto handle : deleteUAVTableCacheHandles) {
-                mUAVDescriptorTableCache.erase(handle);
+                mUAVDescriptorTableCache.Erase(handle);
             }
         }
 
@@ -1602,7 +1645,7 @@ namespace PyroshockStudios {
                     this, eastl::move(queueDescData),
                     eastl::move(commandQueue));
                 if (queueDesc.Type == D3D12_COMMAND_LIST_TYPE_DIRECT) {
-                    mCommandQueue = queue;
+                    mPrimaryCommandQueue = queue;
                 }
                 mCommandQueueList.emplace_back(static_cast<ICommandQueue*>(queue));
                 gDx12Context->FlushDebugMessages();
@@ -1659,17 +1702,30 @@ namespace PyroshockStudios {
                 rootparams[12].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_6);
                 rootparams[13].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_7);
 
-                CD3DX12_DESCRIPTOR_RANGE srvDescriptorRange{};
-                CD3DX12_DESCRIPTOR_RANGE samplerDescriptorRange{};
+                const UINT NUM_BINDLESS_SRV_SPACES = 9;
+
+                CD3DX12_DESCRIPTOR_RANGE srvDescriptorRanges[NUM_BINDLESS_SRV_SPACES]{};
+
+                for (UINT i = 0; i < NUM_BINDLESS_SRV_SPACES; ++i) {
+                    srvDescriptorRanges[i].Init(
+                        D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+                        NUM_CRV_SRV_UAV,                       
+                        RHIDX12_SRV_REGISTER,                  // t0
+                        RHIDX12_BINDLESS_DESCRIPTOR_SPACE + i, // space1, space2, space3...
+                        0                                      // Force offset to 0 so they all alias the same heap memory
+                    );
+                }
+
+                const UINT NUM_BINDLESS_SAMPLER_SPACES = 2;
+                CD3DX12_DESCRIPTOR_RANGE samplerDescriptorRanges[NUM_BINDLESS_SAMPLER_SPACES]{};
+                samplerDescriptorRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, NUM_SAMPLERS, RHIDX12_SAMPLER_STATE_REGISTER, 30, 0); // space30
+                samplerDescriptorRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, NUM_SAMPLERS, RHIDX12_SAMPLER_STATE_REGISTER, 31, 0); // space31
+
                 CD3DX12_DESCRIPTOR_RANGE uavDescriptorRange{};
-                srvDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, NUM_CRV_SRV_UAV, RHIDX12_SRV_REGISTER, RHIDX12_BINDLESS_DESCRIPTOR_SPACE);
-                samplerDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, NUM_SAMPLERS, RHIDX12_SAMPLER_STATE_REGISTER, RHIDX12_BINDLESS_DESCRIPTOR_SPACE);
-                // Offset is NUM_CRV_SRV_UAV because we are copying it to end of an SRV heap.
                 uavDescriptorRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, Limits::MAX_UNORDERED_ACCESS_VIEW_SLOTS, 0, 1, NUM_CRV_SRV_UAV);
 
-                // another 3 * 1 DWORDS
-                rootparams[14].InitAsDescriptorTable(1, &srvDescriptorRange);
-                rootparams[15].InitAsDescriptorTable(1, &samplerDescriptorRange);
+                rootparams[14].InitAsDescriptorTable(NUM_BINDLESS_SRV_SPACES, srvDescriptorRanges);
+                rootparams[15].InitAsDescriptorTable(NUM_BINDLESS_SAMPLER_SPACES, samplerDescriptorRanges);
                 rootparams[16].InitAsDescriptorTable(1, &uavDescriptorRange);
 
                 // DrawID constant
@@ -1840,12 +1896,18 @@ namespace PyroshockStudios {
             case 0x13B5:
                 mInfo.vendor = "ARM";
                 break;
+            case 0x5143:
+                mInfo.vendor = "Qualcomm";
+                break;
+            case 0x1414:
+                mInfo.vendor = "Microsoft";
+                break;
             default:
                 mInfo.vendor = "Unknown";
                 break;
             }
             // API + driver info
-            mInfo.apiVersion = "D3D12";
+            mInfo.apiVersion = "D3D12 (11.0)";
 
             LARGE_INTEGER umdVersion = {};
             HRESULT hr = mAdapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umdVersion);
@@ -1919,10 +1981,10 @@ namespace PyroshockStudios {
 
         void D3DDevice::DestroyUploadBuffers() {
             // ASSERT(mOccupiedLinearUploadBuffers.empty(), "Command buffers must finish execution before device destruction! Linear upload buffers were leaked!");
-            for (auto [_, buf] : mAvailableLinearUploadBuffers) {
-                delete buf;
+            mAvailableLinearUploadBuffers.ForEach([](const auto& kv) {
+                delete kv.second;
                 gDx12Context->FlushDebugMessages();
-            }
+            });
         }
 
         void D3DDevice::ReportDeviceRemovalReason() {

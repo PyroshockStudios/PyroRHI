@@ -94,6 +94,7 @@ namespace PyroshockStudios {
             CommandQueueFlags queueFlags = {};
 
         private:
+            inline void RequireNonBlitState();
             inline void FlushPendingVertexBufferBinds();
             inline void FlushPendingUnorderedAccessViewBinds();
 

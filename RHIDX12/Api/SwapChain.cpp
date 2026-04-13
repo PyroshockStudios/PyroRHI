@@ -20,10 +20,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <RHIDX12/D3DContext.hpp>
 #include "SwapChain.hpp"
 #include "CommandQueue.hpp"
 #include "Device.hpp"
+#include <RHIDX12/D3DContext.hpp>
 
 #include <libassert/assert.hpp>
 namespace PyroshockStudios {
@@ -170,8 +170,37 @@ namespace PyroshockStudios {
         }
 
         i32 D3DSwapChain::AcquireNextImage() {
-            WaitForSingleObjectEx(mSwapWait, INFINITE, TRUE);
+            DWORD waitResult = WaitForSingleObjectEx(mSwapWait, 1000, TRUE);
             gDx12Context->FlushDebugMessages();
+
+            if (waitResult == WAIT_TIMEOUT) {
+                // The DWM stopped signaling (system is sleeping, minimized, or GPU hung).
+                // Safely back out so the app doesn't freeze.
+                return PYRO_SWAPCHAIN_ACQUIRE_FAIL;
+            } else if (waitResult != WAIT_OBJECT_0) {
+                // Handle other wait failures
+                return PYRO_SWAPCHAIN_ACQUIRE_FAIL;
+            }
+
+
+            HWND window = reinterpret_cast<HWND>(mInfo.nativeWindow);
+            if (IsIconic(window)) {
+                return PYRO_SWAPCHAIN_ACQUIRE_FAIL;
+            }
+            HRESULT hrTest = mSwapChain->Present(0, DXGI_PRESENT_TEST);
+
+            if (hrTest == DXGI_STATUS_OCCLUDED) {
+                return PYRO_SWAPCHAIN_ACQUIRE_FAIL;
+            }
+            if (hrTest == DXGI_ERROR_DEVICE_REMOVED || hrTest == DXGI_ERROR_DEVICE_RESET) {
+                return PYRO_SWAPCHAIN_ACQUIRE_FAIL;
+            }
+
+            if (hrTest != S_OK) {
+                gDx12Context->FlushDebugMessages();
+                return PYRO_SWAPCHAIN_ACQUIRE_FAIL;
+            }
+
             mImageIndex = mSwapChain->GetCurrentBackBufferIndex();
             gDx12Context->FlushDebugMessages();
             return mImageIndex;
@@ -195,7 +224,16 @@ namespace PyroshockStudios {
         }
 
         void D3DSwapChain::SetPresentMode(SwapChainPresentMode presentMode) {
-            ASSERT(false, "TODO");
+            switch (presentMode) {
+            case SwapChainPresentMode::VSync:
+            case SwapChainPresentMode::VSyncAdaptive:
+                mSyncInterval = 1;
+                break;
+            case SwapChainPresentMode::Tearing:
+                // TODO tearing?
+            case SwapChainPresentMode::LowLatency:
+                mSyncInterval = 0;
+            }
         }
 
         const SwapChainInfo& D3DSwapChain::Info() const {

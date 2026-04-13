@@ -1,24 +1,3 @@
-[submodule "vendor/snmalloc"]
-	path = vendor/snmalloc
-	url = https://github.com/microsoft/snmalloc.git
-[submodule "vendor/libassert"]
-	path = vendor/libassert
-	url = https://github.com/jeremy-rifkin/libassert.git
-[submodule "vendor/EABase"]
-	path = vendor/EABase
-	url = https://github.com/PyroshockStudios/EABase.git
-[submodule "vendor/EAThread"]
-	path = vendor/EAThread
-	url = https://github.com/PyroshockStudios/EAThread.git
-[submodule "vendor/EAAssert"]
-	path = vendor/EAAssert
-	url = https://github.com/PyroshockStudios/EAAssert.git
-[submodule "vendor/EAStdC"]
-	path = vendor/EAStdC
-	url = https://github.com/PyroshockStudios/EAStdC.git
-[submodule "vendor/EASTL"]
-	path = vendor/EASTL
-	url = https://github.com/PyroshockStudios/EASTL.git
 [submodule "vendor/VulkanMemoryAllocator"]
 	path = vendor/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
@@ -28,9 +7,6 @@
 [submodule "vendor/DirectX-Headers"]
 	path = vendor/DirectX-Headers
 	url = https://github.com/microsoft/DirectX-Headers.git
-[submodule "vendor/PyroCommon"]
-	path = vendor/PyroCommon
-	url = https://github.com/PyroshockStudios/PyroCommon.git
 [submodule "vendor/volk"]
 	path = vendor/volk
 	url = https://github.com/zeux/volk.git

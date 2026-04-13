@@ -22,11 +22,13 @@
 
 #pragma once
 #include <PyroCommon/Core.hpp>
+#include <PyroCommon/GUID.hpp>
 #include <PyroCommon/LoggerInterface.hpp>
 #include <PyroRHI/Api/Forward.hpp>
-#include <PyroRHI/Core.hpp>
 #include <PyroRHI/Shader/Forward.hpp>
 #include <PyroRHI/Shader/ShaderModelFeature.hpp>
+
+#include <EASTL/span.h>
 
 namespace PyroshockStudios {
     inline namespace RHI {
@@ -50,12 +52,31 @@ namespace PyroshockStudios {
             RHIViewportConvention viewportConvention = RHIViewportConvention::None; ///< States the convention of the viewport to keep display consistent across APIs.
         };
 
+
+        struct RHIPhysicalDeviceInfo {
+            const char* deviceName;
+            const char* vendorName;
+            const char* driverVersion;
+            u32 deviceID = {};
+            u32 vendorID = {};
+
+            // guaranteed to be unique on windows! use this for any unique device queries!
+            // HOWEVER it is not persistent across startups!
+            u64 deviceLUID = {};
+            // Only valid on vulkan!
+            GUID deviceUUID = {};
+        };
+        static constexpr i32 RHI_DEVICE_INDEX_AUTO = -1;
+        struct RHIDeviceCreateInfo {
+            i32 deviceIndex = RHI_DEVICE_INDEX_AUTO;
+        };
         class RHIContext : ILoggerAware, DeleteCopy, DeleteMove {
         public:
             RHIContext() {}
             virtual ~RHIContext() {}
 
-            virtual IDevice* CreateDevice() = 0;
+            virtual eastl::span<RHIPhysicalDeviceInfo> QueryPhysicalDevices() = 0;
+            virtual IDevice* CreateDevice(const RHIDeviceCreateInfo& createInfo) = 0;
 
             virtual const RHIProperties& Properties() const = 0;
             virtual const IShaderFeatureSet* ShaderFeatureSet() const = 0;

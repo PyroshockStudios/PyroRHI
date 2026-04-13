@@ -34,6 +34,7 @@ namespace PyroshockStudios {
         struct D3DContextArgs {
             bool bDebug = false;
             bool bWarpDriver = false;
+            i32 deviceIndex = -1;
             UINT sdkVersion = 618;
             LPCSTR sdkDllRelativePath = ".\\D3D12\\";
         };
@@ -45,7 +46,8 @@ namespace PyroshockStudios {
                 IDXGIFactory1* pFactory,
                 IDXGIAdapter1** ppAdapter,
                 i32 deviceIndex = -1);
-            IDevice* CreateDevice() override;
+            eastl::span<RHIPhysicalDeviceInfo> QueryPhysicalDevices() override;
+            IDevice* CreateDevice(const RHIDeviceCreateInfo& createInfo) override;
             const RHIProperties& Properties() const override;
             const IShaderFeatureSet* ShaderFeatureSet() const override;
 
@@ -67,13 +69,16 @@ namespace PyroshockStudios {
 
         private:
             void InternalFlushDebugMessages();
-
+            bool bWarpDriver;
+            bool bDebug;
+            i32 mOverrideDeviceIndex =-1;
             ComPtr<IDXGIFactory4> mFactory;
             ComPtr<ID3D12InfoQueue> mInfoQueue = nullptr;
             ComPtr<ID3D12Debug> mDebugController = nullptr;
             D3DDevice* mDevice = nullptr;
             HMODULE mPixRuntimeDll = {};
             ILogStream* mDebugSink = nullptr;
+            eastl::vector<RHIPhysicalDeviceInfo> mPhysicalDevices = {};
         };
     } // namespace RHIDX12
 } // namespace PyroshockStudios

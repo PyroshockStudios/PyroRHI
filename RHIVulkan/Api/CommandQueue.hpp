@@ -22,24 +22,23 @@
 
 #pragma once
 
+
+#include <EASTL/atomic.h>
 #include <PyroRHI/Api/ICommandQueue.hpp>
 #include <RHIVulkan/Core.hpp>
-#include <EASTL/atomic.h>
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
         class VulkanFence;
         class VulkanDevice;
         class VulkanCommandBuffer;
-        class CommandBufferPool;
+        struct CommandBufferPool;
         class VulkanCommandQueue : public ICommandQueue, DeleteCopy, DeleteMove {
         public:
             VulkanCommandQueue(VulkanDevice* device, VkQueue queue, u32 family, const CommandQueueInfo& info);
             ~VulkanCommandQueue();
 
             ICommandBuffer* GetCommandBuffer(const CommandBufferInfo& info) override;
-            void SubmitCommandBuffer(ICommandBuffer*& commandBuffer) override;
-            void SubmitSwapChain(ISwapChain* swapChain) override;
             void WaitIdle() override;
             const CommandQueueInfo& Info() const override {
                 return mInfo;
@@ -54,20 +53,6 @@ namespace PyroshockStudios {
             CommandBufferPool* GetCommandBufferPool() {
                 return mCommandBufferPool;
             }
-            eastl::vector<VulkanCommandBuffer*>& RefSubmittedCommandBuffers() {
-                return mCommandBuffers;
-            }
-            eastl::vector<VkSwapchainKHR>& RefSubmittedSwapChains() {
-                return mSwapChains;
-            }
-            eastl::vector<u32>& RefSubmittedSwapChainImageIndices() {
-                return mImageIndices;
-            }
-            eastl::vector<VkSemaphore>& RefSubmittedSwapAcquireSemaphores() {
-                return mSwapChainAcquireSemaphores;
-            }
-
-            bool mbPendingSwapPresent = false;
 
             VulkanFence* GetGpuTimeline() {
                 return gpuTimeline;
@@ -84,11 +69,6 @@ namespace PyroshockStudios {
             VulkanDevice* mDevice;
             VkQueue mQueue;
             u32 mQueueFamily;
-            eastl::vector<VulkanCommandBuffer*> mCommandBuffers{};
-            eastl::vector<VkSwapchainKHR> mSwapChains{};
-            eastl::vector<VkSemaphore> mSwapChainAcquireSemaphores{};
-            eastl::vector<u32> mImageIndices{};
-
             CommandBufferPool* mCommandBufferPool = {};
 
             CommandQueueInfo mInfo{};

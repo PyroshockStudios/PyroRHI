@@ -22,9 +22,11 @@
 
 #pragma once
 #include "Types.hpp"
-
+#include <PyroCommon/Stream/IStreamReader.hpp>
+#include <PyroCommon/Stream/IStreamWriter.hpp>
 namespace PyroshockStudios {
     namespace RHIUtil {
+
         /**
          * @brief Numeric type classification of a GPU format.
          *
@@ -486,6 +488,40 @@ namespace PyroshockStudios {
             return 0; // Unknown format
         }
 
+        struct FormatBlockInfo {
+            u32 blockWidth;
+            u32 blockHeight;
+            u32 bytesPerBlock;
+        };
+
+        static constexpr FormatBlockInfo GetFormatBlockInfo(Format format) {
+            switch (format) {
+            // BC Formats (4x4 blocks)
+            case Format::BC1RGBUnormBlock:
+            case Format::BC1RGBSrgbBlock:
+            case Format::BC1RGBAUnormBlock:
+            case Format::BC1RGBASrgbBlock:
+            case Format::BC4UnormBlock:
+            case Format::BC4SnormBlock:
+                return { 4, 4, 8 }; // 8 bytes per block
+
+            case Format::BC2UnormBlock:
+            case Format::BC2SrgbBlock:
+            case Format::BC3UnormBlock:
+            case Format::BC3SrgbBlock:
+            case Format::BC5UnormBlock:
+            case Format::BC5SnormBlock:
+            case Format::BC6HUfloatBlock:
+            case Format::BC6HSfloatBlock:
+            case Format::BC7UnormBlock:
+            case Format::BC7SrgbBlock:
+                return { 4, 4, 16 }; // 16 bytes per block
+
+            // Standard Formats (1x1 "blocks")
+            default:
+                return { 1, 1, RHIUtil::GetFormatSize(format) };
+            }
+        }
         /**
          * @brief Computes the required staging buffer size for an image with the given dimensions, format and row alignment.
          *
@@ -540,20 +576,54 @@ namespace PyroshockStudios {
          *  @brief Copies a single slice of a texture with row alignment in mind
          * The source data is tightly aligned, while the destination buffer must be row aligned, and large enough.
          * */
-        static void CopyAlignedTextureData(const void* pSrc, void* pDst, u32 rowWidth, u32 height, u32 depth, u32 rowPitch) {
+        static void CopyAlignedTextureData(const void* pSrc, void* pDst, u32 rowWidthBytes, u32 numRows, u32 depth, u32 dstRowPitch) {
             const u8* srcPtr = reinterpret_cast<const u8*>(pSrc);
             u8* dstPtr = reinterpret_cast<u8*>(pDst);
+
             for (u32 z = 0; z < depth; ++z) {
-                for (u32 y = 0; y < height; ++y) {
-                    const u8* srcRow = srcPtr + z * height * rowWidth + y * rowWidth;
-                    u8* dstRow = dstPtr + z * height * rowPitch + y * rowPitch;
+                // Fix: Iterate over provided numRows, not height pixels
+                for (u32 y = 0; y < numRows; ++y) {
+                    // Source is tightly packed: z * totalSliceBytes + y * rowWidthBytes
+                    // Note: totalSliceBytes = numRows * rowWidthBytes
+                    const u8* srcRow = srcPtr + (z * numRows * rowWidthBytes) + (y * rowWidthBytes);
 
-                    memcpy(dstRow, srcRow, rowWidth);
+                    // Dest is aligned: z * height * dstRowPitch?
+                    // CAREFUL: Staging images usually pad rows, but slices are often just (height * pitch).
+                    // However, Vulkan bufferImageGranularity can affect slice offsets too.
+                    // For simple staging, we usually assume linear packing of aligned rows.
+                    u8* dstRow = dstPtr + (z * numRows * dstRowPitch) + (y * dstRowPitch);
 
-                    // Optional: zero out padding (not strictly necessary)
-                    // if (alignedRowSize > minRowSize) {
-                    //    memset(dstRow + minRowSize, 0, alignedRowSize - minRowSize);
-                    //}
+                    memcpy(dstRow, srcRow, rowWidthBytes);
+                }
+            }
+        }
+
+        /**
+         *  @brief Copies a single slice of a texture with row alignment in mind
+         * The source data is tightly aligned, while the destination buffer must be row aligned, and large enough.
+         * */
+        static void CopyAlignedTextureDataStream(IStreamReader* pSrc, IStreamWriter* pDst, u32 width, u32 rowWidthBytes, u32 numRows, u32 depth, u32 dstRowPitch,
+            FunctionPtr<void(const u8*, u8*, usize)> rowConversion) {
+            eastl::vector<u8> row(rowWidthBytes);
+            eastl::vector<u8> dstRow(dstRowPitch);
+            for (u32 z = 0; z < depth; ++z) {
+                for (u32 y = 0; y < numRows; ++y) {
+                    if (!pSrc->Seek((z * numRows * rowWidthBytes) + (y * rowWidthBytes), StreamOrigin::Start)) {
+                        return;
+                    }
+                    if (!pDst->Seek((z * numRows * dstRowPitch) + (y * dstRowPitch), StreamOrigin::Start)) {
+                        return;
+                    }
+
+                    usize sz = pSrc->Read(row.data(), rowWidthBytes);
+                    if (sz != rowWidthBytes) {
+                        return;
+                    }
+                    rowConversion(row.data(), dstRow.data(), width);
+                    usize wsz = pDst->Write(dstRow.data(), dstRowPitch);
+                    if (wsz != dstRowPitch) {
+                        return;
+                    }
                 }
             }
         }

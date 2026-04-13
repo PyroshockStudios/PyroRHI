@@ -34,6 +34,8 @@ namespace PyroshockStudios {
     inline namespace RHI {
         struct IDevice;
 
+        constexpr u32 PYRO_NULL_DESCRIPTOR = 0U;
+
         /// @brief Handle to GPU memory.
         RHI_TYPED_HANDLE64(MemoryBlock);
 
@@ -215,8 +217,8 @@ namespace PyroshockStudios {
          * @brief Generic GPU resource identifier with index and version.
          */
         struct GpuResourceId {
-            u32 index = 0x00000000;   /**< Resource index in a table. */
-            u32 version = 0x00000000; /**< Version number to avoid stale references. */
+            u32 index = PYRO_NULL_DESCRIPTOR; /**< Resource index in a table. */
+            u32 version = 0x00000000;         /**< Version number to avoid stale references. */
 
             /**
              * @brief Three-way comparison operator.
