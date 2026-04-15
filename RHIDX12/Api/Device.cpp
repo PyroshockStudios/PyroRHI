@@ -1163,6 +1163,7 @@ namespace PyroshockStudios {
             for (ICommandBuffer* c : info.commands) {
                 D3DCommandBuffer* cmb = static_cast<D3DCommandBuffer*>(c);
                 q->RestoreCommandBuffer(cmb);
+
                 for (i32 i = 0; i < cmb->mDeferredDeleteOps.size(); ++i) {
                     mDeferredDeletes.EmplaceBack(fencesForThisFrame, eastl::move(cmb->mDeferredDeleteOps[i]));
                 }
@@ -1492,7 +1493,14 @@ namespace PyroshockStudios {
         }
 
         // See RHIVulkan for explanation, as this is very similar
-        void D3DDevice::CollectGarbage() {
+        bool D3DDevice::CollectGarbage() {
+            std::unique_lock glock(mGlobalQueueLock);
+            for (ICommandQueue* commandQueue : mCommandQueueList) {
+                if (static_cast<D3DCommandQueue*>(commandQueue)->HasOpenCommands()) {
+                    return false;
+                }
+            }
+
             eastl::vector<eastl::pair<D3DCommandQueue*, u64>> oldestQueueTimelines = {};
             oldestQueueTimelines.reserve(mCommandQueueList.size());
             for (ICommandQueue* commandQueue : mCommandQueueList) {
@@ -1571,6 +1579,7 @@ namespace PyroshockStudios {
             for (auto handle : deleteUAVTableCacheHandles) {
                 mUAVDescriptorTableCache.Erase(handle);
             }
+            return true;
         }
 
         u32 D3DDevice::GetActiveShaderModel() const {
@@ -1709,7 +1718,7 @@ namespace PyroshockStudios {
                 for (UINT i = 0; i < NUM_BINDLESS_SRV_SPACES; ++i) {
                     srvDescriptorRanges[i].Init(
                         D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-                        NUM_CRV_SRV_UAV,                       
+                        NUM_CRV_SRV_UAV,
                         RHIDX12_SRV_REGISTER,                  // t0
                         RHIDX12_BINDLESS_DESCRIPTOR_SPACE + i, // space1, space2, space3...
                         0                                      // Force offset to 0 so they all alias the same heap memory

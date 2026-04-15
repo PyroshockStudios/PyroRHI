@@ -27,11 +27,12 @@
 #include <EASTL/unique_ptr.h>
 #include <PyroCommon/Util/HashCombine.hpp>
 #include <PyroRHI/Api/IDevice.hpp>
-#include <RHIDX12/Api/GPUResource.hpp>
-#include <RHIDX12/Helper/LinearUploadBuffer.hpp>
 #include <PyroRHI/Common/AtomicMap.hpp>
 #include <PyroRHI/Common/AtomicQueue.hpp>
 #include <PyroRHI/Common/AtomicVector.hpp>
+#include <RHIDX12/Api/GPUResource.hpp>
+#include <RHIDX12/Helper/LinearUploadBuffer.hpp>
+#include <shared_mutex>
 
 namespace PyroshockStudios {
     namespace RHIDX12 {
@@ -165,7 +166,7 @@ namespace PyroshockStudios {
             const DeviceFeaturesInfo& Features() const override;
             DeviceStatusInfo Status() const override;
 
-            void CollectGarbage() override;
+            bool CollectGarbage() override;
 
             u32 GetActiveShaderModel() const override;
             void SetShaderModel(u32 shaderModel) override;
@@ -199,6 +200,10 @@ namespace PyroshockStudios {
 
             GPUResourcePool& ResourcePool() {
                 return *mResourcePool;
+            }
+
+            std::shared_lock<std::shared_mutex> AcquireQueueAccess() {
+                return std::shared_lock(mGlobalQueueLock);
             }
 
         private:
@@ -246,6 +251,7 @@ namespace PyroshockStudios {
             u32 mActiveShaderModel = 0x51;
 
         private:
+            std::shared_mutex mGlobalQueueLock;
             eastl::vector<ICommandQueue*> mCommandQueueList = {};
             D3DCommandQueue* mPrimaryCommandQueue = {};
             eastl::unique_ptr<GPUResourcePool> mResourcePool = {};
