@@ -22,8 +22,10 @@
 
 #include "CommandQueue.hpp"
 #include "CommandBuffer.hpp"
-#include "SwapChain.hpp"
 #include <RHIDX12/D3DContext.hpp>
+
+#include <libassert/assert.hpp>
+
 namespace PyroshockStudios {
     namespace RHIDX12 {
         D3DCommandQueue::D3DCommandQueue(D3DDevice* device, CommandQueueInfo&& info, ComPtr<ID3D12CommandQueue>&& queue)
@@ -38,6 +40,8 @@ namespace PyroshockStudios {
             });
         }
         ICommandBuffer* D3DCommandQueue::GetCommandBuffer(const CommandBufferInfo& info) {
+            IncrementCommandReference();
+            auto glock = mDevice->AcquireQueueAccess();
             D3DCommandBuffer* commands = nullptr;
 
             UINT64 completedVal = mQueueTracker->GetCompletedValue();
@@ -124,11 +128,22 @@ namespace PyroshockStudios {
             CheckD3DResult(mCommandQueue->GetTimestampFrequency(&freq), "Failed to get ID3D12CommandQueue timestamp frequency!");
             return 1e9 / static_cast<f64>(freq);
         }
+        void D3DCommandQueue::RestoreCommandBuffer(D3DCommandBuffer* cmb) {
+            auto glock = mDevice->AcquireQueueAccess();
+            DecrementCommandReference();
+            mPooledCommandBuffers.EmplaceBack(cmb, static_cast<UINT64>(mCurrentQueueFenceValue));
+        }
         void D3DCommandQueue::SignalQueueFence(UINT64 value) {
             mCommandQueue->Signal(mQueueTracker.Get(), value);
         }
         UINT64 D3DCommandQueue::GetFenceValue() {
             return mQueueTracker->GetCompletedValue();
+        }
+        void D3DCommandQueue::IncrementCommandReference() {
+            mOpenCommandLists.add_fetch(1);
+        }
+        void D3DCommandQueue::DecrementCommandReference() {
+            ASSERT(mOpenCommandLists.fetch_sub(1) > 0, "Trying to decrement non-existing commands!");
         }
     } // namespace RHIDX12
 } // namespace PyroshockStudios

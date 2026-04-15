@@ -43,10 +43,8 @@ namespace PyroshockStudios {
             ID3D12CommandQueue* InternalQueue() {
                 return mCommandQueue.Get();
             }
-            void RestoreCommandBuffer(D3DCommandBuffer* cmb) {
-                mPooledCommandBuffers.EmplaceBack(cmb, static_cast<UINT64>(mCurrentQueueFenceValue));
-            }
-          
+            void RestoreCommandBuffer(D3DCommandBuffer* cmb);
+
             // Used for tracking which command buffers can be resurrected and when. Also for resource destruction
             void SignalQueueFence(UINT64 value);
 
@@ -58,8 +56,13 @@ namespace PyroshockStudios {
             UINT64 IncGetCpuValue() {
                 return mCurrentQueueFenceValue.add_fetch(1);
             }
+            bool HasOpenCommands() const {
+                return mOpenCommandLists.load() > 0;
+            }
 
         private:
+            void IncrementCommandReference();
+            void DecrementCommandReference();
             D3DDevice* mDevice = nullptr;
             CommandQueueInfo mInfo = {};
             ComPtr<ID3D12CommandQueue> mCommandQueue = {};
@@ -68,6 +71,7 @@ namespace PyroshockStudios {
             ComPtr<ID3D12Fence> mQueueTracker = {};
 
             Common::AtomicVector<eastl::pair<D3DCommandBuffer*, UINT64>> mPooledCommandBuffers = {};
+            eastl::atomic<UINT32> mOpenCommandLists = {};
         };
     } // namespace RHIDX12
 } // namespace PyroshockStudios

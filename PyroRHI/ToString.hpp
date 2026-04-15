@@ -487,18 +487,18 @@ namespace PyroshockStudios {
 
             auto isLikelyFloat = [](i32 raw) -> bool {
                 static const auto IsDenormalized = [](float f) -> bool {
-                    return f != 0.0f && std::abs(f) < std::numeric_limits<float>::min();
+                    return f != 0.0f && abs(f) < std::numeric_limits<float>::min();
                 };
 
                 static const auto IsRounded3Decimals = [](float f, float epsilon = 1e-3f) -> bool {
                     float scaled = f * 1000.0f;
-                    return std::abs(std::round(scaled) - scaled) < epsilon;
+                    return abs(round(scaled) - scaled) < epsilon;
                 };
 
                 float asFloat;
                 memcpy(&asFloat, &raw, sizeof(float));
 
-                return std::isfinite(asFloat) && std::abs(asFloat) < 1e6f && !IsDenormalized(asFloat) && IsRounded3Decimals(asFloat);
+                return isfinite(asFloat) && abs(asFloat) < 1e6f && !IsDenormalized(asFloat) && IsRounded3Decimals(asFloat);
             };
 
             auto formatFloat = [](i32 raw) -> eastl::string {

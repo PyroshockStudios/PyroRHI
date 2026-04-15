@@ -1,4 +1,7 @@
 #include "Helpers/ValidationFixture.hpp"
+
+#include <shared_mutex>
+#include <thread> // for concurrent queue submits
 #ifdef CreateSemaphore
 #undef CreateSemaphore
 #endif
@@ -139,7 +142,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
         EXPECT_NO_THROW(copyCommands->TransferImageOwnership(dst, *pGraphicsQueue));
 
         copyCommands->Complete();
-        copySubmitInfo.commands = {&copyCommands, 1};
+        copySubmitInfo.commands = { &copyCommands, 1 };
     }
     // Record graphics commands
     ICommandBuffer* graphicsCommands = (*pGraphicsQueue)->GetCommandBuffer({});
@@ -175,7 +178,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, CopyQueueToGraphicsQueueSync) {
         EXPECT_NO_THROW(graphicsCommands->BlitImageToImage(blitInfo));
 
         graphicsCommands->Complete();
-        graphicsSubmitInfo.commands = {&graphicsCommands, 1};
+        graphicsSubmitInfo.commands = { &graphicsCommands, 1 };
     }
 
     // While execution is concurrent, submission must be in order
@@ -271,7 +274,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ComputeQueueToGraphicsQueueSyncUAV) {
         EXPECT_NO_THROW(computeCommands->TransferImageOwnership(uavImage, *pGraphicsQueue));
 
         computeCommands->Complete();
-        computeSubmitInfo.commands = {&computeCommands, 1};
+        computeSubmitInfo.commands = { &computeCommands, 1 };
     }
     // Record graphics commands
     ICommandBuffer* graphicsCommands = (*pGraphicsQueue)->GetCommandBuffer({});
@@ -287,7 +290,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ComputeQueueToGraphicsQueueSyncUAV) {
         EXPECT_NO_THROW(graphicsCommands->ClearUnorderedAccessView(clearUAVInfo));
 
         graphicsCommands->Complete();
-        graphicsSubmitInfo.commands = {&graphicsCommands, 1};
+        graphicsSubmitInfo.commands = { &graphicsCommands, 1 };
     }
 
     // While execution is concurrent, submission must be in order
@@ -317,7 +320,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, QueueSubmitAgainIsOkay) {
     ICommandBuffer* commandBuffer = submitInfo.queue->GetCommandBuffer({ .name = "test1 cmds" });
     TRACK_RHI_HANDLE(commandBuffer);
     commandBuffer->Complete();
-    submitInfo.commands = {&commandBuffer, 1};
+    submitInfo.commands = { &commandBuffer, 1 };
     // Submit 1
     mDevice->SubmitQueue(submitInfo);
     // Wait
@@ -326,7 +329,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, QueueSubmitAgainIsOkay) {
     commandBuffer = submitInfo.queue->GetCommandBuffer({ .name = "test2 cmds" });
     TRACK_RHI_HANDLE(commandBuffer);
     commandBuffer->Complete();
-    submitInfo.commands = {&commandBuffer, 1};
+    submitInfo.commands = { &commandBuffer, 1 };
     // Submit 2
     mDevice->SubmitQueue(submitInfo);
     // Finally wait for queue to finish.
@@ -423,7 +426,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SingleQueueDestroyDeferredSuccess) {
             cb->EndLabel();
 
             cb->Complete();
-            mDevice->SubmitQueue({ .queue = cq, .commands = {&cb, 1} });
+            mDevice->SubmitQueue({ .queue = cq, .commands = { &cb, 1 } });
 
             // Clean up anything ready for destruction
             mDevice->CollectGarbage();
@@ -526,7 +529,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueDestroyDeferredSuccess) {
                 cb1->EndLabel();
 
                 cb1->Complete();
-                mDevice->SubmitQueue({ .queue = tq1, .commands = {&cb1, 1}, .signalSemaphores = { &currFrameSemaphoreSubmit, 1 } });
+                mDevice->SubmitQueue({ .queue = tq1, .commands = { &cb1, 1 }, .signalSemaphores = { &currFrameSemaphoreSubmit, 1 } });
             }
 
             // Use buffer in Queue 2
@@ -548,7 +551,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueDestroyDeferredSuccess) {
                 cb2->EndLabel();
 
                 cb2->Complete();
-                mDevice->SubmitQueue({ .queue = tq2, .commands = {&cb2, 1}, .waitSemaphores = { &currFrameSemaphoreSubmit, 1 } });
+                mDevice->SubmitQueue({ .queue = tq2, .commands = { &cb2, 1 }, .waitSemaphores = { &currFrameSemaphoreSubmit, 1 } });
             }
             // Clean up anything ready for destruction
             mDevice->CollectGarbage();
@@ -641,7 +644,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueResourceTransferSuccess) {
         cb1->EndLabel();
 
         cb1->Complete();
-        mDevice->SubmitQueue({ .queue = tq1, .commands = {&cb1, 1} });
+        mDevice->SubmitQueue({ .queue = tq1, .commands = { &cb1, 1 } });
     }
     tq1->WaitIdle(); // wait
     // Use buffer & image in Queue 2
@@ -657,9 +660,186 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueResourceTransferSuccess) {
         cb2->EndLabel();
 
         cb2->Complete();
-        mDevice->SubmitQueue({ .queue = tq2, .commands = {&cb2, 1} });
+        mDevice->SubmitQueue({ .queue = tq2, .commands = { &cb2, 1 } });
     }
     mDevice->WaitIdle();
     mDevice->DestroyImmediately(srcImage);
     mDevice->DestroyImmediately(dstBuffer);
+}
+
+
+// Flaky test!
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, ConcurrentQueueSubmits) {
+    static constexpr int NUM_SUBMITS = 100;
+    static constexpr int NUM_WORKERS = 4;
+    std::vector<std::jthread> workers = {};
+
+    auto queues = mDevice->GetCommandQueues();
+    for (ICommandQueue* queue : queues) {
+        TRACK_RHI_HANDLE(queue);
+    }
+    ASSERT_FALSE(queues.empty());
+    TRACK_RHI_HANDLE(queues[0]);
+
+    std::shared_mutex startLock;
+    auto workerFun = [&](int workerIndex) {
+        std::shared_lock lk(startLock); // waiting for unique lock to be released, then all threads start simultaneously
+
+        CommandQueueSubmitInfo submitInfo = {};
+        submitInfo.queue = queues[0];
+        for (int i = 0; i < NUM_SUBMITS; ++i) {
+            ICommandBuffer* commandBuffer = submitInfo.queue->GetCommandBuffer({ .name = "thread #" + eastl::to_string(workerIndex) + " cmds | submit #" + eastl::to_string(i) });
+            commandBuffer->Complete();
+            submitInfo.commands = { &commandBuffer, 1 };
+            mDevice->SubmitQueue(submitInfo);
+        }
+    };
+    {
+        std::unique_lock lk(startLock);
+        for (int i = 0; i < NUM_WORKERS; ++i) {
+            workers.push_back(std::jthread(workerFun, i));
+        }
+    } // startLock is released, now all threads can start
+    for (auto& job : workers) {
+        if (job.joinable()) {
+            job.join();
+        }
+    }
+}
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, DestroyDeferredOpenCommandListDenied) {
+    auto queues = mDevice->GetCommandQueues();
+    ASSERT_FALSE(queues.empty());
+
+    ICommandQueue* queue = queues[0];
+    TRACK_RHI_HANDLE(queue);
+
+    // Create a dummy buffer
+    BufferInfo bufferInfo{};
+    bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
+    bufferInfo.size = 256;
+    bufferInfo.name = "Open Cmd List Test Buffer";
+    TRACK_RHI_PARAMETER(bufferInfo);
+
+    Buffer dstBuffer = mDevice->CreateBuffer(bufferInfo);
+    TRACK_RHI_HANDLE(dstBuffer);
+    ASSERT_TRUE(mDevice->IsValid(dstBuffer));
+
+    // Open a command buffer but DO NOT complete or submit it yet
+    ICommandBuffer* cb = queue->GetCommandBuffer({ .name = "Unsubmitted Commands" });
+    TRACK_RHI_HANDLE(cb);
+
+    // Record a command to ensure the resource is utilized
+    EXPECT_NO_FATAL_FAILURE(cb->BufferBarrier({
+        .buffer = dstBuffer,
+        .srcAccess = AccessConsts::NONE,
+        .dstAccess = AccessConsts::TRANSFER_WRITE,
+        .srcLayout = BufferLayout::Undefined,
+        .dstLayout = BufferLayout::TransferDst,
+    }));
+
+    // Mark the resource for deferred destruction
+    mDevice->DestroyDeferred(dstBuffer);
+
+    // Attempt to collect garbage. This should return false as there are open command lists!
+    // Because 'cb' is still open/unsubmitted, your new feature should prevent destruction.
+    ASSERT_FALSE(mDevice->CollectGarbage());
+
+    // Continue using the resource.
+    // If CollectGarbage() prematurely destroyed it, the validation layer will catch it here or on submit.
+    eastl::vector<u8> dummyData(static_cast<usize>(bufferInfo.size), 0xAA);
+    UpdateBufferInfo updateInfo{};
+    updateInfo.buffer = dstBuffer;
+    updateInfo.data = dummyData.data();
+    TRACK_RHI_PARAMETER(updateInfo);
+
+    EXPECT_NO_FATAL_FAILURE(cb->UpdateBuffer(updateInfo));
+
+    // Complete and submit
+    cb->Complete();
+    CommandQueueSubmitInfo submitInfo = {};
+    submitInfo.queue = queue;
+    submitInfo.commands = { &cb, 1 };
+    mDevice->SubmitQueue(submitInfo);
+
+    // Now that the queue is idle and there are no open command lists,
+    // this final CollectGarbage should safely and legally be able to determine whether or not to destroy the resource.
+    ASSERT_TRUE(mDevice->CollectGarbage());
+}
+
+// flaky test!
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, ConcurrentDestroyDeferredStressTest) {
+    static constexpr int NUM_WORKERS = 6;
+    static constexpr int NUM_SUBMITS_PER_WORKER = 100;
+
+    auto queues = mDevice->GetCommandQueues();
+    ASSERT_FALSE(queues.empty());
+    ICommandQueue* mainQueue = queues[0];
+    TRACK_RHI_HANDLE(mainQueue);
+
+    std::vector<std::jthread> workers;
+    std::shared_mutex startLock;
+    eastl::atomic<int> completedWorkers = 0;
+
+    auto workerFun = [&](int workerIndex) {
+        std::shared_lock lk(startLock); // Wait until the main thread releases the lock
+
+        for (int i = 0; i < NUM_SUBMITS_PER_WORKER; ++i) {
+            // Create a local resource for this specific submission
+            BufferInfo bufferInfo{};
+            bufferInfo.usage = BufferUsageFlagBits::TRANSFER_DST;
+            bufferInfo.size = 256;
+            bufferInfo.name = "Stress Buffer W" + eastl::to_string(workerIndex) + " I" + eastl::to_string(i);
+            Buffer tempBuffer = mDevice->CreateBuffer(bufferInfo);
+
+            // Open a local command buffer
+            ICommandBuffer* cb = mainQueue->GetCommandBuffer({ .name = "Stress Cmd W" + eastl::to_string(workerIndex) + " I" + eastl::to_string(i) });
+
+            // Record commands to ensure the resource is in use
+            EXPECT_NO_FATAL_FAILURE(cb->BufferBarrier({
+                .buffer = tempBuffer,
+                .srcAccess = AccessConsts::NONE,
+                .dstAccess = AccessConsts::TRANSFER_WRITE,
+                .srcLayout = BufferLayout::Undefined,
+                .dstLayout = BufferLayout::TransferDst,
+            }));
+
+            // Mark for deferred destruction BEFORE submitting.
+            // This tests if the garbage collector correctly identifies that the resource
+            // is tied to a timeline value that hasn't finished (or hasn't even been submitted) yet.
+            mDevice->DestroyDeferred(tempBuffer);
+
+            // Complete and submit safely
+            cb->Complete();
+            CommandQueueSubmitInfo submitInfo = {};
+            submitInfo.queue = mainQueue;
+            submitInfo.commands = { &cb, 1 };
+
+            mDevice->SubmitQueue(submitInfo);
+        }
+        completedWorkers.fetch_add(1);
+    };
+
+    // Spin up the threads
+    {
+        std::unique_lock lk(startLock);
+        for (int i = 0; i < NUM_WORKERS; ++i) {
+            workers.push_back(std::jthread(workerFun, i));
+        }
+    } // startLock released, the chaos begins
+
+    // The Stress: Continually run garbage collection while threads are actively
+    // appending zombies and pending submissions to the device lists.
+    while (completedWorkers.load() < NUM_WORKERS) {
+        mDevice->CollectGarbage(); // result may be true or false
+        std::this_thread::yield();
+    }
+
+    // Wait for threads to fully exit
+    for (auto& job : workers) {
+        if (job.joinable()) {
+            job.join();
+        }
+    }
+
+    ASSERT_TRUE(mDevice->CollectGarbage());
 }

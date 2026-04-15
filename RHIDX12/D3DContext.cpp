@@ -67,19 +67,18 @@ namespace PyroshockStudios::RHIDX12 {
 
         HRESULT result = D3D12GetInterface(CLSID_D3D12SDKConfiguration, IID_PPV_ARGS(&cfg));
         if (FAILED(result)) {
-            Logger::Fatal(gDX12Sink, "Failed to get D3D12 SDK Configuration interface!"
-                                     " Are your drivers and system up to date? Error: {0} ({1})",
+            Logger::Warn(gDX12Sink, "Failed to get D3D12 SDK Configuration interface!"
+                                    " Are your drivers and system up to date? Error: {0} ({1}). Skipping independent devices, make sure your executable can find the agility SDK!",
                 _com_error(result).ErrorMessage(), (long)result);
-            return;
+        } else {
+            result = cfg->CreateDeviceFactory(args.sdkVersion, (GetCurrentDllDirectory() + args.sdkDllRelativePath).c_str(), IID_PPV_ARGS(&pDeviceFactory));
+            if (FAILED(result)) {
+                Logger::Fatal(gDX12Sink, "Failed to create D3D12 Device Factory!"
+                                         " Are the D3D12 SDK libraries under the D3D12 directory? Error: {0} ({1})",
+                    _com_error(result).ErrorMessage(), (long)result);
+                return;
+            }
         }
-        result = cfg->CreateDeviceFactory(args.sdkVersion, (GetCurrentDllDirectory() + args.sdkDllRelativePath).c_str(), IID_PPV_ARGS(&pDeviceFactory));
-        if (FAILED(result)) {
-            Logger::Fatal(gDX12Sink, "Failed to create D3D12 Device Factory!"
-                                     " Are the D3D12 SDK libraries under the D3D12 directory? Error: {0} ({1})",
-                _com_error(result).ErrorMessage(), (long)result);
-            return;
-        }
-
         mPixRuntimeDll = LoadLibraryA("WinPixEventRuntime.dll");
         if (mPixRuntimeDll) {
             gPixBeginEventOnCommandListFn = (PFN_BeginEventOnCommandList)GetProcAddress(mPixRuntimeDll, "PIXBeginEventOnCommandList");
@@ -97,7 +96,7 @@ namespace PyroshockStudios::RHIDX12 {
 
                 ID3D12Debug1* dbg1;
                 if (SUCCEEDED(mDebugController->QueryInterface(IID_PPV_ARGS(&dbg1)))) {
-                    //dbg1->SetEnableGPUBasedValidation(TRUE);
+                    // dbg1->SetEnableGPUBasedValidation(TRUE);
                     dbg1->SetEnableSynchronizedCommandQueueValidation(TRUE);
                 }
 

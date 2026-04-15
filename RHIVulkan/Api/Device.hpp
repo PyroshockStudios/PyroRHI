@@ -141,7 +141,7 @@ namespace PyroshockStudios {
 
             eastl::optional<Format> PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const override;
 
-            void CollectGarbage() override;
+            bool CollectGarbage() override;
             void WaitIdle() override;
             void SubmitQueue(const CommandQueueSubmitInfo& info) override;
             void PresentQueue(const CommandQueuePresentInfo& info) override;
@@ -185,6 +185,9 @@ namespace PyroshockStudios {
             }
             GPUShaderResourceTable& GetResourceTable() {
                 return mResourceTable;
+            }
+            std::shared_lock<std::shared_mutex> AcquireQueueAccess() {
+                return std::shared_lock(mGlobalQueueMutex);
             }
 
             ImplVmaVirtualBlockSlot& Slot(MemoryBlock block);
@@ -246,6 +249,8 @@ namespace PyroshockStudios {
             VolkDeviceTable mDeviceTable = {};
 
             GPUShaderResourceTable mResourceTable = {};
+
+            std::shared_mutex mGlobalQueueMutex;
 
             eastl::vector<ICommandQueue*> mCommandQueues = {};
             ICommandQueue* mPresentQueue = {};

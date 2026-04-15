@@ -38,7 +38,9 @@ namespace PyroshockStudios {
             void PutBack(eastl::pair<VkCommandPool, VkCommandBuffer> poolAndBuffer);
             void Cleanup(VulkanDevice* device, VulkanCommandQueue* queue);
 
+        private:
             eastl::vector<eastl::pair<VkCommandPool, VkCommandBuffer>> poolAndBuffers = {};
+            std::mutex mPoolMutex;
         };
 
         class VulkanCommandBuffer : public ICommandBuffer, DeleteCopy, DeleteMove {
@@ -93,9 +95,10 @@ namespace PyroshockStudios {
                 return mCommandPool;
             }
 
-            const eastl::hash_set<VulkanSwapChain*>& GetSwapchainReferences()const {
+            const eastl::hash_set<VulkanSwapChain*>& GetSwapchainReferences() const {
                 return mSwapchainRefs;
             }
+
         private:
             inline void FlushBarriers();
             // TODO
