@@ -26,6 +26,7 @@
 #include <EASTL/atomic.h>
 #include <PyroRHI/Api/ICommandQueue.hpp>
 #include <RHIVulkan/Core.hpp>
+#include <mutex>
 
 namespace PyroshockStudios {
     namespace RHIVulkan {
@@ -44,25 +45,35 @@ namespace PyroshockStudios {
                 return mInfo;
             }
             f64 GetTimestampTickPeriodNs() const override;
-            VkQueue GetVkQueue() {
+            PYRO_NODISCARD VkQueue GetVkQueue() {
                 return mQueue;
             }
-            u32 GetQueueFamily() {
+            PYRO_NODISCARD u32 GetQueueFamily() {
                 return mQueueFamily;
             }
-            CommandBufferPool* GetCommandBufferPool() {
+            PYRO_NODISCARD CommandBufferPool* GetCommandBufferPool() {
                 return mCommandBufferPool;
             }
 
-            VulkanFence* GetGpuTimeline() {
+            PYRO_NODISCARD VulkanFence* GetGpuTimeline() {
                 return gpuTimeline;
             }
-            u64 GetCpuTimelineValue() {
-                return cpuTimeline;
+            PYRO_NODISCARD u64 GetCpuTimelineValue() {
+                return cpuTimeline.load();
             }
 
-            u64 IncGetCpuTimelineValue() {
+            PYRO_NODISCARD u64 IncGetCpuTimelineValue() {
                 return cpuTimeline.add_fetch(1);
+            }
+
+            PYRO_NODISCARD std::lock_guard<std::mutex> AcquireAccess() {
+                return std::lock_guard(mSynchMutex);
+            }
+            void IncrementOpenCommands();
+            void DecrementOpenCommands();
+
+            PYRO_NODISCARD bool HasOpenCommands() const {
+                return mOpenCommandBuffers.load() > 0;
             }
 
         private:
@@ -75,6 +86,8 @@ namespace PyroshockStudios {
 
             eastl::atomic<u64> cpuTimeline = {};
             VulkanFence* gpuTimeline = {};
+            std::mutex mSynchMutex;
+            eastl::atomic<u32> mOpenCommandBuffers = 0;
         };
     } // namespace RHIVulkan
 } // namespace PyroshockStudios

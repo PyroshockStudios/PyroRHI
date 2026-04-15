@@ -33,6 +33,7 @@
 
 namespace PyroshockStudios::RHIVulkan {
     eastl::pair<VkCommandPool, VkCommandBuffer> CommandBufferPool::Get(VulkanDevice* device, VulkanCommandQueue* queue) {
+        std::lock_guard lck(mPoolMutex);
         eastl::pair<VkCommandPool, VkCommandBuffer> pair = {};
         if (poolAndBuffers.empty()) {
             VkCommandPool pool = {};
@@ -64,10 +65,12 @@ namespace PyroshockStudios::RHIVulkan {
     }
 
     void CommandBufferPool::PutBack(eastl::pair<VkCommandPool, VkCommandBuffer> poolAndBuffer) {
+        std::lock_guard lck(mPoolMutex);
         poolAndBuffers.push_back(poolAndBuffer);
     }
 
     void CommandBufferPool::Cleanup(VulkanDevice* device, VulkanCommandQueue* queue) {
+        std::lock_guard lck(mPoolMutex);
         for (auto [pool, buffer] : poolAndBuffers) {
             vkDestroyCommandPool(device->GetVkDevice(), pool, device->Context()->GetVkAllocator());
         }
@@ -103,7 +106,6 @@ namespace PyroshockStudios::RHIVulkan {
             };
             vkSetDebugUtilsObjectNameEXT(device->GetVkDevice(), &cmdPoolNameInfo);
         }
-
         vkBeginCommandBuffer(this->mCommandBuffer, &vkCommandBufferBeginInfo);
     }
     VulkanCommandBuffer::~VulkanCommandBuffer() {

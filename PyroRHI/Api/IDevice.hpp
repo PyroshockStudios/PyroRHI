@@ -242,8 +242,8 @@ namespace PyroshockStudios {
             ICommandQueue* queue = nullptr;
 
             /**
-            * @brief The command buffers to submit in this queue. These will be executed in **order**
-            */
+             * @brief The command buffers to submit in this queue. These will be executed in **order**
+             */
             eastl::span<ICommandBuffer*> commands = {};
 
             /**
@@ -800,8 +800,11 @@ namespace PyroshockStudios {
              * ======================================================
              *
              * @note this is automatically called upon device destruction.
+             * @returns True if the collection occurred. In case of returning false,
+             * it is not deemed safe to collect garbage. A possible reason is that there are still open command lists,
+             * and therefore collection was denied to prevent premature resource destruction
              */
-            virtual void CollectGarbage() = 0;
+            virtual bool CollectGarbage() = 0;
 
             /**
              * @brief Blocks until the device has finished all queued work.

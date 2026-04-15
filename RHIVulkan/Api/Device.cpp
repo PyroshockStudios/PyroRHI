@@ -1939,6 +1939,8 @@ namespace PyroshockStudios {
 
         void VulkanDevice::SubmitQueue(const CommandQueueSubmitInfo& info) {
             VulkanCommandQueue* vkQueue = static_cast<VulkanCommandQueue*>(info.queue);
+            auto glock = AcquireQueueAccess();
+            auto qlock = vkQueue->AcquireAccess(); // vulkan requires queue submissions to be synchronised!
 
             const u64 localQueueCpuTimelineValue = vkQueue->IncGetCpuTimelineValue();
 
@@ -2023,6 +2025,7 @@ namespace PyroshockStudios {
                         .vkCmdPool = vkcmd->GetVkCommandPool(),
                         .queue = vkQueue,
                     });
+                vkQueue->DecrementOpenCommands();
                 delete vkcmd;
             }
         }
@@ -2032,6 +2035,7 @@ namespace PyroshockStudios {
             if (info.swapChains.empty()) {
                 return;
             }
+            auto lock = vkQueue->AcquireAccess();
 
             eastl::vector<VkResult> result(info.swapChains.size());
             eastl::vector<VkSemaphore> waitSemaphores = {};
@@ -2054,7 +2058,8 @@ namespace PyroshockStudios {
             vkQueuePresentKHR(vkQueue->GetVkQueue(), &presentInfo);
         }
 
-        void VulkanDevice::CollectGarbage() {
+        bool VulkanDevice::CollectGarbage() {
+            std::unique_lock lck(mGlobalQueueMutex); // lock any command queue access
             for (int i = 0; i < mMainQueueCommandListZombies.Size(); ++i) {
                 auto [deleteTimeline, object] = mMainQueueCommandListZombies.At(i);
                 if (object.queue->GetGpuTimeline()->Value() >= deleteTimeline) {
@@ -2064,24 +2069,33 @@ namespace PyroshockStudios {
                     --i;
                 }
             }
+            // check if any command lists are open!! If they are, return false because it's not safe to collect right now!
+            for (ICommandQueue* commandQueue : mCommandQueues) {
+                if (static_cast<VulkanCommandQueue*>(commandQueue)->HasOpenCommands()) {
+                    return false;
+                }
+            }
 
             eastl::vector<eastl::pair<VulkanCommandQueue*, u64>> oldestQueueTimelines = {};
             oldestQueueTimelines.reserve(mCommandQueues.size());
             for (ICommandQueue* commandQueue : mCommandQueues) {
                 oldestQueueTimelines.emplace_back(static_cast<VulkanCommandQueue*>(commandQueue), UINT64_MAX);
             }
-
-            for (int i = 0; i < mQueuePendingSubmits.Size(); ++i) {
-                auto [queueTimeline, queue] = mQueuePendingSubmits.At(i);
-                u64 completedValue = queue->GetGpuTimeline()->Value();
-                if (completedValue >= queueTimeline) {
-                    mQueuePendingSubmits.Erase(i);
-                    --i;
-                } else {
-                    for (auto& [oldestTimelineQueue, oldestVal] : oldestQueueTimelines) {
-                        if (queue != oldestTimelineQueue)
-                            continue;
-                        oldestVal = eastl::min(oldestVal, completedValue);
+            {
+                std::lock_guard lck(mQueuePendingSubmits.GetLock());
+                auto& submitVec = mQueuePendingSubmits.UnderlyingVector();
+                for (int i = 0; i < submitVec.size(); ++i) {
+                    auto [queueTimeline, queue] = submitVec.at(i);
+                    u64 completedValue = queue->GetGpuTimeline()->Value();
+                    if (completedValue >= queueTimeline) {
+                        submitVec.erase(submitVec.begin() + i);
+                        --i;
+                    } else {
+                        for (auto& [oldestTimelineQueue, oldestVal] : oldestQueueTimelines) {
+                            if (queue != oldestTimelineQueue)
+                                continue;
+                            oldestVal = eastl::min(oldestVal, completedValue);
+                        }
                     }
                 }
             }
@@ -2108,6 +2122,7 @@ namespace PyroshockStudios {
                     --i;
                 }
             }
+            return true;
         }
 
         const DeviceInfo& VulkanDevice::Info() const {

@@ -44,13 +44,23 @@ namespace PyroshockStudios::RHIVulkan {
     }
 
     ICommandBuffer* VulkanCommandQueue::GetCommandBuffer(const CommandBufferInfo& info) {
+        auto lock = mDevice->AcquireQueueAccess();
+        IncrementOpenCommands();
         auto [pool, buffer] = mCommandBufferPool->Get(mDevice, this);
         return new VulkanCommandBuffer(mDevice, this, pool, buffer, info);
     }
     void VulkanCommandQueue::WaitIdle() {
+        auto glock = mDevice->AcquireQueueAccess();
+        auto qlock = AcquireAccess(); // any queue operations must be synchronised!
         CheckVkResult(vkQueueWaitIdle(mQueue), "Failed to idle command queue!");
     }
     f64 VulkanCommandQueue::GetTimestampTickPeriodNs() const {
         return static_cast<f64>(mDevice->GetVkPhysicalDeviceProperties().limits.timestampPeriod);
+    }
+    void VulkanCommandQueue::IncrementOpenCommands() {
+        mOpenCommandBuffers.add_fetch(1);
+    }
+    void VulkanCommandQueue::DecrementOpenCommands() {
+        ASSERT(mOpenCommandBuffers.fetch_sub(1) > 0, "Trying to decrement non-existing commands!");
     }
 } // namespace PyroshockStudios::RHIVulkan
