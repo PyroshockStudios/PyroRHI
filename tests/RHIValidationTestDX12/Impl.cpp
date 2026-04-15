@@ -4,6 +4,9 @@
 #define RHI_CONTEXT_FIXTURE_NAME DX12ValidationChassis
 #define RHI_IMPL_DX12 1
 
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
+extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = ".\\RHI\\D3D12\\"; }
+
 // clang-format off
 #define RHI_TEST_CHASSIS_RHI_OPTIONS                                  \
 /*"debug"*/         mCreateInfo.options[0] = { .optionIndex = 0 };    \
