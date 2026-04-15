@@ -39,7 +39,8 @@ jobs:
 
       - name: Build (MSVC)
         run: cmake --build build --config ${{ matrix.build_type }} --parallel 4
-
+      - name: Check bin directory
+        run: dir build\bin\Release\
       - name: Run DX12 tests
         working-directory: build
         run: ctest -C ${{ matrix.build_type }} --output-on-failure --rerun-failed
