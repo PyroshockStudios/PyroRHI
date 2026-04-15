@@ -22,8 +22,10 @@
 
 #include "CommandQueue.hpp"
 #include "CommandBuffer.hpp"
-#include "SwapChain.hpp"
 #include <RHIDX12/D3DContext.hpp>
+
+#include <libassert/assert.hpp>
+
 namespace PyroshockStudios {
     namespace RHIDX12 {
         D3DCommandQueue::D3DCommandQueue(D3DDevice* device, CommandQueueInfo&& info, ComPtr<ID3D12CommandQueue>&& queue)
