@@ -32,7 +32,7 @@ set_target_properties("RHIValidationTestDX12" PROPERTIES
 
 set_target_properties(RHIValidationTestDX12 PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
-gtest_discover_tests(RHIValidationTestDX12)
+gtest_discover_tests(RHIValidationTestDX12 DISCOVERY_MODE PRE_TEST)
 
 target_link_libraries(RHIValidationTestDX12
   RHIDX12
