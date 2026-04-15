@@ -57,7 +57,7 @@ namespace PyroshockStudios {
                 return mCurrentQueueFenceValue.add_fetch(1);
             }
             bool HasOpenCommands() const {
-                return mOpenCommandLists.load() == 0;
+                return mOpenCommandLists.load() > 0;
             }
 
         private:

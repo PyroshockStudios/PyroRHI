@@ -2060,6 +2060,13 @@ namespace PyroshockStudios {
 
         bool VulkanDevice::CollectGarbage() {
             std::unique_lock lck(mGlobalQueueMutex); // lock any command queue access
+            // check if any command lists are open!! If they are, return false because it's not safe to collect right now!
+            for (ICommandQueue* commandQueue : mCommandQueues) {
+                if (static_cast<VulkanCommandQueue*>(commandQueue)->HasOpenCommands()) {
+                    return false;
+                }
+            }
+
             for (int i = 0; i < mMainQueueCommandListZombies.Size(); ++i) {
                 auto [deleteTimeline, object] = mMainQueueCommandListZombies.At(i);
                 if (object.queue->GetGpuTimeline()->Value() >= deleteTimeline) {
@@ -2067,12 +2074,6 @@ namespace PyroshockStudios {
                     object.queue->GetCommandBufferPool()->PutBack({ object.vkCmdPool, object.vkCmdBuffer });
                     mMainQueueCommandListZombies.Erase(i);
                     --i;
-                }
-            }
-            // check if any command lists are open!! If they are, return false because it's not safe to collect right now!
-            for (ICommandQueue* commandQueue : mCommandQueues) {
-                if (static_cast<VulkanCommandQueue*>(commandQueue)->HasOpenCommands()) {
-                    return false;
                 }
             }
 
