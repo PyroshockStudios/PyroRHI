@@ -53,6 +53,8 @@ namespace PyroshockStudios {
             const auto& src = mDevice->ResourcePool().Get(info.buffer);
             const auto& dst = mDevice->ResourcePool().Get(info.image);
 
+            auto blockInfo = RHIUtil::GetFormatBlockInfo(dst.info.format);
+            u32 bufferRowPitch = (info.rowPitch / blockInfo.bytesPerBlock * blockInfo.blockWidth);
             for (UINT j = 0; j < PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, dst.info.arrayLayerCount); ++j) {
                 UINT dstSubresource = D3D12CalcSubresource(info.imageSlice.mipLevel, info.imageSlice.baseArrayLayer + j, 0, dst.info.mipLevelCount, dst.info.arrayLayerCount);
                 D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
@@ -66,6 +68,7 @@ namespace PyroshockStudios {
                 footprint.Footprint.Width = info.imageExtent.width;
                 footprint.Footprint.Height = info.imageExtent.height;
                 footprint.Footprint.Depth = info.imageExtent.depth;
+                footprint.Offset = bufferRowPitch * footprint.Footprint.Height * footprint.Footprint.Depth * j;
                 CD3DX12_TEXTURE_COPY_LOCATION Dst(dst.resource.Get(), dstSubresource);
                 CD3DX12_TEXTURE_COPY_LOCATION Src(src.resource.Get(), footprint);
                 mCommandList->CopyTextureRegion(&Dst, info.imageOffset.x, info.imageOffset.y, info.imageOffset.z, &Src, nullptr);
