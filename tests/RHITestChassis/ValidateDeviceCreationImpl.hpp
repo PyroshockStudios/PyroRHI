@@ -20,7 +20,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, ValidateDeviceCreation) {
     EXPECT_GE(props.bufferImageCopyOffsetAlignment, 1u);
     EXPECT_GE(props.minStorageBufferOffsetAlignment, 1u);
     EXPECT_GE(props.minUniformBufferOffsetAlignment, 1u);
-    EXPECT_GT(props.minLineWidth, 0.0f);
+    EXPECT_GE(props.minLineWidth, 0.0f); // it can be 0 on some systems, e.g. Intel UHD 600 series
     EXPECT_GE(props.maxLineWidth, props.minLineWidth);
     EXPECT_GE(props.maxSamplerAnisotropy, 1);
     EXPECT_GE(props.graphicsQueueCount, 1);

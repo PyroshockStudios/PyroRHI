@@ -12,6 +12,7 @@
 // clang-format on
 
 
+#include <RHITestChassis/FuzzImageUploadImpl.hpp>
 #include <RHITestChassis/ValidateAccelerationStructureImpl.hpp>
 #include <RHITestChassis/ValidateBufferImpl.hpp>
 #include <RHITestChassis/ValidateCommandBufferImpl.hpp>

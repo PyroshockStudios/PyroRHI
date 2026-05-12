@@ -1309,17 +1309,44 @@ namespace PyroshockStudios {
             return static_cast<BlasAddress>(Slot(blas).deviceAddress);
         }
 
-
         DeviceSize VulkanDevice::ImageSizeRequirements(Image image) const {
             auto& img = Slot(image);
             VkMemoryRequirements requirements;
             vkGetImageMemoryRequirements(mDevice, img.vkImage, &requirements);
             return requirements.size;
         }
-        u32 VulkanDevice::ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const {
-            return PYRO_ALIGN(rowWidth, mPhysicalDeviceProperties.limits.optimalBufferCopyRowPitchAlignment);
-        }
 
+        ImageUploadSlice VulkanDevice::ImageUploadRequirements(Image image, ImageSlice slice, eastl::optional<Box3D> region) const {
+            auto& img = Slot(image);
+            auto blockInfo = RHIUtil::GetFormatBlockInfo(img.info.format);
+
+            Extent3D mipExtent = img.info.size;
+            if (slice.mipLevel > 0) {
+                u32 divisions = 1 << slice.mipLevel;
+                mipExtent.width = std::max(1u, mipExtent.width / divisions);
+                mipExtent.height = std::max(1u, mipExtent.height / divisions);
+                mipExtent.depth = std::max(1u, mipExtent.depth / divisions);
+            }
+
+            Box3D box = region.value_or(Box3D::Cut(mipExtent));
+
+            u32 elementWidth = (box.width + blockInfo.blockWidth - 1) / blockInfo.blockWidth;
+            u32 elementHeight = (box.height + blockInfo.blockHeight - 1) / blockInfo.blockHeight;
+
+            u32 rowWidthBytes = elementWidth * blockInfo.bytesPerBlock;
+
+            ImageUploadSlice uploadSlice;
+            uploadSlice.uploadPitch = PYRO_ALIGN(rowWidthBytes, mPhysicalDeviceProperties.limits.optimalBufferCopyRowPitchAlignment);
+            uploadSlice.blockSize = blockInfo.bytesPerBlock;
+            uploadSlice.elementWidth = elementWidth;
+            uploadSlice.elementHeight = elementHeight;
+            uploadSlice.depth = box.depth;
+            uploadSlice.uploadOffsetAlignment = mPhysicalDeviceProperties.limits.optimalBufferCopyOffsetAlignment;
+
+            uploadSlice.size = static_cast<DeviceSize>(uploadSlice.uploadPitch) * uploadSlice.elementHeight * uploadSlice.depth;
+
+            return uploadSlice;
+        }
 
         void VulkanDevice::CreateAccelerationStructureBuildInfo(
             const eastl::span<const TlasBuildInfo>& tlasBuildInfos, const eastl::span<const BlasBuildInfo>& blasBuildInfos,
