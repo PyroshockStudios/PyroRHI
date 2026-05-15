@@ -64,6 +64,7 @@ namespace PyroshockStudios::RHIVulkan {
         AddFeatureIfMissing(features.features.fragmentStoresAndAtomics, "fragmentStoresAndAtomics");
         // AddFeatureIfMissing(features.features.shaderStorageImageReadWithoutFormat, "shaderStorageImageReadWithoutFormat");
         // AddFeatureIfMissing(features.features.shaderStorageImageWriteWithoutFormat, "shaderStorageImageWriteWithoutFormat");
+        AddFeatureIfMissing(features.features.shaderStorageImageMultisample, "shaderStorageImageMultisample");
         AddFeatureIfMissing(features.features.shaderClipDistance, "shaderClipDistance");
 
         // Vulkan 1.1 / 1.2 / 1.3 features
