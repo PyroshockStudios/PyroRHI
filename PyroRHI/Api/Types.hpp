@@ -552,11 +552,11 @@ namespace PyroshockStudios {
             static inline constexpr BufferUsageFlags TRANSFER_DST = { 0x00000002 };
             static inline constexpr BufferUsageFlags SHADER_RESOURCE = { 0x00000004 };
             static inline constexpr BufferUsageFlags UNORDERED_ACCESS = { 0x00000008 };
-            static inline constexpr BufferUsageFlags UNIFORM_BUFFER = { 0x00000004 };
-            static inline constexpr BufferUsageFlags VERTEX_BUFFER = { 0x00000001 };
-            static inline constexpr BufferUsageFlags INDEX_BUFFER = { 0x00000002 };
-            static inline constexpr BufferUsageFlags DRAW_INDIRECT = { 0x00000010 };
-            static inline constexpr BufferUsageFlags BUFFER_DEVICE_ADDRESS = { 0x00000020 };
+            static inline constexpr BufferUsageFlags UNIFORM_BUFFER = { 0x00000010 };
+            static inline constexpr BufferUsageFlags VERTEX_BUFFER = { 0x00000020 };
+            static inline constexpr BufferUsageFlags INDEX_BUFFER = { 0x00000040 };
+            static inline constexpr BufferUsageFlags DRAW_INDIRECT = { 0x00000080 };
+            static inline constexpr BufferUsageFlags BUFFER_DEVICE_ADDRESS = { 0x00000100 };
             static inline constexpr BufferUsageFlags BYTE_ADDRESS_BUFFER = { 0x08000000 };
             static inline constexpr BufferUsageFlags ACCELERATION_STRUCTURE = { 0x10000000 };
             static inline constexpr BufferUsageFlags BLAS_GEOMETRY_BUFFER = { 0x20000000 };
