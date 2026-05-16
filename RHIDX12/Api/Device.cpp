@@ -695,6 +695,7 @@ namespace PyroshockStudios {
                 case ImageViewType::e3D:
                     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
                     uavDesc.Texture3D.MipSlice = slice.baseMipLevel;
+                    uavDesc.Texture3D.WSize = srcImg.info.size.depth;
                     break;
                 }
 
