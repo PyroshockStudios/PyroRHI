@@ -500,7 +500,7 @@ namespace PyroshockStudios {
             };
             VkDeviceSize requiredAlignment = 1;
             if (info.bufferUsage != 0) {
-                if (info.bufferUsage & BufferUsageFlagBits::SHADER_RESOURCE || info.bufferUsage & BufferUsageFlagBits::UNORDERED_ACCESS) {
+                if (info.bufferUsage & (BufferUsageFlagBits::SHADER_RESOURCE |BufferUsageFlagBits::UNORDERED_ACCESS)) {
                     requiredAlignment = eastl::max(requiredAlignment, mPhysicalDeviceProperties.limits.minStorageBufferOffsetAlignment);
                 }
                 if (info.bufferUsage & BufferUsageFlagBits::UNIFORM_BUFFER) {
@@ -550,7 +550,10 @@ namespace PyroshockStudios {
             if (info.usage & BufferUsageFlagBits::UNIFORM_BUFFER) {
                 VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
             }
-            if (info.usage & BufferUsageFlagBits::UNORDERED_ACCESS || info.usage & BufferUsageFlagBits::SHADER_RESOURCE) {
+            if (info.usage & BufferUsageFlagBits::SHADER_RESOURCE) {
+                VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            }
+            if (info.usage & BufferUsageFlagBits::UNORDERED_ACCESS) {
                 VK_BUFFER_USAGE_FLAGS |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT /*Clear UAV usage*/;
             }
             if (info.usage & BufferUsageFlagBits::VERTEX_BUFFER) {
