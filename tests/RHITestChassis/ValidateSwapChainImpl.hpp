@@ -5,15 +5,61 @@ using namespace PyroshockStudios::Types;
 
 static constexpr u32 SWAP_ACQUIRE_FAIL_LIMIT = 4; // after 4 fails, fail the test
 
+struct WndWrapper {
+    NativeHandle inst;
+    NativeHandle wnd;
+
+#ifdef PYRO_PLATFORM_FAMILY_WINDOWS
+    WndWrapper() {
+        HINSTANCE hInstance = GetModuleHandle(NULL);
+        LPCWSTR CLASS_NAME = L"Sample Window Class";
+
+        WNDCLASSW wc = {};
+
+        wc.lpfnWndProc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) -> LRESULT {
+            return DefWindowProc(hwnd, uMsg, wParam, lParam);
+        };
+        wc.hInstance = hInstance;
+        wc.lpszClassName = CLASS_NAME;
+
+        ATOM atm = RegisterClassW(&wc);
+
+        HWND hwnd = CreateWindowExW(
+            0,                           // Optional window styles.
+            CLASS_NAME,                  // Window class
+            L"Learn to Program Windows", // Window text
+            WS_OVERLAPPEDWINDOW,         // Window style
+
+            // Size and position
+            CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+
+            NULL,      // Parent window
+            NULL,      // Menu
+            hInstance, // Instance handle
+            NULL       // Additional application data
+        );
+
+        this->wnd = (NativeHandle)(void*)hwnd;
+        this->inst = (NativeHandle)(void*)hInstance;
+    }
+    ~WndWrapper() {
+        if (wnd != NULL)
+            DestroyWindow((HWND)wnd);
+    }
+#endif
+};
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapChainCreateDestroyOverload) {
-    if (!mDevice->Features().bHeadlessSwapChainWindow) {
+    WndWrapper wnd{};
+    if (!mDevice->Features().bHeadlessSwapChainWindow && !wnd.wnd) {
         GTEST_SKIP() << "Device does not support a headless swap chain, skipping test...";
     }
     ICommandQueue* queue = mDevice->GetPresentQueue();
     ASSERT_NE(queue, nullptr);
 
     SwapChainInfo info = {
+        .nativeWindow = wnd.wnd,
+        .nativeInstance = wnd.inst,
         .format = SwapChainFormat::Unorm8BitLDR,
         .bufferCount = 2,
         .imageUsage = ImageUsageFlagBits::TRANSFER_DST,
@@ -35,13 +81,16 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapChainCreateDestroyOverload) {
 
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
-    if (!mDevice->Features().bHeadlessSwapChainWindow) {
+    WndWrapper wnd{};
+    if (!mDevice->Features().bHeadlessSwapChainWindow && !wnd.wnd) {
         GTEST_SKIP() << "Device does not support a headless swap chain, skipping test...";
     }
     ICommandQueue* queue = mDevice->GetPresentQueue();
     ASSERT_NE(queue, nullptr);
 
     SwapChainInfo info = {
+        .nativeWindow = wnd.wnd,
+        .nativeInstance = wnd.inst,
         .format = SwapChainFormat::Unorm8BitLDR,
         .bufferCount = 2,
         .imageUsage = ImageUsageFlagBits::TRANSFER_DST,
@@ -56,7 +105,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
 
     CommandQueuePresentInfo presentInfo = {};
     presentInfo.queue = queue;
-    presentInfo.swapChains = {&swapChain, 1};
+    presentInfo.swapChains = { &swapChain, 1 };
 
     i32 imageIndex = -1;
     u32 failedAcquires = 0;
@@ -74,7 +123,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
         .dstLayout = ImageLayout::PresentSrc,
     });
     commandBuffer->Complete();
-    submitInfo.commands = {&commandBuffer, 1};
+    submitInfo.commands = { &commandBuffer, 1 };
 
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);
@@ -84,13 +133,16 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapPresentSuccess) {
 
 
 TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
-    if (!mDevice->Features().bHeadlessSwapChainWindow) {
+    WndWrapper wnd{};
+    if (!mDevice->Features().bHeadlessSwapChainWindow && !wnd.wnd) {
         GTEST_SKIP() << "Device does not support a headless swap chain, skipping test...";
     }
     ICommandQueue* queue = mDevice->GetPresentQueue();
     ASSERT_NE(queue, nullptr);
 
     ISwapChain* swapChain = mDevice->CreateSwapChain({
+        .nativeWindow = wnd.wnd,
+        .nativeInstance = wnd.inst,
         .format = SwapChainFormat::Unorm8BitLDR,
         .alphaMode = SwapChainAlphaMode::Premultiplied,
         .presentMode = SwapChainPresentMode::Tearing, // try another present mode
@@ -105,7 +157,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
 
     CommandQueuePresentInfo presentInfo = {};
     presentInfo.queue = queue;
-    presentInfo.swapChains = {&swapChain, 1};
+    presentInfo.swapChains = { &swapChain, 1 };
 
     i32 imageIndex = -1;
     u32 failedAcquires = 0;
@@ -123,8 +175,47 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapAlphaPresentSuccess) {
         .dstLayout = ImageLayout::PresentSrc,
     });
     commandBuffer->Complete();
-    submitInfo.commands = {&commandBuffer,1};
+    submitInfo.commands = { &commandBuffer, 1 };
     mDevice->SubmitQueue(submitInfo);
+    mDevice->PresentQueue(presentInfo);
+    mDevice->WaitIdle();
+    mDevice->DestroySwapChain(swapChain);
+}
+
+
+TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapEmptyPresentSuccess) {
+    WndWrapper wnd{};
+    if (!mDevice->Features().bHeadlessSwapChainWindow && !wnd.wnd) {
+        GTEST_SKIP() << "Device does not support a headless swap chain, skipping test...";
+    }
+    ICommandQueue* queue = mDevice->GetPresentQueue();
+    ASSERT_NE(queue, nullptr);
+
+    ISwapChain* swapChain = mDevice->CreateSwapChain({
+        .nativeWindow = wnd.wnd,
+        .nativeInstance = wnd.inst,
+        .format = SwapChainFormat::Unorm8BitLDR,
+        .bufferCount = 2,
+        .imageUsage = ImageUsageFlagBits::TRANSFER_DST,
+        .extent = { 256, 256 },
+
+        .name = "Headless Swap Chain",
+    });
+
+    CommandQueueSubmitInfo submitInfo = {};
+    submitInfo.queue = queue;
+
+    CommandQueuePresentInfo presentInfo = {};
+    presentInfo.queue = queue;
+    presentInfo.swapChains = { &swapChain, 1 };
+
+    i32 imageIndex = -1;
+    u32 failedAcquires = 0;
+    do {
+        imageIndex = swapChain->AcquireNextImage();
+    } while (imageIndex == PYRO_SWAPCHAIN_ACQUIRE_FAIL && ++failedAcquires < SWAP_ACQUIRE_FAIL_LIMIT);
+    ASSERT_NE(imageIndex, PYRO_SWAPCHAIN_ACQUIRE_FAIL) << "Failed to acquire swap image!";
+
     mDevice->PresentQueue(presentInfo);
     mDevice->WaitIdle();
     mDevice->DestroySwapChain(swapChain);
@@ -175,7 +266,7 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiSwapPresentSuccess) {
         });
     }
     commandBuffer->Complete();
-    submitInfo.commands = {&commandBuffer, 1};
+    submitInfo.commands = { &commandBuffer, 1 };
 
     mDevice->SubmitQueue(submitInfo);
     mDevice->PresentQueue(presentInfo);
