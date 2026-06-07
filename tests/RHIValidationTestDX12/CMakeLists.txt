@@ -35,7 +35,6 @@ set_target_properties(RHIValidationTestDX12 PROPERTIES MSVC_RUNTIME_LIBRARY "Mul
 gtest_discover_tests(RHIValidationTestDX12 DISCOVERY_MODE PRE_TEST)
 
 target_link_libraries(RHIValidationTestDX12
-  RHIDX12
   DirectX-Headers DirectX-Guids D3D12MemoryAllocator
   RHITestChassis
   GTest::gmock

@@ -41,6 +41,17 @@ struct WndWrapper {
 
         this->wnd = (NativeHandle)(void*)hwnd;
         this->inst = (NativeHandle)(void*)hInstance;
+        RECT r;
+        r.left = 0;
+        r.top = 0;
+        r.bottom = 256;
+        r.right = 256;
+        AdjustWindowRect(&r, GetWindowLong(hwnd, GWL_STYLE), FALSE);
+        SetWindowPos(hwnd, 0,
+            r.left, r.top,
+            r.right - r.left,
+            r.bottom - r.top,
+            SWP_NOZORDER | SWP_NOACTIVATE);
     }
     ~WndWrapper() {
         if (wnd != NULL)
@@ -209,6 +220,37 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SwapEmptyPresentSuccess) {
     presentInfo.queue = queue;
     presentInfo.swapChains = { &swapChain, 1 };
 
+    // transition everything to present optimal
+    for (u32 i = 0; i <
+                    swapChain->Info().bufferCount;
+        ++i) {
+        CommandQueueSubmitInfo submitInfo = {};
+        submitInfo.queue = queue;
+
+        i32 imageIndex = -1;
+        u32 failedAcquires = 0;
+        do {
+            imageIndex = swapChain->AcquireNextImage();
+        } while (imageIndex == PYRO_SWAPCHAIN_ACQUIRE_FAIL && ++failedAcquires < SWAP_ACQUIRE_FAIL_LIMIT);
+        ASSERT_NE(imageIndex, PYRO_SWAPCHAIN_ACQUIRE_FAIL) << "Failed to acquire swap image!";
+
+        ICommandBuffer* commandBuffer = queue->GetCommandBuffer({});
+        commandBuffer->ImageBarrier({
+            .image = swapChain->GetBackBuffer(imageIndex),
+            .srcAccess = AccessConsts::BOTTOM_OF_PIPE_READ,
+            .dstAccess = AccessConsts::TOP_OF_PIPE_READ_WRITE,
+            .srcLayout = ImageLayout::Undefined,
+            .dstLayout = ImageLayout::PresentSrc,
+        });
+        commandBuffer->Complete();
+        submitInfo.commands = { &commandBuffer, 1 };
+        mDevice->SubmitQueue(submitInfo);
+        mDevice->PresentQueue(presentInfo);
+    }
+    // wait for the queue to finish processing
+    queue->WaitIdle();
+
+    // acquire and present immediately, this should be in present src!
     i32 imageIndex = -1;
     u32 failedAcquires = 0;
     do {

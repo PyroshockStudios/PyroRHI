@@ -39,13 +39,7 @@ jobs:
 
       - name: Build (MSVC)
         run: cmake --build build --config ${{ matrix.build_type }} --parallel 4
-      - name: Check bin directory
-        run: dir build\bin\Release\
-        continue-on-error: true
-      - name: Debug DLL Dependencies
-        run: |
-          Get-Command build/bin/Release/RHIValidationTestDX12.exe | Select-Object -ExpandProperty DLLs
-        continue-on-error: true
+        
       - name: Run DX12 tests
         working-directory: build
-        run: ctest -C ${{ matrix.build_type }} --output-on-failure --rerun-failed
+        run: ctest --build-config ${{ matrix.build_type }} --output-on-failure --rerun-failed
