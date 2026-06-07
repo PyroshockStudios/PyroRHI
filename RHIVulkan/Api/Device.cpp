@@ -500,7 +500,7 @@ namespace PyroshockStudios {
             };
             VkDeviceSize requiredAlignment = 1;
             if (info.bufferUsage != 0) {
-                if (info.bufferUsage & (BufferUsageFlagBits::SHADER_RESOURCE |BufferUsageFlagBits::UNORDERED_ACCESS)) {
+                if (info.bufferUsage & (BufferUsageFlagBits::SHADER_RESOURCE | BufferUsageFlagBits::UNORDERED_ACCESS)) {
                     requiredAlignment = eastl::max(requiredAlignment, mPhysicalDeviceProperties.limits.minStorageBufferOffsetAlignment);
                 }
                 if (info.bufferUsage & BufferUsageFlagBits::UNIFORM_BUFFER) {
@@ -2009,8 +2009,9 @@ namespace PyroshockStudios {
                 signalSemaphores.push_back(semaphoreSubmit);
                 semaphoreSubmit.semaphore = vkswapch->GetCurrentImageAcquireSemaphore();
                 waitSemaphores.push_back(semaphoreSubmit);
+
+                vkswapch->EmplaceSwapWrite(vkQueue);
             }
-            // TODO for Lukas, add timeline semaphores here?
 
             submitInfo.waitSemaphoreInfoCount = static_cast<u32>(waitSemaphores.size());
             submitInfo.pWaitSemaphoreInfos = waitSemaphores.data();
@@ -2046,7 +2047,10 @@ namespace PyroshockStudios {
             eastl::vector<VkSwapchainKHR> swapchains = {};
             eastl::for_each(info.swapChains.begin(), info.swapChains.end(), [&](ISwapChain* swapchain) {
                 auto* vkSwapchain = static_cast<VulkanSwapChain*>(swapchain);
-                waitSemaphores.push_back(vkSwapchain->GetCurrentRenderFinishSemaphore());
+                // TODO: what about writing and reading from different queues?
+                if (auto* vkQueue = vkSwapchain->ConsumeSwapPresent()) {
+                    waitSemaphores.push_back(vkSwapchain->GetCurrentRenderFinishSemaphore());
+                }
                 swapchainIndices.push_back(vkSwapchain->GetCurrentImageIndex());
                 swapchains.push_back(vkSwapchain->GetVkSwapChain());
             });
