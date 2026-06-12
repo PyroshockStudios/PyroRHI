@@ -33,8 +33,8 @@ namespace PyroshockStudios {
             VulkanSwapChain(VulkanDevice* device, const SwapChainInfo& info);
             ~VulkanSwapChain();
 
-            Image GetBackBuffer(i32 imageIndex) override;
-            i32 AcquireNextImage() override;
+            Image GetBackBuffer(u32 imageIndex) override;
+            u32 AcquireNextImage() override;
 
             void Resize() override;
             void SetPresentMode(SwapChainPresentMode presentMode) override;
@@ -43,7 +43,7 @@ namespace PyroshockStudios {
             Format GetFormat() const override;
             ColorSpace GetColorSpace() const override;
 
-            u32 GetCurrentImageIndex() {
+            u32 GetCurrentImageIndex() const override {
                 return mImageIndex;
             }
             VkSwapchainKHR GetVkSwapChain() {

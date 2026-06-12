@@ -21,8 +21,8 @@
 // SOFTWARE.
 
 #pragma once
-#include <RHIDX12/Core.hpp>
 #include <PyroRHI/Api/ISwapChain.hpp>
+#include <RHIDX12/Core.hpp>
 #include <dcomp.h>
 namespace PyroshockStudios {
     namespace RHIDX12 {
@@ -32,19 +32,21 @@ namespace PyroshockStudios {
             D3DSwapChain(D3DDevice* device, SwapChainInfo&& info);
             ~D3DSwapChain();
 
-            Image GetBackBuffer(i32 imageIndex) override;
-            i32 AcquireNextImage() override;
+            Image GetBackBuffer(u32 imageIndex) override;
+            u32 AcquireNextImage() override;
             void Resize() override;
             void SetPresentMode(SwapChainPresentMode presentMode) override;
             const SwapChainInfo& Info() const override;
             Extent2D GetSurfaceExtent() const override;
             Format GetFormat() const override;
             ColorSpace GetColorSpace() const override;
+            u32 GetCurrentImageIndex() const override { return mImageIndex; }
 
             IDXGISwapChain3* InternalSwapChain() {
                 return mSwapChain.Get();
             }
             UINT mSyncInterval = 0;
+
         private:
             void DestroyImages();
             void GetImages();

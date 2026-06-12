@@ -165,11 +165,13 @@ namespace PyroshockStudios {
             DestroyImages();
         }
 
-        Image D3DSwapChain::GetBackBuffer(i32 imageIndex) {
+        Image D3DSwapChain::GetBackBuffer(u32 imageIndex) {
+            if (imageIndex >= (u32)mWrappedBuffers.size())
+                return PYRO_NULL_IMAGE;
             return mWrappedBuffers[imageIndex];
         }
 
-        i32 D3DSwapChain::AcquireNextImage() {
+        u32 D3DSwapChain::AcquireNextImage() {
             DWORD waitResult = WaitForSingleObjectEx(mSwapWait, 1000, TRUE);
             gDx12Context->FlushDebugMessages();
 

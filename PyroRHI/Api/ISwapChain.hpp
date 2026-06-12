@@ -23,8 +23,8 @@
 #pragma once
 
 #include <PyroCommon/Core.hpp>
-#include <PyroRHI/Api/Types.hpp>
 #include <PyroRHI/Api/GPUResource.hpp>
+#include <PyroRHI/Api/Types.hpp>
 
 namespace PyroshockStudios {
     inline namespace RHI {
@@ -87,9 +87,9 @@ namespace PyroshockStudios {
 
             /**
              * @brief Native platform instance handle.
-             * Platform-specific context or instance. 
+             * Platform-specific context or instance.
              * In Win32 this is the HINSTANCE, while in linux we use the X11 implementation, so a Display is required.
-             * MacOS Cocoa does not have such an instance, and can be left NULL. 
+             * MacOS Cocoa does not have such an instance, and can be left NULL.
              */
             NativeHandle nativeInstance = {};
 
@@ -134,11 +134,11 @@ namespace PyroshockStudios {
              */
             eastl::string name = {};
 
-            PYRO_NODISCARD  bool operator==(const SwapChainInfo&) const = default;
-            PYRO_NODISCARD  bool operator!=(const SwapChainInfo&) const = default;
+            PYRO_NODISCARD bool operator==(const SwapChainInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const SwapChainInfo&) const = default;
         };
 
-        static constexpr inline i32 PYRO_SWAPCHAIN_ACQUIRE_FAIL = -1;
+        static constexpr inline u32 PYRO_SWAPCHAIN_ACQUIRE_FAIL = ~(0U);
 
         /**
          * @brief Interface representing a GPU swap chain.
@@ -156,7 +156,7 @@ namespace PyroshockStudios {
              * @param imageIndex Index of the back buffer.
              * @return Image Handle to the back buffer.
              */
-            PYRO_NODISCARD virtual Image GetBackBuffer(i32 imageIndex) = 0;
+            PYRO_NODISCARD virtual Image GetBackBuffer(u32 imageIndex) = 0;
 
             /**
              * @brief Acquire the next available image for rendering.
@@ -164,7 +164,7 @@ namespace PyroshockStudios {
              * @return Image index to the next back buffer.
              * Returns PYRO_SWAPCHAIN_ACQUIRE_FAIL if acquisition failed (e.g., swap chain needs resize).
              */
-            PYRO_NODISCARD virtual i32 AcquireNextImage() = 0;
+            PYRO_NODISCARD virtual u32 AcquireNextImage() = 0;
 
             /** @brief Resize the swap chain to match the current window size. */
             virtual void Resize() = 0;
@@ -203,6 +203,13 @@ namespace PyroshockStudios {
              * @return ColorSpace Current color space of the back buffers.
              */
             PYRO_NODISCARD virtual ColorSpace GetColorSpace() const = 0;
+
+            /**
+             * @brief Get the current acquired image index.
+             *
+             * @return ColorSpace Current current index that the swap chain is making available.
+             */
+            PYRO_NODISCARD virtual u32 GetCurrentImageIndex() const = 0;
         };
 
     } // namespace RHI

@@ -114,12 +114,13 @@ namespace PyroshockStudios::RHIVulkan {
         vkDestroySurfaceKHR(mDevice->Context()->GetVkInstance(), mSurface, mDevice->Context()->GetVkAllocator());
     }
 
-    Image VulkanSwapChain::GetBackBuffer(i32 imageIndex) {
+    Image VulkanSwapChain::GetBackBuffer(u32 imageIndex) {
         if (imageIndex >= mWrappedImages.size())
             return {};
         return mWrappedImages[imageIndex];
     }
-    i32 VulkanSwapChain::AcquireNextImage() {
+    u32 VulkanSwapChain::AcquireNextImage() {
+        ASSERT(!mPresentingQueue.load(), "Do not acquire a swap chain image if there is no forward progress.");
         CheckVkResult(vkResetFences(mDevice->GetVkDevice(), 1, &mSwapchainAcquireFence), "Failed to reset swapchain fence!");
         mImageAcquireIndex = (mImageAcquireIndex + 1) % mInfo.bufferCount;
         VkResult result = vkAcquireNextImageKHR(mDevice->GetVkDevice(),
@@ -131,7 +132,11 @@ namespace PyroshockStudios::RHIVulkan {
 
         CheckVkResult(vkWaitForFences(mDevice->GetVkDevice(), 1, &mSwapchainAcquireFence, VK_TRUE, UINT64_MAX), "Failed to wait for swapchain fence!");
 
-        return (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) ? mImageIndex : PYRO_SWAPCHAIN_ACQUIRE_FAIL;
+        if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) {
+            mPresentingQueue.store(nullptr);
+            return mImageIndex;
+        }
+        return PYRO_SWAPCHAIN_ACQUIRE_FAIL;
     }
 
     void VulkanSwapChain::Resize() {
