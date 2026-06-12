@@ -25,6 +25,7 @@
 
 #include <EASTL/atomic.h>
 #include <PyroRHI/Api/ICommandQueue.hpp>
+#include <PyroRHI/Common/AtomicMap.hpp>
 #include <RHIVulkan/Core.hpp>
 #include <mutex>
 
@@ -75,7 +76,6 @@ namespace PyroshockStudios {
             PYRO_NODISCARD bool HasOpenCommands() const {
                 return mOpenCommandBuffers.load() > 0;
             }
-
         private:
             VulkanDevice* mDevice;
             VkQueue mQueue;

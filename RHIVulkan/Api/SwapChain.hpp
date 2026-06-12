@@ -59,6 +59,15 @@ namespace PyroshockStudios {
                 return mRenderFinishSemaphores[mImageIndex];
             }
 
+            PYRO_NODISCARD VulkanCommandQueue* ConsumeSwapPresent() {
+                return mPresentingQueue.exchange(nullptr);
+            }
+
+            void EmplaceSwapWrite(VulkanCommandQueue* queue) {
+                mPresentingQueue.store(queue);
+            }
+
+
         private:
             void CreateSurface();
             void CreateSwapChain(VkSwapchainKHR oldSwapChain);
@@ -75,6 +84,8 @@ namespace PyroshockStudios {
             VkSwapchainKHR mSwapChain = {};
             eastl::vector<VkImage> mSwapImages = {};
             eastl::vector<Image> mWrappedImages = {};
+
+            eastl::atomic<VulkanCommandQueue*> mPresentingQueue = { nullptr };
 
             i32 mImageAcquireIndex = -1;
             eastl::vector<VkSemaphore> mImageAcquireSemaphores = {};

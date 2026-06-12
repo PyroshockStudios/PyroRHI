@@ -120,7 +120,6 @@ namespace PyroshockStudios::RHIVulkan {
         return mWrappedImages[imageIndex];
     }
     u32 VulkanSwapChain::AcquireNextImage() {
-        ASSERT(!mPresentingQueue.load(), "Do not acquire a swap chain image if there is no forward progress.");
         CheckVkResult(vkResetFences(mDevice->GetVkDevice(), 1, &mSwapchainAcquireFence), "Failed to reset swapchain fence!");
         mImageAcquireIndex = (mImageAcquireIndex + 1) % mInfo.bufferCount;
         VkResult result = vkAcquireNextImageKHR(mDevice->GetVkDevice(),
