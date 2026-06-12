@@ -433,6 +433,9 @@ namespace PyroshockStudios {
 
         VulkanDevice::~VulkanDevice() {
             VulkanDevice::WaitIdle();
+            // HACK collect a few times to force the destruction of the deferred items
+            VulkanDevice::CollectGarbage();
+            VulkanDevice::CollectGarbage();
             VulkanDevice::CollectGarbage();
             ASSERT(mResourceZombies.Empty(), "Dangling zombies remaining after device destruction! This should never happen!");
             mResourceTable.Cleanup(mDevice, mContext->GetVkAllocator());
