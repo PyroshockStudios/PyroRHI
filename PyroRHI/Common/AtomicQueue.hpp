@@ -1,6 +1,7 @@
 #pragma once
 
 #include <EASTL/deque.h>
+#include <EASTL/optional.h>
 #include <cassert>
 #include <chrono>
 #include <condition_variable>
@@ -26,12 +27,22 @@ namespace PyroshockStudios {
             }
 
             T Pop() {
+                std::scoped_lock lk(mObjectLock);
                 assert(mDeque.size() && "Cannot pop from empty deque!");
 
-                std::scoped_lock lk(mObjectLock);
                 T value = mDeque.front();
                 mDeque.pop_front();
                 return value;
+            }
+
+            eastl::optional<T> TryPop() {
+                std::scoped_lock lk(mObjectLock);
+                if (mDeque.empty()) {
+                    return eastl::nullopt;
+                }
+                T value = mDeque.front();
+                mDeque.pop_front();
+                return eastl::optional<T>(value);
             }
 
             void Clear() {

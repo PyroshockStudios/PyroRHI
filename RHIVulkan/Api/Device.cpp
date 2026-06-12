@@ -1539,11 +1539,13 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(renderTarget),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<RenderTarget>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(renderTarget),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<RenderTarget>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
             VulkanRenderTarget* targ = eastl::bit_cast<VulkanRenderTarget*>(renderTarget);
@@ -1552,11 +1554,13 @@ namespace PyroshockStudios {
         }
         void VulkanDevice::DestroyRasterPipeline(RasterPipeline& pipeline, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(pipeline),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<RasterPipeline>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(pipeline),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<RasterPipeline>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
             delete eastl::bit_cast<VulkanRasterPipeline*>(pipeline);
@@ -1564,11 +1568,13 @@ namespace PyroshockStudios {
         }
         void VulkanDevice::DestroyComputePipeline(ComputePipeline& pipeline, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(pipeline),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ComputePipeline>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(pipeline),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ComputePipeline>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
             delete eastl::bit_cast<VulkanComputePipeline*>(pipeline);
@@ -1576,11 +1582,13 @@ namespace PyroshockStudios {
         }
         void VulkanDevice::DestroySwapChain(ISwapChain*& swapChain, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(swapChain),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ISwapChain*>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(swapChain),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ISwapChain*>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
 
@@ -1591,11 +1599,13 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(memory),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<MemoryBlock>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(memory),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<MemoryBlock>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
             ImplVmaVirtualBlockSlot& blockSlot = Slot(memory);
@@ -1609,11 +1619,13 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyBuffer(Buffer& buffer, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(buffer),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Buffer>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(buffer),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Buffer>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
 
@@ -1633,11 +1645,13 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyImage(Image& image, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(image),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Image>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(image),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Image>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
 
@@ -1659,11 +1673,13 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyShaderResource(ShaderResourceId& srv, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(srv),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<ShaderResourceId>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(srv),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<ShaderResourceId>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
 
@@ -1677,11 +1693,13 @@ namespace PyroshockStudios {
         }
         void VulkanDevice::DestroyUnorderedAccess(UnorderedAccessId& uav, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(uav),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<UnorderedAccessId>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(uav),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<UnorderedAccessId>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
 
@@ -1696,11 +1714,13 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroySampler(SamplerId& sampler, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(sampler),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<SamplerId>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(sampler),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<SamplerId>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
 
@@ -1713,11 +1733,13 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroySemaphore(Semaphore& semaphore, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(semaphore),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<Semaphore>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(semaphore),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<Semaphore>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
 
@@ -1728,11 +1750,13 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyFence(IFence*& fence, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(fence),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<IFence*>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(fence),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<IFence*>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
 
@@ -1744,11 +1768,13 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(queryPool),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ITimestampQueryPool*>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(queryPool),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ITimestampQueryPool*>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
 
@@ -1759,11 +1785,13 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyBlas(BlasId& blas, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(blas),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<BlasId>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(blas),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<BlasId>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
 
@@ -1781,11 +1809,13 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyTlas(TlasId& tlas, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(tlas),
-                    .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<TlasId>(res)); }
-                };
-                mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                TryEnqueueDestroyDeferred([=] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(tlas),
+                        .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<TlasId>(res)); }
+                    };
+                    mResourceZombies.EmplaceBack(eastl::move(SnapshotQueueTimelineValues()), zombie);
+                });
                 return;
             }
 
@@ -2068,12 +2098,8 @@ namespace PyroshockStudios {
         bool VulkanDevice::CollectGarbage() {
             std::unique_lock lck(mGlobalQueueMutex); // lock any command queue access
             // check if any command lists are open!! If they are, return false because it's not safe to collect right now!
-            for (ICommandQueue* commandQueue : mCommandQueues) {
-                if (static_cast<VulkanCommandQueue*>(commandQueue)->HasOpenCommands()) {
-                    return false;
-                }
-            }
-
+            if (AreCommandListsOpen())
+                return false;
             for (int i = 0; i < mMainQueueCommandListZombies.Size(); ++i) {
                 auto [deleteTimeline, object] = mMainQueueCommandListZombies.At(i);
                 if (object.queue->GetGpuTimeline()->Value() >= deleteTimeline) {
@@ -2130,6 +2156,9 @@ namespace PyroshockStudios {
                     --i;
                 }
             }
+            while (auto cmd = mOnDestroyDeferredQueue.TryPop()) {
+                (*cmd)();
+            }
             return true;
         }
 
@@ -2155,6 +2184,19 @@ namespace PyroshockStudios {
         void VulkanDevice::SetShaderModel(u32 shaderModel) {
             ASSERT(shaderModel <= mFeatures.maxSupportedShaderModel, "Shader model used is unsupported!");
             mActiveShaderModel = shaderModel;
+        }
+
+        bool VulkanDevice::AreCommandListsOpen() {
+            for (ICommandQueue* commandQueue : mCommandQueues) {
+                if (static_cast<VulkanCommandQueue*>(commandQueue)->HasOpenCommands()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        void VulkanDevice::TryEnqueueDestroyDeferred(eastl::function<void()>&& fnc) {
+            mOnDestroyDeferredQueue.Push(eastl::move(fnc));
         }
 
         Image VulkanDevice::NewSwapChainImage(VulkanSwapChain* owner, VkImage swapchainImage, VkFormat format, u32 index, ImageUsageFlags usage, const ImageInfo& imageInfo) {

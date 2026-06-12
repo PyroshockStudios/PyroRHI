@@ -42,3 +42,5 @@ target_link_libraries(RHIValidationTestVulkan
   )
 
 addSlangDependencies(RHIValidationTestVulkan)
+
+add_dependencies(RHIValidationTestVulkan RHIVulkan)

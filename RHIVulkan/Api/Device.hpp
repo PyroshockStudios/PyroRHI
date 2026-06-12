@@ -151,6 +151,11 @@ namespace PyroshockStudios {
             }
 
         public:
+            bool AreCommandListsOpen();
+            // enqueues the deferred destruction immediately if command lists are closed, otherwise it 
+            // gets deferred until the command lists are closed.
+            void TryEnqueueDestroyDeferred(eastl::function<void()>&& fnc);
+
             Image NewSwapChainImage(VulkanSwapChain* owner, VkImage swapchainImage, VkFormat format, u32 index, ImageUsageFlags usage, const ImageInfo& imageInfo);
 
             VulkanSwapChainSupportInfo GetSwapChainSupport(VkSurfaceKHR surface) const;
@@ -215,6 +220,7 @@ namespace PyroshockStudios {
                 eastl::vector<const u32*>& primitiveCountsPtrs) const;
 
         public:
+            Common::AtomicQueue<eastl::function<void()>> mOnDestroyDeferredQueue = {};
             Common::AtomicVector<eastl::pair<QueueTimelineSnapshot, ZombieDeleter>> mResourceZombies = {};
 
             VulkanDeviceCapabilities mVulkanCaps = {};

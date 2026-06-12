@@ -44,8 +44,10 @@ namespace PyroshockStudios::RHIVulkan {
     }
 
     ICommandBuffer* VulkanCommandQueue::GetCommandBuffer(const CommandBufferInfo& info) {
-        auto lock = mDevice->AcquireQueueAccess();
-        IncrementOpenCommands();
+        {
+            auto lock = mDevice->AcquireQueueAccess();
+            IncrementOpenCommands();
+        }
         auto [pool, buffer] = mCommandBufferPool->Get(mDevice, this);
         return new VulkanCommandBuffer(mDevice, this, pool, buffer, info);
     }

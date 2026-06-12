@@ -43,3 +43,5 @@ target_link_libraries(RHIValidationTestDX12
   )
 
 addSlangDependencies(RHIValidationTestDX12)
+
+add_dependencies(RHIValidationTestVulkan RHIDX12)
