@@ -129,6 +129,11 @@ namespace PyroshockStudios::RHIVulkan {
             mSwapchainAcquireFence,
             &mImageIndex);
 
+        // If the swapchain is out of date, return early, the fence will never signal
+        if (result == VK_NOT_READY || result == VK_TIMEOUT || result == VK_ERROR_OUT_OF_DATE_KHR ||
+            result == VK_ERROR_SURFACE_LOST_KHR || result == VK_ERROR_DEVICE_LOST) {
+            return PYRO_SWAPCHAIN_ACQUIRE_FAIL;
+        }
         CheckVkResult(vkWaitForFences(mDevice->GetVkDevice(), 1, &mSwapchainAcquireFence, VK_TRUE, UINT64_MAX), "Failed to wait for swapchain fence!");
 
         if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) {
