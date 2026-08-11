@@ -193,7 +193,7 @@ namespace PyroshockStudios {
                         }
                     }
                 }
-                Logger::Warn(gVulkanSink, ret);
+                Logger::Warn(gVulkanSink, "{}", ret);
             };
 
             if (mBufferSlots.mFreeIndexStack.size() != mBufferSlots.mNextIndex - 1) {

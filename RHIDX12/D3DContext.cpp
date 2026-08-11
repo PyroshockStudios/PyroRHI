@@ -442,19 +442,19 @@ namespace PyroshockStudios::RHIDX12 {
 
             switch (message->Severity) {
             case D3D12_MESSAGE_SEVERITY_CORRUPTION:
-                Logger::Fatal(mDebugSink, message->pDescription);
+                Logger::Fatal(mDebugSink, "{}", message->pDescription);
                 break;
             case D3D12_MESSAGE_SEVERITY_ERROR:
-                Logger::Error(mDebugSink, message->pDescription);
+                Logger::Error(mDebugSink, "{}", message->pDescription);
                 break;
             case D3D12_MESSAGE_SEVERITY_WARNING:
-                Logger::Warn(mDebugSink, message->pDescription);
+                Logger::Warn(mDebugSink, "{}", message->pDescription);
                 break;
             case D3D12_MESSAGE_SEVERITY_INFO:
-                Logger::Info(mDebugSink, message->pDescription);
+                Logger::Info(mDebugSink, "{}", message->pDescription);
                 break;
             case D3D12_MESSAGE_SEVERITY_MESSAGE:
-                Logger::Debug(mDebugSink, message->pDescription);
+                Logger::Debug(mDebugSink, "{}", message->pDescription);
                 break;
             default:
                 break;
