@@ -578,6 +578,11 @@ namespace PyroshockStudios {
         inline eastl::string ImageSlice::ToString(usize indentation) const {
             return eastl::string().sprintf("{ mip=%u, layer=%u }", mipLevel, arrayLayer);
         }
+        inline eastl::string ImageUploadSlice::ToString(usize indentation) const {
+            return eastl::string().sprintf("{ size=%ull, uploadPitch=%u, blockSize=%u, elementWidth=%u, elementHeight=%u, depth=%u, uploadOffsetAlignment=%u }",
+                size, uploadPitch, blockSize, elementWidth, elementHeight, depth, uploadOffsetAlignment);
+        }
+
 
 
         inline eastl::string Access::ToString(usize indentation) const {

@@ -466,15 +466,12 @@ namespace PyroshockStudios {
             PYRO_NODISCARD virtual DeviceSize ImageSizeRequirements(Image image) const = 0;
 
             /**
-             * @brief Returns the required row pitch (stride in bytes) for a specific subresource of the image.
+             * @brief Returns the ImageUploadSlice for a specific subresource of the image.
              *
-             * The row pitch is the number of bytes the GPU expects between consecutive rows in a buffer
-             * when copying to or from this image subresource. It must be used when performing
-             * buffer-to-image or image-to-buffer copies to avoid out-of-bounds errors.
-             *
-             * Row width is the minimal width that needs to be queried **INCLUDING** the format size. For a buffer-image copy, this is the extent of your copy region.
+             * @param slice Subresource of the image to upload to
+             * @param region Optional box where the upload is targetted towards. By default, the entire extent of the image is assumed.
              */
-            PYRO_NODISCARD virtual u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice = {}) const = 0;
+            PYRO_NODISCARD virtual ImageUploadSlice ImageUploadRequirements(Image image, ImageSlice slice, eastl::optional<Box3D> region = eastl::nullopt) const = 0;
 
             /**
              * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
