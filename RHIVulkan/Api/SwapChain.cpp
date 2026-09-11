@@ -120,8 +120,9 @@ namespace PyroshockStudios::RHIVulkan {
         return mWrappedImages[imageIndex];
     }
     u32 VulkanSwapChain::AcquireNextImage() {
+        mIsAcquireSuccess = false;
         CheckVkResult(vkResetFences(mDevice->GetVkDevice(), 1, &mSwapchainAcquireFence), "Failed to reset swapchain fence!");
-        mImageAcquireIndex = (mImageAcquireIndex + 1) % mInfo.bufferCount;
+        mImageAcquireIndex = static_cast<i32>((mImageAcquireIndex + 1) % mInfo.bufferCount);
         VkResult result = vkAcquireNextImageKHR(mDevice->GetVkDevice(),
             mSwapChain,
             eastl::numeric_limits<u64>::max(),
@@ -134,6 +135,9 @@ namespace PyroshockStudios::RHIVulkan {
             result == VK_ERROR_SURFACE_LOST_KHR || result == VK_ERROR_DEVICE_LOST) {
             return PYRO_SWAPCHAIN_ACQUIRE_FAIL;
         }
+
+        mIsAcquireSuccess = true;
+
         CheckVkResult(vkWaitForFences(mDevice->GetVkDevice(), 1, &mSwapchainAcquireFence, VK_TRUE, UINT64_MAX), "Failed to wait for swapchain fence!");
 
         if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) {
@@ -167,7 +171,6 @@ namespace PyroshockStudios::RHIVulkan {
         return mFormat;
     }
     ColorSpace VulkanSwapChain::GetColorSpace() const {
-        ASSERT(false, "TODO");
         return mColorSpace;
     }
     void VulkanSwapChain::CreateSurface() {

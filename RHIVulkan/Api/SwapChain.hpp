@@ -67,6 +67,9 @@ namespace PyroshockStudios {
                 mPresentingQueue.store(queue);
             }
 
+            PYRO_NODISCARD bool LastAcquireSucceded() {
+                return mIsAcquireSuccess;
+            }
 
         private:
             void CreateSurface();
@@ -87,6 +90,7 @@ namespace PyroshockStudios {
 
             eastl::atomic<VulkanCommandQueue*> mPresentingQueue = { nullptr };
 
+            bool mIsAcquireSuccess = false;
             i32 mImageAcquireIndex = -1;
             eastl::vector<VkSemaphore> mImageAcquireSemaphores = {};
             eastl::vector<VkSemaphore> mRenderFinishSemaphores = {};

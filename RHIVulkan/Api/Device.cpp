@@ -1542,7 +1542,7 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = reinterpret_cast<void*>(renderTarget),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<RenderTarget>(res)); }
@@ -1557,7 +1557,7 @@ namespace PyroshockStudios {
         }
         void VulkanDevice::DestroyRasterPipeline(RasterPipeline& pipeline, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = reinterpret_cast<void*>(pipeline),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<RasterPipeline>(res)); }
@@ -1571,7 +1571,7 @@ namespace PyroshockStudios {
         }
         void VulkanDevice::DestroyComputePipeline(ComputePipeline& pipeline, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = reinterpret_cast<void*>(pipeline),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ComputePipeline>(res)); }
@@ -1585,7 +1585,7 @@ namespace PyroshockStudios {
         }
         void VulkanDevice::DestroySwapChain(ISwapChain*& swapChain, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = reinterpret_cast<void*>(swapChain),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ISwapChain*>(res)); }
@@ -1602,7 +1602,7 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = reinterpret_cast<void*>(memory),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<MemoryBlock>(res)); }
@@ -1622,7 +1622,7 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyBuffer(Buffer& buffer, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = reinterpret_cast<void*>(buffer),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Buffer>(res)); }
@@ -1648,7 +1648,7 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyImage(Image& image, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = reinterpret_cast<void*>(image),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Image>(res)); }
@@ -1676,7 +1676,7 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyShaderResource(ShaderResourceId& srv, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = eastl::bit_cast<void*>(srv),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<ShaderResourceId>(res)); }
@@ -1696,7 +1696,7 @@ namespace PyroshockStudios {
         }
         void VulkanDevice::DestroyUnorderedAccess(UnorderedAccessId& uav, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = eastl::bit_cast<void*>(uav),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<UnorderedAccessId>(res)); }
@@ -1717,7 +1717,7 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroySampler(SamplerId& sampler, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = eastl::bit_cast<void*>(sampler),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<SamplerId>(res)); }
@@ -1736,7 +1736,7 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroySemaphore(Semaphore& semaphore, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = eastl::bit_cast<void*>(semaphore),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<Semaphore>(res)); }
@@ -1753,7 +1753,7 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyFence(IFence*& fence, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = reinterpret_cast<void*>(fence),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<IFence*>(res)); }
@@ -1771,7 +1771,7 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = reinterpret_cast<void*>(queryPool),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ITimestampQueryPool*>(res)); }
@@ -1788,7 +1788,7 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyBlas(BlasId& blas, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = eastl::bit_cast<void*>(blas),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<BlasId>(res)); }
@@ -1812,7 +1812,7 @@ namespace PyroshockStudios {
 
         void VulkanDevice::DestroyTlas(TlasId& tlas, bool bDefer) {
             if (bDefer) {
-                TryEnqueueDestroyDeferred([=] {
+                TryEnqueueDestroyDeferred([=, this] {
                     ZombieDeleter zombie = {
                         .resource = eastl::bit_cast<void*>(tlas),
                         .deleter = [](VulkanDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<TlasId>(res)); }
@@ -2034,6 +2034,9 @@ namespace PyroshockStudios {
                 waitSemaphores.push_back(semaphoreSubmit);
             }
             for (auto* vkswapch : pendingSwapChainPresents) {
+                if (!vkswapch->LastAcquireSucceded()) {
+                    continue;
+                }
                 VkSemaphoreSubmitInfo semaphoreSubmit{ VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
                 // TODO: Since we know when these swapchains are referenced, we can infer the stage flags
                 semaphoreSubmit.stageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
