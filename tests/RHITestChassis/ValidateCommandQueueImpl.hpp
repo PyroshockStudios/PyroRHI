@@ -383,8 +383,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, SingleQueueDestroyDeferredSuccess) {
             info.image = srcImage;
             info.imageExtent = srcImageInfo.size;
             bufferInfo.size = mDevice->ImageSizeRequirements(srcImage);
-            info.rowPitch = bufferInfo.size / srcImageInfo.size.height / srcImageInfo.size.depth;
-            info.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, info.rowPitch);
+            auto requirements = mDevice->ImageUploadRequirements(srcImage, ImageSlice{ .mipLevel = 0, .arrayLayer = 0 });
+            info.rowPitch = requirements.uploadPitch;
 
             bufferInfo.size = srcImageInfo.size.height * srcImageInfo.size.depth * info.rowPitch;
             TRACK_RHI_PARAMETER(bufferInfo);
@@ -608,8 +608,8 @@ TEST_F(RHI_CONTEXT_FIXTURE_NAME, MultiQueueResourceTransferSuccess) {
     copyInfo.image = srcImage;
     copyInfo.imageExtent = srcImageInfo.size;
     bufferInfo.size = mDevice->ImageSizeRequirements(srcImage);
-    copyInfo.rowPitch = bufferInfo.size / srcImageInfo.size.height / srcImageInfo.size.depth;
-    copyInfo.rowPitch = mDevice->ImageSubresourceRowPitch(srcImage, copyInfo.rowPitch);
+    auto requirements = mDevice->ImageUploadRequirements(srcImage, ImageSlice{ .mipLevel = 0, .arrayLayer = 0 });
+    copyInfo.rowPitch = requirements.uploadPitch;
 
     bufferInfo.size = srcImageInfo.size.height * srcImageInfo.size.depth * copyInfo.rowPitch;
     TRACK_RHI_PARAMETER(bufferInfo);

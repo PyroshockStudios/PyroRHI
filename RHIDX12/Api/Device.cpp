@@ -165,7 +165,7 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
             return resourceAllocInfo.SizeInBytes;
         }
-        u32 D3DDevice::ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const {
+        ImageUploadSlice D3DDevice::ImageUploadRequirements(Image image, ImageSlice slice, eastl::optional<Box3D> region) const {
             auto& img = mResourcePool->Get(image);
             UINT dstSubresource = D3D12CalcSubresource(slice.mipLevel, slice.arrayLayer, 0, img.info.mipLevelCount, img.info.arrayLayerCount);
             D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
@@ -175,7 +175,39 @@ namespace PyroshockStudios {
             mDevice->GetCopyableFootprints(&img.desc, dstSubresource, 1, 0,
                 &footprint, &numRows, &rowSizesInBytes, &requiredSize);
             gDx12Context->FlushDebugMessages();
-            return footprint.Footprint.RowPitch;
+
+
+            auto blockInfo = RHIUtil::GetFormatBlockInfo(img.info.format);
+
+            Extent3D mipExtent = img.info.size;
+            if (slice.mipLevel > 0) {
+                u32 divisions = 1 << slice.mipLevel;
+                mipExtent.width /= divisions;
+                mipExtent.height /= divisions;
+                mipExtent.depth /= divisions;
+                if (mipExtent.width == 0)
+                    mipExtent.width = 1;
+                if (mipExtent.height == 0)
+                    mipExtent.height = 1;
+                if (mipExtent.depth == 0)
+                    mipExtent.depth = 1;
+            }
+
+            Box3D box = region.value_or(Box3D::Cut(mipExtent));
+            u32 elementWidth = (box.width + blockInfo.blockWidth - 1) / blockInfo.blockWidth;
+            u32 elementHeight = (box.height + blockInfo.blockHeight - 1) / blockInfo.blockHeight;
+
+            ImageUploadSlice uploadSlice;
+            uploadSlice.uploadPitch = footprint.Footprint.RowPitch;
+            uploadSlice.blockSize = blockInfo.bytesPerBlock;
+            uploadSlice.elementWidth = elementWidth;
+            uploadSlice.elementHeight = elementHeight;
+            uploadSlice.depth = box.depth;
+            uploadSlice.uploadOffsetAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+
+            uploadSlice.size = static_cast<DeviceSize>(uploadSlice.uploadPitch) * elementHeight * box.depth;
+
+            return uploadSlice;
         }
         AccelerationStructureBuildSizesInfo D3DDevice::BlasSizeRequirements(const BlasBuildInfo& info) const {
             if (!mDevice5) {

@@ -129,13 +129,14 @@ namespace PyroshockStudios::RHIVulkan {
 
         ImplImageSlot& imageSlot = mDevice->Slot(info.image);
         CheckIfSwapchainReference(imageSlot);
-
-
         auto blockInfo = RHIUtil::GetFormatBlockInfo(imageSlot.info.format);
+
+        u32 alignedBufferHeight = (info.imageExtent.height + blockInfo.blockHeight - 1) / blockInfo.blockHeight * blockInfo.blockHeight;
+
         const VkBufferImageCopy region = {
             .bufferOffset = info.bufferOffset,
-            .bufferRowLength = info.rowPitch == 0 ? 0 : (info.rowPitch / blockInfo.bytesPerBlock * blockInfo.blockWidth ),
-            .bufferImageHeight = info.imageExtent.height,
+            .bufferRowLength = info.rowPitch == 0 ? 0 : (info.rowPitch / blockInfo.bytesPerBlock * blockInfo.blockWidth),
+            .bufferImageHeight = alignedBufferHeight,
             .imageSubresource = {
                 .aspectMask = imageSlot.aspectFlags,
                 .mipLevel = info.imageSlice.mipLevel,
@@ -145,6 +146,7 @@ namespace PyroshockStudios::RHIVulkan {
             .imageOffset = { (int32_t)info.imageOffset.x, (int32_t)info.imageOffset.y, (int32_t)info.imageOffset.z },
             .imageExtent = { info.imageExtent.width, info.imageExtent.height, info.imageExtent.depth }
         };
+
         vkCmdCopyBufferToImage(mCommandBuffer, mDevice->Slot(info.buffer).vkBuffer,
             imageSlot.vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     }

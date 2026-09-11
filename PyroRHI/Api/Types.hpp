@@ -943,6 +943,18 @@ namespace PyroshockStudios {
 #define PYRO_IMAGE_SLICE_RESOLVE_LEVELS(subSlice, fullLevelCount) \
     ((subSlice.levelCount == PYRO_REMAINING_MIP_LEVELS) ? (fullLevelCount - subSlice.baseMipLevel) : subSlice.levelCount)
 
+        struct ImageUploadSlice {
+            DeviceSize size = {};
+            u32 uploadPitch = {};
+            u32 blockSize = {};
+            u32 elementWidth = {};
+            u32 elementHeight = {};
+            u32 depth = {};
+            u32 uploadOffsetAlignment = {};
+
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
+        };
+
         struct DrawArgumentBuffer {
             u32 vertexCount = {};
             u32 instanceCount = {};

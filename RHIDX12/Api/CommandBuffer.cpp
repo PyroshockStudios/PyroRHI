@@ -54,25 +54,38 @@ namespace PyroshockStudios {
             const auto& dst = mDevice->ResourcePool().Get(info.image);
 
             auto blockInfo = RHIUtil::GetFormatBlockInfo(dst.info.format);
-            u32 bufferRowPitch = (info.rowPitch / blockInfo.bytesPerBlock * blockInfo.blockWidth);
+
+            // calculate the padded height (in blocks) to know the true byte size of one slice
+            u32 elementHeight = (info.imageExtent.height + blockInfo.blockHeight - 1) / blockInfo.blockHeight;
+
+            // calculate exactly how many BYTES a single array slice takes up in the staging buffer
+            u64 layerByteSize = static_cast<u64>(info.rowPitch) * elementHeight * info.imageExtent.depth;
+
             for (UINT j = 0; j < PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, dst.info.arrayLayerCount); ++j) {
                 UINT dstSubresource = D3D12CalcSubresource(info.imageSlice.mipLevel, info.imageSlice.baseArrayLayer + j, 0, dst.info.mipLevelCount, dst.info.arrayLayerCount);
+
                 D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
-                UINT numRows = {};
-                UINT64 rowSizesInBytes = {};
-                UINT64 requiredSize = {};
-                mDevice->InternalDevice()->GetCopyableFootprints(&dst.desc, dstSubresource, 1, info.bufferOffset,
-                    &footprint, &numRows, &rowSizesInBytes, &requiredSize);
-                ASSERT(PYRO_VERIFY_ALIGNMENT(info.rowPitch, footprint.Footprint.RowPitch), "Row Pitch MUST be aligned to device requirements!");
-                footprint.Footprint.RowPitch = info.rowPitch;
+                // Use the DXGI format from the destination texture desc
+                footprint.Footprint.Format = dst.desc.Format;
+
+                // Exact pixel dimensions requested
                 footprint.Footprint.Width = info.imageExtent.width;
                 footprint.Footprint.Height = info.imageExtent.height;
                 footprint.Footprint.Depth = info.imageExtent.depth;
-                footprint.Offset = bufferRowPitch * footprint.Footprint.Height * footprint.Footprint.Depth * j;
+
+                footprint.Footprint.RowPitch = info.rowPitch;
+
+                // start at the requested buffer offset, and advance by the exact BYTE size of each layer
+                footprint.Offset = info.bufferOffset + (layerByteSize * j);
+
+                ASSERT(PYRO_VERIFY_ALIGNMENT(footprint.Offset, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT), "Buffer Offset MUST be 512-byte aligned!");
+
                 CD3DX12_TEXTURE_COPY_LOCATION Dst(dst.resource.Get(), dstSubresource);
                 CD3DX12_TEXTURE_COPY_LOCATION Src(src.resource.Get(), footprint);
+
                 mCommandList->CopyTextureRegion(&Dst, info.imageOffset.x, info.imageOffset.y, info.imageOffset.z, &Src, nullptr);
             }
+
             gDx12Context->FlushDebugMessages();
         }
 

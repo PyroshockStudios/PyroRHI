@@ -118,7 +118,7 @@ namespace PyroshockStudios {
             u8* BufferHostAddress(Buffer buffer) const override;
             BlasAddress BlasInstanceAddress(BlasId blas) const override;
             DeviceSize ImageSizeRequirements(Image image) const override;
-            u32 ImageSubresourceRowPitch(Image image, u32 rowWidth, ImageSlice slice) const override;
+            ImageUploadSlice ImageUploadRequirements(Image image, ImageSlice slice, eastl::optional<Box3D> region) const override;
 
             AccelerationStructureBuildSizesInfo BlasSizeRequirements(const BlasBuildInfo& info) const override;
             AccelerationStructureBuildSizesInfo TlasSizeRequirements(const TlasBuildInfo& info) const override;

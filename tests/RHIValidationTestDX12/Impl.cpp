@@ -10,6 +10,7 @@
                     mCreateInfo.options[1] = { .optionIndex = -1 };
 // clang-format on
 
+#include <RHITestChassis/FuzzImageUploadImpl.hpp>
 #include <RHITestChassis/ValidateAccelerationStructureImpl.hpp>
 #include <RHITestChassis/ValidateBufferImpl.hpp>
 #include <RHITestChassis/ValidateCommandBufferImpl.hpp>
@@ -24,5 +25,9 @@
 
 
 #include <Windows.h>
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 618; }
-extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = ".\\RHI\\D3D12\\"; }
+extern "C" {
+__declspec(dllexport) extern const UINT D3D12SDKVersion = 618;
+}
+extern "C" {
+__declspec(dllexport) extern const char* D3D12SDKPath = ".\\RHI\\D3D12\\";
+}
