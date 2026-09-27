@@ -134,7 +134,7 @@ namespace PyroshockStudios::RHIVulkan {
         auto blockInfo = RHIUtil::GetFormatBlockInfo(imageSlot.info.format);
         const VkBufferImageCopy region = {
             .bufferOffset = info.bufferOffset,
-            .bufferRowLength = info.rowPitch == 0 ? 0 : (info.rowPitch / blockInfo.bytesPerBlock * blockInfo.blockWidth ),
+            .bufferRowLength = info.rowPitch == 0 ? 0 : (info.rowPitch / blockInfo.bytesPerBlock * blockInfo.blockWidth),
             .bufferImageHeight = info.imageExtent.height,
             .imageSubresource = {
                 .aspectMask = imageSlot.aspectFlags,
@@ -582,6 +582,34 @@ namespace PyroshockStudios::RHIVulkan {
 
         vkCmdEndRendering(mCommandBuffer);
     }
+    void VulkanCommandBuffer::ClearRenderTarget(const ClearRenderTargetInfo& info) {
+        VkClearAttachment attachment;
+        if (info.flags & RenderTargetFlagBits::COLOR_TARGET) {
+            memcpy(&attachment.clearValue.color, &info.clearValue.Get<ColorClearValue>(), sizeof(VkClearColorValue));
+            attachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            attachment.colorAttachment = info.colorTargetIndex;
+        } else {
+            auto& dsv = info.clearValue.Get<DepthStencilClearValue>();
+            attachment.clearValue.depthStencil.depth = dsv.depth;
+            attachment.clearValue.depthStencil.stencil = dsv.stencil;
+
+            if (info.flags & RenderTargetFlagBits::DEPTH_TARGET) {
+                attachment.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            }
+            if (info.flags & RenderTargetFlagBits::STENCIL_TARGET) {
+                attachment.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+            }
+            attachment.colorAttachment = 0;
+        }
+        VkClearRect clearRect;
+        clearRect.rect = {
+            .offset = { info.rect.x, info.rect.y },
+            .extent = { static_cast<u32>(info.rect.width), static_cast<u32>(info.rect.height) },
+        };
+        clearRect.baseArrayLayer = 0;
+        clearRect.layerCount = 1;
+        vkCmdClearAttachments(mCommandBuffer, 1, &attachment, 1, &clearRect);
+    }
 
     void VulkanCommandBuffer::PushConstantVPtr(const PushConstantInfo& info) {
         ASSERT(mCompleted == false, "can not record commands to completed command list");
@@ -710,6 +738,9 @@ namespace PyroshockStudios::RHIVulkan {
             static_cast<VkDeviceSize>(info.offset)
         };
         vkCmdBindVertexBuffers(mCommandBuffer, info.slot, PYRO_ARRAY_SIZE(buffers), buffers, offsets);
+    }
+    void VulkanCommandBuffer::SetStencilReference(const SetStencilReferenceInfo& info) {
+        vkCmdSetStencilReference(mCommandBuffer, VK_STENCIL_FRONT_AND_BACK, info.referenceMask);
     }
 
     void VulkanCommandBuffer::Draw(const DrawInfo& info) {

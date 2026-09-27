@@ -540,10 +540,33 @@ namespace PyroshockStudios {
         }
 
         void D3DCommandBuffer::EndLabel() {
-            if (!gPixEndEventOnCommandListFn) 
+            if (!gPixEndEventOnCommandListFn)
                 return;
             gPixEndEventOnCommandListFn(mCommandList.Get());
             gDx12Context->FlushDebugMessages();
+        }
+
+        static void D3DConvertClearColor(FLOAT* clearCol, ColorClearValue clearValue, Format format) {
+            switch (RHIUtil::GetFormatNumericType(format)) {
+            case RHIUtil::FormatNumericType::Float:
+                memcpy(clearCol, clearValue.float32.data(), sizeof(clearCol));
+                break;
+            case RHIUtil::FormatNumericType::SignedInt:
+                clearCol[0] = static_cast<FLOAT>(clearValue.int32[0]);
+                clearCol[1] = static_cast<FLOAT>(clearValue.int32[1]);
+                clearCol[2] = static_cast<FLOAT>(clearValue.int32[2]);
+                clearCol[3] = static_cast<FLOAT>(clearValue.int32[3]);
+                break;
+            case RHIUtil::FormatNumericType::UnsignedInt:
+                clearCol[0] = static_cast<FLOAT>(clearValue.uint32[0]);
+                clearCol[1] = static_cast<FLOAT>(clearValue.uint32[1]);
+                clearCol[2] = static_cast<FLOAT>(clearValue.uint32[2]);
+                clearCol[3] = static_cast<FLOAT>(clearValue.uint32[3]);
+                break;
+            default:
+                ASSERT(false, "Bad image format!");
+                break;
+            }
         }
 
         void D3DCommandBuffer::BeginRenderPass(const RenderPassBeginInfo& info) {
@@ -551,33 +574,15 @@ namespace PyroshockStudios {
             eastl::fixed_vector<D3D12_CPU_DESCRIPTOR_HANDLE, 8> renderTargets{};
             D3D12_CPU_DESCRIPTOR_HANDLE depthStencil = {};
 
+            int i = 0;
             for (const auto& colTarg : info.colorAttachments) {
                 auto rt = eastl::bit_cast<D3DRenderTarget*>(colTarg.target);
                 const auto& imageData = mDevice->ResourcePool().Get(rt->Info().image);
                 renderTargets.emplace_back(rt->GetDescriptor());
+                mBoundColorTargets[i++] = rt;
                 if (colTarg.loadOp == AttachmentLoadOp::Clear) {
                     FLOAT clearCol[4];
-                    Format imageFormat = imageData.info.format;
-                    switch (RHIUtil::GetFormatNumericType(imageFormat)) {
-                    case RHIUtil::FormatNumericType::Float:
-                        memcpy(clearCol, colTarg.clearValue.float32.data(), sizeof(clearCol));
-                        break;
-                    case RHIUtil::FormatNumericType::SignedInt:
-                        clearCol[0] = static_cast<FLOAT>(colTarg.clearValue.int32[0]);
-                        clearCol[1] = static_cast<FLOAT>(colTarg.clearValue.int32[1]);
-                        clearCol[2] = static_cast<FLOAT>(colTarg.clearValue.int32[2]);
-                        clearCol[3] = static_cast<FLOAT>(colTarg.clearValue.int32[3]);
-                        break;
-                    case RHIUtil::FormatNumericType::UnsignedInt:
-                        clearCol[0] = static_cast<FLOAT>(colTarg.clearValue.uint32[0]);
-                        clearCol[1] = static_cast<FLOAT>(colTarg.clearValue.uint32[1]);
-                        clearCol[2] = static_cast<FLOAT>(colTarg.clearValue.uint32[2]);
-                        clearCol[3] = static_cast<FLOAT>(colTarg.clearValue.uint32[3]);
-                        break;
-                    default:
-                        ASSERT(false, "Bad image format!");
-                        break;
-                    }
+                    D3DConvertClearColor(clearCol, colTarg.clearValue, imageData.info.format);
                     mCommandList->ClearRenderTargetView(renderTargets.back(), clearCol, 1, &renderArea);
                 } else if (colTarg.loadOp == AttachmentLoadOp::DontCare) {
                     D3D12_DISCARD_REGION region;
@@ -681,6 +686,33 @@ namespace PyroshockStudios {
                 mCommandList->ResourceBarrier(2, exitBarriers);
             }
             mRenderPassResolves.clear();
+            gDx12Context->FlushDebugMessages();
+            for (int i = 0; i < mBoundColorTargets.size(); ++i) {
+                mBoundColorTargets[i] = nullptr;
+            }
+        }
+
+        void D3DCommandBuffer::ClearRenderTarget(const ClearRenderTargetInfo& info) {
+            D3D12_RECT clearArea = ToD3D12Rect(info.rect);
+            if (info.flags & RenderTargetFlagBits::COLOR_TARGET) {
+                FLOAT clearCol[4];
+                auto* rt = mBoundColorTargets[info.colorTargetIndex];
+                const auto& imageData = mDevice->ResourcePool().Get(rt->Info().image);
+                D3DConvertClearColor(clearCol, info.clearValue.Get<ColorClearValue>(), imageData.info.format);
+                mCommandList->ClearRenderTargetView(rt->GetDescriptor(), clearCol, 1, &clearArea);
+            } else {
+                auto* rt = mBoundColorTargets[info.colorTargetIndex];
+                D3D12_CLEAR_FLAGS depthStencilClear = {};
+                if (info.flags & RenderTargetFlagBits::DEPTH_TARGET) {
+                    depthStencilClear |= D3D12_CLEAR_FLAG_DEPTH;
+                }
+                if (info.flags & RenderTargetFlagBits::STENCIL_TARGET) {
+                    depthStencilClear |= D3D12_CLEAR_FLAG_STENCIL;
+                }
+                const auto& dsv = info.clearValue.Get<DepthStencilClearValue>();
+                mCommandList->ClearDepthStencilView(rt->GetDescriptor(), depthStencilClear,
+                    dsv.depth, (UINT)dsv.stencil, 1, &clearArea);
+            }
             gDx12Context->FlushDebugMessages();
         }
 
@@ -805,6 +837,11 @@ namespace PyroshockStudios {
             view.BufferLocation = bufferInfo.resource->GetGPUVirtualAddress() + info.offset;
             view.SizeInBytes = static_cast<u32>(eastl::min(bufferInfo.info.size - info.offset, static_cast<u64>(UINT32_MAX)));
             mCommandList->IASetIndexBuffer(&view);
+            gDx12Context->FlushDebugMessages();
+        }
+
+        void D3DCommandBuffer::SetStencilReference(const SetStencilReferenceInfo& info) {
+            mCommandList->OMSetStencilRef((UINT)info.referenceMask);
             gDx12Context->FlushDebugMessages();
         }
 

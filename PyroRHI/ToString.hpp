@@ -12,7 +12,7 @@
 
 namespace PyroshockStudios {
     inline namespace RHI {
-        namespace temptemptempinternalthingy {
+        namespace detail {
             static eastl::string ToHexImpl(u64 ptrHandle) {
                 char buf[32];
                 // 16 digits for 64-bit pointer, zero-padded
@@ -27,15 +27,29 @@ namespace PyroshockStudios {
                 return buf;
             }
 
+            static eastl::string ToBinU8Impl(u32 value) {
+                char buf[10];
+                buf[9] = '\0';
+                buf[4] = ' ';
+                for (int i = 0; i < 4; ++i) {
+                    buf[4 - i] = value & 1 << i ? '1' : '0';
+                }
+                for (int i = 0; i < 4; ++i) {
+                    buf[9 - i] = value & 1 << (i + 4) ? '1' : '0';
+                }
+                return buf;
+            }
+
             // Helper for indentation
             static eastl::string IndentImpl(usize indentation) {
                 return eastl::string(indentation, ' ');
             }
-        } // namespace temptemptempinternalthingy
-#define ToHexH64(x) temptemptempinternalthingy::ToHexImpl(eastl::bit_cast<u64>(x))
-// #define ToHexHPtr(x) temptemptempinternalthingy::ToHexImpl(eastl::bit_cast<const void*>(x))
-#define ToHexU32(x) temptemptempinternalthingy::ToHexU32Impl(x)
-#define Indent(x) temptemptempinternalthingy::IndentImpl(x)
+        } // namespace detail
+#define ToHexH64(x) detail::ToHexImpl(eastl::bit_cast<u64>(x))
+// #define ToHexHPtr(x) detail::ToHexImpl(eastl::bit_cast<const void*>(x))
+#define ToHexU32(x) detail::ToHexU32Impl(x)
+#define ToBinaryU8(x) detail::ToBinU8Impl(x)
+#define Indent(x) detail::IndentImpl(x)
 
 
 // Helper macro to reduce boilerplate
@@ -480,7 +494,7 @@ namespace PyroshockStudios {
         }
 
         inline eastl::string DepthStencilClearValue::ToString(usize indentation) const {
-            return eastl::string().sprintf("DepthStencilClear{ depth=%.3f, stencil=%u }", depth, stencil);
+            return eastl::string().sprintf("DepthStencilClear{ depth=%.3f, stencil=%s }", depth, ToBinaryU8(stencil).c_str());
         }
 
         inline eastl::string ColorClearValue::ToString(usize indentation) const {
@@ -1209,6 +1223,25 @@ namespace PyroshockStudios {
             s += Indent(indentation + 2) + "vendorID:" + eastl::to_string(vendorID) + "\n";
             s += Indent(indentation + 2) + "deviceLUID:" + eastl::to_string(deviceLUID) + "\n";
             s += Indent(indentation + 2) + "deviceUUID:" + deviceUUID.ToString() + "\n";
+            s += Indent(indentation) + "}";
+            return s;
+        }
+
+        inline eastl::string ClearRenderTargetInfo::ToString(usize indentation) const {
+            eastl::string s;
+            s += "ClearRenderTargetInfo {\n";
+            s += Indent(indentation + 2) + "flags: \"" + eastl::to_string(flags.data) + "\"\n";
+            s += Indent(indentation + 2) + "colorTargetIndex: \"" + eastl::to_string(colorTargetIndex) + "\"\n";
+            s += Indent(indentation + 2) + "clearValue: \"" + (flags & RenderTargetFlagBits::COLOR_TARGET ? clearValue.Get<ColorClearValue>().ToString() : clearValue.Get<DepthStencilClearValue>().ToString()) + "\"\n";
+            s += Indent(indentation + 2) + "rect: \"" + rect.ToString() + "\"\n";
+            s += Indent(indentation) + "}";
+            return s;
+        }
+
+        inline eastl::string SetStencilReferenceInfo::ToString(usize indentation) const {
+            eastl::string s;
+            s += "SetStencilReferenceInfo {\n";
+            s += Indent(indentation + 2) + "referenceMask: \"" + ToBinaryU8(referenceMask) + "\"\n";
             s += Indent(indentation) + "}";
             return s;
         }

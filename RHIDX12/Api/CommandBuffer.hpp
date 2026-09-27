@@ -33,6 +33,7 @@ namespace PyroshockStudios {
         class D3DDevice;
         class D3DRasterPipeline;
         class D3DTimestampQueryPool;
+        class D3DRenderTarget;
 
         class D3DCommandBuffer : public ICommandBuffer, DeleteCopy, DeleteMove {
         public:
@@ -59,6 +60,7 @@ namespace PyroshockStudios {
             void EndLabel() override;
             void BeginRenderPass(const RenderPassBeginInfo& info) override;
             void EndRenderPass() override;
+            void ClearRenderTarget(const ClearRenderTargetInfo& info) override;
             void PushConstantVPtr(const PushConstantInfo& info) override;
             void SetUniformBufferView(const SetUniformBufferViewInfo& info) override;
             void SetUnorderedAccessView(const SetUnorderedAccessViewInfo& info) override;
@@ -68,6 +70,7 @@ namespace PyroshockStudios {
             void SetScissor(const Rect2D& info) override;
             void SetVertexBuffer(const SetVertexBufferInfo& info) override;
             void SetIndexBuffer(const SetIndexBufferInfo& info) override;
+            void SetStencilReference(const SetStencilReferenceInfo& info) override;
             void Draw(const DrawInfo& info) override;
             void DrawIndexed(const DrawIndexedInfo& info) override;
             void DrawIndirect(const DrawIndirectInfo& info) override;
@@ -115,7 +118,7 @@ namespace PyroshockStudios {
                 DXGI_FORMAT format;
                 Extent2D extent;
             };
-            eastl::fixed_vector<ResolveRenderTargetInfo, 8> mRenderPassResolves = {};
+            eastl::fixed_vector<ResolveRenderTargetInfo, Limits::MAX_BOUND_COLOR_TARGETS> mRenderPassResolves = {};
             eastl::vector<D3D12_VERTEX_BUFFER_VIEW> mPendingVertexBufferBinds = {};
             UAVDescriptorTableCache mPendingUAVBinds = {};
             DescriptorTableInfo mGraphicsLastBoundUAVDescriptorTable = {};
@@ -123,6 +126,8 @@ namespace PyroshockStudios {
             LinearUploadBuffer* mCurrentLinearUploadBuffer = {};
             eastl::hash_map<D3DTimestampQueryPool*, eastl::pair<u32, u32>> mPendingQueryPoolMinMaxResolves = {};
             D3DDevice* mDevice = {};
+
+            eastl::array<D3DRenderTarget*, Limits::MAX_BOUND_COLOR_TARGETS> mBoundColorTargets ={};
         };
     } // namespace RHIDX12
 } // namespace PyroshockStudios

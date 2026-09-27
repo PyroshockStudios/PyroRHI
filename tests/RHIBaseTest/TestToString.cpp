@@ -301,7 +301,7 @@ TEST(RHICommonToStringTests, DepthStencilClearValueToString) {
     EXPECT_STREQ(RemoveIndentation(clearValue.ToString(0)).c_str(), RemoveIndentation(expected).c_str());
 
     clearValue = { 0.5f, 255 };
-    expected = "DepthStencilClear{ depth=0.500, stencil=255 }";
+    expected = "DepthStencilClear{ depth=0.500, stencil=1111 1111 }";
     EXPECT_STREQ(RemoveIndentation(clearValue.ToString(0)).c_str(), RemoveIndentation(expected).c_str());
 }
 
@@ -618,7 +618,7 @@ TEST(RHICommonToStringTests, FenceSubmitInfoToString) {
 
 TEST(RHICommonToStringTests, CommandQueueSubmitInfoToString) {
     ICommandQueue* testQueue = reinterpret_cast<ICommandQueue*>(0x00000000DEADBEEFULL); // Ensure it's 64-bit for consistency
-    Semaphore waitSemaphore1 = reinterpret_cast<Semaphore>(0x11111111);            // Explicitly construct Semaphore with u64
+    Semaphore waitSemaphore1 = reinterpret_cast<Semaphore>(0x11111111);                 // Explicitly construct Semaphore with u64
     Semaphore signalSemaphore1 = reinterpret_cast<Semaphore>(0x22222222);
     IFence* signalFence1 = reinterpret_cast<IFence*>(0x0000000033333333ULL); // Ensure 64-bit
 
@@ -1345,4 +1345,58 @@ TEST(RHICommonToStringTests, ImageResourceInfoToString) {
         "  format: BC1RGBUnormBlock\n"
         "}";
     EXPECT_STREQ(RemoveIndentation(infoCubeArray.ToString(0)).c_str(), RemoveIndentation(expectedCubeArray).c_str());
+}
+
+TEST(RHICommonToStringTests, ClearRenderTargetInfoToString) {
+    ClearRenderTargetInfo info;
+    info.flags = RenderTargetFlagBits::COLOR_TARGET;
+    info.rect = { 0, 0, 300, 300 };
+    ColorClearValue colClear;
+    colClear.float32[0] = 1.0f;
+    colClear.float32[1] = 0.5f;
+    colClear.float32[2] = 0.2f;
+    colClear.float32[3] = 1.0f;
+    info.clearValue = colClear;
+    info.colorTargetIndex = 4;
+
+    // clang-format off
+    eastl::string expected =
+        "ClearRenderTargetInfo {\n"
+        "  flags: \"1\"\n"
+        "  colorTargetIndex: \"4\"\n"
+        "  clearValue: \"" + colClear.ToString() + "\"\n"
+        "  rect: \"" + info.rect.ToString() + "\"\n"
+        "}";
+    // clang-format on
+
+    EXPECT_STREQ(RemoveIndentation(info.ToString(0)).c_str(), RemoveIndentation(expected).c_str());
+
+    info.flags = RenderTargetFlagBits::DEPTH_STENCIL_TARGET;
+    DepthStencilClearValue depthClear{ .depth = 0.5f, .stencil = 0b1100'0000 };
+    info.clearValue = depthClear;
+    info.colorTargetIndex = 0;
+
+    // clang-format off
+    eastl::string expected =
+        "ClearRenderTargetInfo {\n"
+        "  flags: \"6\"\n"
+        "  colorTargetIndex: \"0\"\n"
+        "  clearValue: \"" + depthClear.ToString() + "\"\n"
+        "  rect: \"" + info.rect.ToString() + "\"\n"
+        "}";
+    // clang-format on
+
+    EXPECT_STREQ(RemoveIndentation(info.ToString(0)).c_str(), RemoveIndentation(expected).c_str());
+}
+
+TEST(RHICommonToStringTests, SetStencilReferenceInfoToString) {
+    SetStencilReferenceInfo info;
+    info.referenceMask = 0b1000'1011;
+
+    eastl::string expected =
+        "SetStencilReferenceInfo {\n"
+        "  referenceMask: \"1000 1011\"\n"
+        "}";
+
+    EXPECT_STREQ(RemoveIndentation(info.ToString(0)).c_str(), RemoveIndentation(expected).c_str());
 }

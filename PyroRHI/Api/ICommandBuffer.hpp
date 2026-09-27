@@ -29,13 +29,13 @@
 #include <EASTL/variant.h>
 
 #include <PyroCommon/Concepts.hpp>
+#include <PyroRHI/Api/AccelerationStructure.hpp>
 #include <PyroRHI/Api/Forward.hpp>
 #include <PyroRHI/Api/GPUResource.hpp>
 #include <PyroRHI/Api/Limits.hpp>
 #include <PyroRHI/Api/Pipeline.hpp>
 #include <PyroRHI/Api/RenderTarget.hpp>
 #include <PyroRHI/Api/Types.hpp>
-#include <PyroRHI/Api/AccelerationStructure.hpp>
 
 namespace PyroshockStudios {
     inline namespace RHI {
@@ -532,6 +532,42 @@ namespace PyroshockStudios {
         };
 
         /**
+         * @brief Parameters for clearing a render target, bound within a render pass.
+         */
+        struct ClearRenderTargetInfo {
+
+            /**
+             * @brief A bitmask that can only be either:
+             * - COLOR_TARGET
+             * - DEPTH_TARGET
+             * - STENCIL_TARGET
+             * - DEPTH_STENCIL_TARGET
+             */
+            RenderTargetFlags flags;
+
+
+            /**
+             * @brief An index to clear a specific bound colour target.
+             * Only Valid if renderTargetType is COLOR_TARGET
+             */
+            u32 colorTargetIndex = 0;
+
+            /**
+             * @brief Clear value of the render target.
+             */
+            Union<ColorClearValue, DepthStencilClearValue> clearValue = ColorClearValue{};
+
+            /**
+             * @brief Clear area of the render target.
+             */
+            Rect2D rect = {};
+
+            PYRO_NODISCARD bool operator==(const ClearRenderTargetInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const ClearRenderTargetInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
+        };
+
+        /**
          * @brief Parameters for pushing constant data into a pipeline.
          */
         struct PushConstantInfo {
@@ -643,6 +679,20 @@ namespace PyroshockStudios {
 
             PYRO_NODISCARD bool operator==(const SetIndexBufferInfo&) const = default;
             PYRO_NODISCARD bool operator!=(const SetIndexBufferInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
+        };
+
+        /**
+         * @brief Parameters for setting the stencil test's reference.
+         */
+        struct SetStencilReferenceInfo {
+            /**
+             * @brief Stencil test reference mask.
+             */
+            u32 referenceMask = {};
+
+            PYRO_NODISCARD bool operator==(const SetStencilReferenceInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const SetStencilReferenceInfo&) const = default;
             PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
@@ -781,7 +831,7 @@ namespace PyroshockStudios {
 
             /**
              * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
-             * Inserts a barrier for synchronizing acceleration structure accesses. Use this for synchronising builds/updates. 
+             * Inserts a barrier for synchronizing acceleration structure accesses. Use this for synchronising builds/updates.
              * *MUST* be called outside of a renderpass.
              */
             virtual void AccelerationStructureBarrier(const AccelerationStructureBarrierInfo& info) = 0;
@@ -863,6 +913,11 @@ namespace PyroshockStudios {
              */
             virtual void EndRenderPass() = 0;
 
+            /**
+             * @brief Clears a render target bound by the current render pass.
+             */
+            virtual void ClearRenderTarget(const ClearRenderTargetInfo& info) = 0;
+
             // ---------------------------------------------------------------------
             // Constants and Pipeline State
             // ---------------------------------------------------------------------
@@ -928,6 +983,13 @@ namespace PyroshockStudios {
              */
             virtual void SetIndexBuffer(const SetIndexBufferInfo& info) = 0;
 
+            /**
+             * @brief Sets the stencil reference for the current compare mask.
+             * Only valid if the pipeline state bound has a stencil test.
+             */
+            virtual void SetStencilReference(const SetStencilReferenceInfo& info) = 0;
+
+
             // ---------------------------------------------------------------------
             // Drawing
             // ---------------------------------------------------------------------
@@ -966,11 +1028,11 @@ namespace PyroshockStudios {
              */
             virtual void DispatchIndirect(const DispatchIndirectInfo& info) = 0;
 
-            
+
             // ---------------------------------------------------------------------
             // Ray tracing and Acceleration structures
             // ---------------------------------------------------------------------
-           
+
             /**
              * @brief - REQUIRES ACCELERATION STRUCTURE SUPPORT -
              * Builds/updates a list of BLAS/TLAS. *MUST* be called outside of a renderpass.

@@ -70,6 +70,7 @@ namespace PyroshockStudios {
             void EndLabel() override;
             void BeginRenderPass(const RenderPassBeginInfo& info) override;
             void EndRenderPass() override;
+            void ClearRenderTarget(const ClearRenderTargetInfo& info) override;
             void PushConstantVPtr(const PushConstantInfo& info) override;
             void SetUnorderedAccessView(const SetUnorderedAccessViewInfo& info) override;
             void SetUniformBufferView(const SetUniformBufferViewInfo& info) override;
@@ -79,6 +80,7 @@ namespace PyroshockStudios {
             void SetScissor(const Rect2D& info) override;
             void SetIndexBuffer(const SetIndexBufferInfo& info) override;
             void SetVertexBuffer(const SetVertexBufferInfo& info) override;
+            void SetStencilReference(const SetStencilReferenceInfo& info) override;
             void Draw(const DrawInfo& info) override;
             void DrawIndexed(const DrawIndexedInfo& info) override;
             void DrawIndirect(const DrawIndirectInfo& info) override;
