@@ -1377,7 +1377,7 @@ TEST(RHICommonToStringTests, ClearRenderTargetInfoToString) {
     info.colorTargetIndex = 0;
 
     // clang-format off
-    eastl::string expected =
+    expected =
         "ClearRenderTargetInfo {\n"
         "  flags: \"6\"\n"
         "  colorTargetIndex: \"0\"\n"

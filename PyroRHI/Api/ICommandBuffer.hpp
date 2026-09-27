@@ -555,7 +555,7 @@ namespace PyroshockStudios {
             /**
              * @brief Clear value of the render target.
              */
-            Union<ColorClearValue, DepthStencilClearValue> clearValue = ColorClearValue{};
+            eastl::variant<ColorClearValue, DepthStencilClearValue> clearValue = {};
 
             /**
              * @brief Clear area of the render target.

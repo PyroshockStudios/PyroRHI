@@ -698,7 +698,7 @@ namespace PyroshockStudios {
                 FLOAT clearCol[4];
                 auto* rt = mBoundColorTargets[info.colorTargetIndex];
                 const auto& imageData = mDevice->ResourcePool().Get(rt->Info().image);
-                D3DConvertClearColor(clearCol, info.clearValue.Get<ColorClearValue>(), imageData.info.format);
+                D3DConvertClearColor(clearCol, eastl::get<ColorClearValue>(info.clearValue), imageData.info.format);
                 mCommandList->ClearRenderTargetView(rt->GetDescriptor(), clearCol, 1, &clearArea);
             } else {
                 auto* rt = mBoundColorTargets[info.colorTargetIndex];
@@ -709,7 +709,7 @@ namespace PyroshockStudios {
                 if (info.flags & RenderTargetFlagBits::STENCIL_TARGET) {
                     depthStencilClear |= D3D12_CLEAR_FLAG_STENCIL;
                 }
-                const auto& dsv = info.clearValue.Get<DepthStencilClearValue>();
+                const auto& dsv = eastl::get<DepthStencilClearValue>(info.clearValue);
                 mCommandList->ClearDepthStencilView(rt->GetDescriptor(), depthStencilClear,
                     dsv.depth, (UINT)dsv.stencil, 1, &clearArea);
             }

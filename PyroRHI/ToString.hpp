@@ -1229,10 +1229,15 @@ namespace PyroshockStudios {
 
         inline eastl::string ClearRenderTargetInfo::ToString(usize indentation) const {
             eastl::string s;
+            eastl::string clearValueStr = "BAD VARIANT";
+            eastl::visit([&](auto& clear) {
+                clearValueStr = clear.ToString();
+            },
+                clearValue);
             s += "ClearRenderTargetInfo {\n";
             s += Indent(indentation + 2) + "flags: \"" + eastl::to_string(flags.data) + "\"\n";
             s += Indent(indentation + 2) + "colorTargetIndex: \"" + eastl::to_string(colorTargetIndex) + "\"\n";
-            s += Indent(indentation + 2) + "clearValue: \"" + (flags & RenderTargetFlagBits::COLOR_TARGET ? clearValue.Get<ColorClearValue>().ToString() : clearValue.Get<DepthStencilClearValue>().ToString()) + "\"\n";
+            s += Indent(indentation + 2) + "clearValue: \"" + clearValueStr +"\"\n";
             s += Indent(indentation + 2) + "rect: \"" + rect.ToString() + "\"\n";
             s += Indent(indentation) + "}";
             return s;

@@ -585,11 +585,11 @@ namespace PyroshockStudios::RHIVulkan {
     void VulkanCommandBuffer::ClearRenderTarget(const ClearRenderTargetInfo& info) {
         VkClearAttachment attachment;
         if (info.flags & RenderTargetFlagBits::COLOR_TARGET) {
-            memcpy(&attachment.clearValue.color, &info.clearValue.Get<ColorClearValue>(), sizeof(VkClearColorValue));
+            memcpy(&attachment.clearValue.color, &eastl::get<ColorClearValue>(info.clearValue), sizeof(VkClearColorValue));
             attachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             attachment.colorAttachment = info.colorTargetIndex;
         } else {
-            auto& dsv = info.clearValue.Get<DepthStencilClearValue>();
+            auto& dsv = eastl::get<DepthStencilClearValue>(info.clearValue);
             attachment.clearValue.depthStencil.depth = dsv.depth;
             attachment.clearValue.depthStencil.stencil = dsv.stencil;
 
