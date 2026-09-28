@@ -297,7 +297,7 @@ TEST(RHICommonToStringTests, EnumToString_ImageViewType) {
 
 TEST(RHICommonToStringTests, DepthStencilClearValueToString) {
     DepthStencilClearValue clearValue = { 1.0f, 0 };
-    eastl::string expected = "DepthStencilClear{ depth=1.000, stencil=0 }";
+    eastl::string expected = "DepthStencilClear{ depth=1.000, stencil=0000 0000 }";
     EXPECT_STREQ(RemoveIndentation(clearValue.ToString(0)).c_str(), RemoveIndentation(expected).c_str());
 
     clearValue = { 0.5f, 255 };
@@ -979,7 +979,7 @@ TEST(RHICommonToStringTests, DepthStencilAttachmentInfoToString) {
         "  depthStoreOp: Store\n"
         "  stencilLoadOp: DontCare\n"
         "  stencilStoreOp: DontCare\n"
-        "  clearValue: DepthStencilClear{ depth=1.000, stencil=0 }\n"
+        "  clearValue: DepthStencilClear{ depth=1.000, stencil=0000 0000 }\n"
         "}";
     EXPECT_STREQ(RemoveIndentation(info.ToString(0)).c_str(), RemoveIndentation(expected).c_str());
 }
@@ -1023,7 +1023,7 @@ TEST(RHICommonToStringTests, RenderPassBeginInfoToString) {
         "    depthStoreOp: Store\n"
         "    stencilLoadOp: DontCare\n"
         "    stencilStoreOp: DontCare\n"
-        "    clearValue: DepthStencilClear{ depth=1.000, stencil=0 }\n"
+        "    clearValue: DepthStencilClear{ depth=1.000, stencil=0000 0000 }\n"
         "  }\n"
         "  renderArea: { x=0, y=0, width=800, height=600 }\n"
         "}";

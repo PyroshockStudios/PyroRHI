@@ -31,11 +31,12 @@ namespace PyroshockStudios {
                 char buf[10];
                 buf[9] = '\0';
                 buf[4] = ' ';
+                // Reverse bit order, NSB -> LSB
                 for (int i = 0; i < 4; ++i) {
-                    buf[4 - i] = value & 1 << i ? '1' : '0';
+                    buf[8 - i] = value & 1 << i ? '1' : '0';
                 }
                 for (int i = 0; i < 4; ++i) {
-                    buf[9 - i] = value & 1 << (i + 4) ? '1' : '0';
+                    buf[3 - i] = value & 1 << (i + 4) ? '1' : '0';
                 }
                 return buf;
             }
@@ -1237,7 +1238,7 @@ namespace PyroshockStudios {
             s += "ClearRenderTargetInfo {\n";
             s += Indent(indentation + 2) + "flags: \"" + eastl::to_string(flags.data) + "\"\n";
             s += Indent(indentation + 2) + "colorTargetIndex: \"" + eastl::to_string(colorTargetIndex) + "\"\n";
-            s += Indent(indentation + 2) + "clearValue: \"" + clearValueStr +"\"\n";
+            s += Indent(indentation + 2) + "clearValue: \"" + clearValueStr + "\"\n";
             s += Indent(indentation + 2) + "rect: \"" + rect.ToString() + "\"\n";
             s += Indent(indentation) + "}";
             return s;

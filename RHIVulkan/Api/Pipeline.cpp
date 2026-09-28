@@ -163,6 +163,13 @@ namespace PyroshockStudios {
                 .alphaToCoverageEnable = info.multiSampleState.bAlphaToCoverage
             };
 
+
+            // === Dynamic State ===
+            eastl::fixed_vector<VkDynamicState, 3> dynamicStates = {
+                VK_DYNAMIC_STATE_VIEWPORT,
+                VK_DYNAMIC_STATE_SCISSOR
+            };
+
             // === Depth Stencil ===
             VkPipelineDepthStencilStateCreateInfo depthStencil{};
             if (info.depthStencilState) {
@@ -186,6 +193,8 @@ namespace PyroshockStudios {
                 depthStencil.maxDepthBounds = info.depthStencilState->depthTest.maxDepthBounds;
                 depthStencil.stencilTestEnable = info.depthStencilState->stencilTestState != DepthStencilTestState::Ignore;
                 if (depthStencil.stencilTestEnable) {
+                    dynamicStates.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+
                     depthStencil.front.compareMask = info.depthStencilState->frontStencilTest.compareMask;
                     depthStencil.front.compareOp = ToVkCompareOp(info.depthStencilState->frontStencilTest.compareOp);
                     depthStencil.front.depthFailOp = ToVkStencilOp(info.depthStencilState->frontStencilTest.depthFailOp);
@@ -230,16 +239,10 @@ namespace PyroshockStudios {
                 .pAttachments = blendAttachments.data()
             };
 
-            // === Dynamic State ===
-            VkDynamicState dynamicStates[] = {
-                VK_DYNAMIC_STATE_VIEWPORT,
-                VK_DYNAMIC_STATE_SCISSOR
-            };
-
             VkPipelineDynamicStateCreateInfo dynamicState = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-                .dynamicStateCount = 2,
-                .pDynamicStates = dynamicStates
+                .dynamicStateCount = static_cast<u32>(dynamicStates.size()),
+                .pDynamicStates = dynamicStates.data()
             };
 
             Format depthStencilFormat = Format::Undefined;
