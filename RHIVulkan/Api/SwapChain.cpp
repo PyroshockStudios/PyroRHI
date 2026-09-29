@@ -280,15 +280,14 @@ namespace PyroshockStudios::RHIVulkan {
                 vkSetDebugUtilsObjectNameEXT(mDevice->GetVkDevice(), &nameInfoo);
             }
 
-            ImageUsageFlags usage = ImageUsageFlagBits::RENDER_TARGET | ImageUsageFlagBits::TRANSFER_DST | ImageUsageFlagBits::TRANSFER_SRC;
             ImageInfo const image_info = {
                 .format = mFormat,
                 .size = { mInfo.extent.width, mInfo.extent.height, 1 },
-                .usage = usage,
+                .usage = mInfo.imageUsage,
                 .name = mInfo.name + " Image #" + eastl::to_string(i),
             };
 
-            mWrappedImages[i] = mDevice->NewSwapChainImage(this, mSwapImages[i], ToVkFormat(mFormat), i, usage, image_info);
+            mWrappedImages[i] = mDevice->NewSwapChainImage(this, mSwapImages[i], ToVkFormat(mFormat), i, mInfo.imageUsage, image_info);
         }
 
         if (vkSetDebugUtilsObjectNameEXT) {
