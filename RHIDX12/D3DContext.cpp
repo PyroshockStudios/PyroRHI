@@ -292,8 +292,10 @@ namespace PyroshockStudios::RHIDX12 {
                 // Push to retrieval/output filter
                 mInfoQueue->AddRetrievalFilterEntries(&filter);
 
+#ifndef NDEBUG
                 mInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
                 mInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+#endif
                 // pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
             }
         }
@@ -435,13 +437,13 @@ namespace PyroshockStudios::RHIDX12 {
             auto* message = reinterpret_cast<D3D12_MESSAGE*>(messageData.data());
             mInfoQueue->GetMessageA(i, message, &messageLength);
 
-            bool bDred = message->Severity == D3D12_MESSAGE_SEVERITY_CORRUPTION || message->Severity == D3D12_MESSAGE_SEVERITY_ERROR;
+            /*bool bDred = message->Severity == D3D12_MESSAGE_SEVERITY_CORRUPTION || message->Severity == D3D12_MESSAGE_SEVERITY_ERROR;
             if (bDred) {
                 ComPtr<ID3D12DeviceRemovedExtendedData> pDred;
                 mDevice->InternalDevice()->QueryInterface(IID_PPV_ARGS(&pDred));
                 D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
                 pDred->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput);
-            }
+            }*/
 
             switch (message->Severity) {
             case D3D12_MESSAGE_SEVERITY_CORRUPTION:

@@ -894,11 +894,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyBuffer(Buffer& buffer, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(buffer),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Buffer>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(buffer),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Buffer>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             auto& data = mResourcePool->Get(buffer);
@@ -1685,8 +1687,10 @@ namespace PyroshockStudios {
                 mUAVDescriptorTableCache.Erase(handle);
             }
 
-            while (auto cmd = mOnDestroyDeferredQueue.TryPop()) {
-                (*cmd)();
+            usize max = mOnDestroyDeferredQueue.Size();
+            for (int i = 0; i < max; ++i) {
+                if (auto cmd = mOnDestroyDeferredQueue.TryPop())
+                    (*cmd)();
             }
             return true;
         }
@@ -2115,13 +2119,8 @@ namespace PyroshockStudios {
         }
 
         void D3DDevice::TryEnqueueDestroyDeferred(eastl::function<void()>&& fnc) {
-            // HACK delay it a few times BECAUSE i'M FREAKING PULLING MY HAIRS OUT!!!
-            mOnDestroyDeferredQueue.Push([&, fnc = eastl::move(fnc)]() {
-                mOnDestroyDeferredQueue.Push([&, fnc = eastl::move(fnc)]() {
-                    mOnDestroyDeferredQueue.Push([&, fnc = eastl::move(fnc)]() {
-                        eastl::move(fnc);
-                    });
-                });
+            mOnDestroyDeferredQueue.Push([fnc = eastl::move(fnc)]() {
+                fnc();
             });
         }
 
