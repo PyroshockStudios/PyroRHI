@@ -462,6 +462,7 @@ namespace PyroshockStudios::RHIDX12 {
             default:
                 break;
             }
+            mInfoQueue->ClearStoredMessages();
         }
     }
 } // namespace PyroshockStudios::RHIDX12
