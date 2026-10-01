@@ -287,7 +287,10 @@ namespace PyroshockStudios::RHIDX12 {
                 filter.DenyList.NumIDs = _countof(denyIds);
                 filter.DenyList.pIDList = denyIds;
 
+                // Push to storage filter
                 mInfoQueue->AddStorageFilterEntries(&filter);
+                // Push to retrieval/output filter
+                mInfoQueue->AddRetrievalFilterEntries(&filter);
 
                 mInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
                 mInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);

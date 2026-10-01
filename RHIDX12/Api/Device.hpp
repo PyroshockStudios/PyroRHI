@@ -232,6 +232,10 @@ namespace PyroshockStudios {
             void DestroyUploadBuffers();
             void ReportDeviceRemovalReason();
 
+             // enqueues the deferred destruction immediately if command lists are closed, otherwise it
+            // gets deferred until the command lists are closed.
+            void TryEnqueueDestroyDeferred(eastl::function<void()>&& fnc);
+
         private:
             ComPtr<IDXGIAdapter1> mAdapter = {};
             ComPtr<IDXGIFactory4> mFactory = {};
@@ -260,6 +264,7 @@ namespace PyroshockStudios {
 
             Common::AtomicVector<eastl::pair<UINT64 /* cpu fence value @*/, D3DCommandQueue*>> mQueuePendingSubmits;
 
+            Common::AtomicQueue<eastl::function<void()>> mOnDestroyDeferredQueue = {};
             Common::AtomicVector<eastl::pair<QueueFenceSnapshot, ZombieDeleter>>
                 mDeferredDeletes;
 

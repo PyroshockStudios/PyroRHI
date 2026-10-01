@@ -128,10 +128,10 @@ namespace PyroshockStudios {
             CheckD3DResult(mCommandQueue->GetTimestampFrequency(&freq), "Failed to get ID3D12CommandQueue timestamp frequency!");
             return 1e9 / static_cast<f64>(freq);
         }
-        void D3DCommandQueue::RestoreCommandBuffer(D3DCommandBuffer* cmb) {
+        void D3DCommandQueue::RestoreCommandBuffer(D3DCommandBuffer* cmb, UINT64 signalledFence) {
             auto glock = mDevice->AcquireQueueAccess();
             DecrementCommandReference();
-            mPooledCommandBuffers.EmplaceBack(cmb, static_cast<UINT64>(mCurrentQueueFenceValue));
+            mPooledCommandBuffers.EmplaceBack(cmb, signalledFence);
         }
         void D3DCommandQueue::SignalQueueFence(UINT64 value) {
             mCommandQueue->Signal(mQueueTracker.Get(), value);

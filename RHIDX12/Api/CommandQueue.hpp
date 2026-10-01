@@ -43,7 +43,7 @@ namespace PyroshockStudios {
             ID3D12CommandQueue* InternalQueue() {
                 return mCommandQueue.Get();
             }
-            void RestoreCommandBuffer(D3DCommandBuffer* cmb);
+            void RestoreCommandBuffer(D3DCommandBuffer* cmb, UINT64 signalledFence);
 
             // Used for tracking which command buffers can be resurrected and when. Also for resource destruction
             void SignalQueueFence(UINT64 value);

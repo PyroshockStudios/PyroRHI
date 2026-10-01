@@ -67,9 +67,11 @@ namespace PyroshockStudios {
             Logger::Debug(gDX12Sink, "Destroying Device...");
             WaitIdle();
             gDx12Context->FlushDebugMessages();
-            CollectGarbage();
-            gDx12Context->FlushDebugMessages();
-            ASSERT(mDeferredDeletes.Empty(), "Command buffers must finish execution before device destruction! Deferred destruction was leaked!");
+            for (int i = 0; i < 10; ++i) {
+                CollectGarbage();
+                gDx12Context->FlushDebugMessages();
+            }
+            ASSERT(mDeferredDeletes.Empty(), "Command buffers must finish execution before device destruction! Deferred destruction was leaked after 10 collection attempts!");
             DestroyCommandQueues();
             DestroyUploadBuffers();
             ReportDeviceRemovalReason();
@@ -875,11 +877,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyMemoryBlock(MemoryBlock& memory, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(memory),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<MemoryBlock>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(memory),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<MemoryBlock>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             auto& data = mResourcePool->Get(memory);
@@ -918,11 +922,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyImage(Image& image, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(image),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Image>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(image),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<Image>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             auto& imgSlot = mResourcePool->Get(image);
@@ -940,11 +946,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyShaderResource(ShaderResourceId& srv, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(srv),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<ShaderResourceId>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(srv),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<ShaderResourceId>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             mResourcePool->mSRVHeap.ReleaseSlot(srv);
@@ -953,11 +961,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyUnorderedAccess(UnorderedAccessId& uav, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(uav),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<UnorderedAccessId>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(uav),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<UnorderedAccessId>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             // HACK: invalidate the cache! the handle might be reused
@@ -971,11 +981,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroySampler(SamplerId& sampler, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(sampler),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<SamplerId>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(sampler),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<SamplerId>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             mResourcePool->mSamplerHeap.ReleaseSlot(sampler);
@@ -984,11 +996,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyRenderTarget(RenderTarget& renderTarget, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(renderTarget),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<RenderTarget>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(renderTarget),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<RenderTarget>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             auto* rt = eastl::bit_cast<D3DRenderTarget*>(renderTarget);
@@ -1000,11 +1014,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyRasterPipeline(RasterPipeline& pipeline, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(pipeline),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<RasterPipeline>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(pipeline),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<RasterPipeline>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             delete eastl::bit_cast<D3DRasterPipeline*>(pipeline);
@@ -1013,11 +1029,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyComputePipeline(ComputePipeline& pipeline, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(pipeline),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<ComputePipeline>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(pipeline),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<ComputePipeline>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             delete eastl::bit_cast<D3DComputePipeline*>(pipeline);
@@ -1026,11 +1044,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroySwapChain(ISwapChain*& swapChain, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(swapChain),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ISwapChain*>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(swapChain),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ISwapChain*>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             delete static_cast<D3DSwapChain*>(swapChain);
@@ -1039,11 +1059,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroySemaphore(Semaphore& semaphore, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(semaphore),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<Semaphore>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(semaphore),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<Semaphore>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             delete eastl::bit_cast<D3DSemaphore*>(semaphore);
@@ -1052,11 +1074,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyFence(IFence*& fence, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(fence),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<IFence*>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(fence),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<IFence*>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             delete static_cast<D3DFence*>(fence);
@@ -1065,11 +1089,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyTimestampQueryPool(ITimestampQueryPool*& queryPool, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = reinterpret_cast<void*>(queryPool),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ITimestampQueryPool*>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = reinterpret_cast<void*>(queryPool),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(reinterpret_cast<ITimestampQueryPool*>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             delete static_cast<D3DTimestampQueryPool*>(queryPool);
@@ -1078,11 +1104,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyBlas(BlasId& blas, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(blas),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<BlasId>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(blas),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<BlasId>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
             mResourcePool->ReleaseBlas(blas);
@@ -1091,11 +1119,13 @@ namespace PyroshockStudios {
         }
         void D3DDevice::DestroyTlas(TlasId& tlas, bool bDefer) {
             if (bDefer) {
-                ZombieDeleter zombie = {
-                    .resource = eastl::bit_cast<void*>(tlas),
-                    .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<TlasId>(res)); }
-                };
-                mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                TryEnqueueDestroyDeferred([=, this] {
+                    ZombieDeleter zombie = {
+                        .resource = eastl::bit_cast<void*>(tlas),
+                        .deleter = [](D3DDevice* dev, void* res) { dev->DestroyImmediately(eastl::bit_cast<TlasId>(res)); }
+                    };
+                    mDeferredDeletes.EmplaceBack(eastl::move(SnapshotQueueFenceValues()), zombie);
+                });
                 return;
             }
 
@@ -1238,8 +1268,6 @@ namespace PyroshockStudios {
             // and also add the zombies to the destroy queue
             for (ICommandBuffer* c : info.commands) {
                 D3DCommandBuffer* cmb = static_cast<D3DCommandBuffer*>(c);
-                q->RestoreCommandBuffer(cmb);
-
                 for (i32 i = 0; i < cmb->mDeferredDeleteOps.size(); ++i) {
                     mDeferredDeletes.EmplaceBack(fencesForThisFrame, eastl::move(cmb->mDeferredDeleteOps[i]));
                 }
@@ -1255,6 +1283,7 @@ namespace PyroshockStudios {
                         });
                 }
                 cmb->mPendingReturnLinearUploadBuffers.clear();
+                q->RestoreCommandBuffer(cmb, cpuFenceValue);
             }
             gDx12Context->FlushDebugMessages();
         }
@@ -1654,6 +1683,10 @@ namespace PyroshockStudios {
             });
             for (auto handle : deleteUAVTableCacheHandles) {
                 mUAVDescriptorTableCache.Erase(handle);
+            }
+
+            while (auto cmd = mOnDestroyDeferredQueue.TryPop()) {
+                (*cmd)();
             }
             return true;
         }
@@ -2079,6 +2112,17 @@ namespace PyroshockStudios {
                 LPCTSTR desc = static_cast<LPCTSTR>(err.Description());
                 Logger::Error(gDX12Sink, "DEVICE REMOVED: {} \"{}\"", err.ErrorMessage(), desc ? desc : "");
             }
+        }
+
+        void D3DDevice::TryEnqueueDestroyDeferred(eastl::function<void()>&& fnc) {
+            // HACK delay it a few times BECAUSE i'M FREAKING PULLING MY HAIRS OUT!!!
+            mOnDestroyDeferredQueue.Push([&, fnc = eastl::move(fnc)]() {
+                mOnDestroyDeferredQueue.Push([&, fnc = eastl::move(fnc)]() {
+                    mOnDestroyDeferredQueue.Push([&, fnc = eastl::move(fnc)]() {
+                        eastl::move(fnc);
+                    });
+                });
+            });
         }
 
     } // namespace RHIDX12
