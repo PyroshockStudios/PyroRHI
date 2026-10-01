@@ -38,12 +38,13 @@ namespace PyroshockStudios {
             swapChainDesc.Height = mInfo.extent.height;
             switch (mInfo.format) {
             case SwapChainFormat::Unorm8BitLDR:
-                swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-                mFormat = Format::RGBA8Unorm;
+                swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+                mFormat = Format::BGRA8Unorm;
                 break;
             case SwapChainFormat::Srgb8BitLDR:
-                swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-                mFormat = Format::RGBA8Srgb;
+                // DXGI swap chain buffer must be UNORM; RTV handles the sRGB view
+                swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+                mFormat = Format::BGRA8Srgb;
                 break;
             case SwapChainFormat::Unorm10BitLDR:
                 swapChainDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
@@ -59,9 +60,10 @@ namespace PyroshockStudios {
             if (info.imageUsage & ImageUsageFlagBits::RENDER_TARGET || info.imageUsage & ImageUsageFlagBits::BLIT_DST) {
                 swapChainDesc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
             }
-            if (info.imageUsage & ImageUsageFlagBits::TRANSFER_SRC) {
-                swapChainDesc.BufferUsage |= DXGI_USAGE_READ_ONLY;
-            }
+			// Apparently not needed, and this is incompatible with Shader Input
+            // if (info.imageUsage & ImageUsageFlagBits::TRANSFER_SRC) {
+            //     swapChainDesc.BufferUsage |= DXGI_USAGE_READ_ONLY;
+            // }
             if (info.imageUsage & ImageUsageFlagBits::BLIT_SRC) {
                 swapChainDesc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
             }

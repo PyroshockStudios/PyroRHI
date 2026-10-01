@@ -128,6 +128,7 @@ namespace PyroshockStudios {
             D3DDevice* mDevice = {};
 
             eastl::array<D3DRenderTarget*, Limits::MAX_BOUND_COLOR_TARGETS> mBoundColorTargets ={};
+            D3DRenderTarget* mBoundDepthStencilTarget = nullptr;
         };
     } // namespace RHIDX12
 } // namespace PyroshockStudios

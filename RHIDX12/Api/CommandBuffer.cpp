@@ -472,17 +472,42 @@ namespace PyroshockStudios {
                 }
                 return;
             }
-            for (UINT i = 0; i < PYRO_IMAGE_SLICE_RESOLVE_LEVELS(info.imageSlice, imageInfo.info.mipLevelCount); ++i) {
-                for (UINT j = 0; j < PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, imageInfo.info.arrayLayerCount); ++j) {
-                    barrier.Transition.Subresource = D3D12CalcSubresource(info.imageSlice.baseMipLevel + i, info.imageSlice.baseArrayLayer + j, 0,
-                        imageInfo.info.mipLevelCount, imageInfo.info.arrayLayerCount);
-                    mCommandList->ResourceBarrier(1, &barrier);
+            bool bCoversAll = (info.imageSlice.baseMipLevel == 0 &&
+                               PYRO_IMAGE_SLICE_RESOLVE_LEVELS(info.imageSlice, imageInfo.info.mipLevelCount) == imageInfo.info.mipLevelCount &&
+                               info.imageSlice.baseArrayLayer == 0 &&
+                               PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, imageInfo.info.arrayLayerCount) == imageInfo.info.arrayLayerCount);
+
+            if (bCoversAll) {
+                barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+                mCommandList->ResourceBarrier(1, &barrier);
+            } else {
+                UINT planeCount = bDepthStencil ? 2 : 1; // Depth + Stencil
+                for (UINT plane = 0; plane < planeCount; ++plane) {
+                    for (UINT i = 0; i < PYRO_IMAGE_SLICE_RESOLVE_LEVELS(info.imageSlice, imageInfo.info.mipLevelCount); ++i) {
+                        for (UINT j = 0; j < PYRO_IMAGE_SLICE_RESOLVE_LAYERS(info.imageSlice, imageInfo.info.arrayLayerCount); ++j) {
+                            barrier.Transition.Subresource = D3D12CalcSubresource(
+                                info.imageSlice.baseMipLevel + i,
+                                info.imageSlice.baseArrayLayer + j,
+                                plane,
+                                imageInfo.info.mipLevelCount,
+                                imageInfo.info.arrayLayerCount);
+                            mCommandList->ResourceBarrier(1, &barrier);
+                        }
+                    }
                 }
             }
+
             gDx12Context->FlushDebugMessages();
+
             if (info.srcLayout == ImageLayout::Undefined) {
-                if (info.dstLayout == ImageLayout::UnorderedAccess || info.dstLayout == ImageLayout::RenderTarget || info.dstLayout == ImageLayout::BlitDst) {
-                    mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
+                if (info.dstLayout == ImageLayout::UnorderedAccess ||
+                    info.dstLayout == ImageLayout::RenderTarget ||
+                    info.dstLayout == ImageLayout::BlitDst) {
+
+                    // Only discard the subresources that were actually transitioned:
+                    if (bCoversAll) {
+                        mCommandList->DiscardResource(barrier.Transition.pResource, nullptr);
+                    }
                     gDx12Context->FlushDebugMessages();
                 }
             }
@@ -609,6 +634,7 @@ namespace PyroshockStudios {
 
             if (info.depthStencilAttachment.has_value()) {
                 auto* rt = eastl::bit_cast<D3DRenderTarget*>(info.depthStencilAttachment->target);
+                mBoundDepthStencilTarget = rt;
                 depthStencil = rt->GetDescriptor();
                 auto& imageData = mDevice->ResourcePool().Get(rt->Info().image);
                 D3D12_CLEAR_FLAGS depthStencilClear = {};
@@ -690,6 +716,7 @@ namespace PyroshockStudios {
             for (int i = 0; i < mBoundColorTargets.size(); ++i) {
                 mBoundColorTargets[i] = nullptr;
             }
+            mBoundDepthStencilTarget = nullptr;
         }
 
         void D3DCommandBuffer::ClearRenderTarget(const ClearRenderTargetInfo& info) {
@@ -701,7 +728,7 @@ namespace PyroshockStudios {
                 D3DConvertClearColor(clearCol, eastl::get<ColorClearValue>(info.clearValue), imageData.info.format);
                 mCommandList->ClearRenderTargetView(rt->GetDescriptor(), clearCol, 1, &clearArea);
             } else {
-                auto* rt = mBoundColorTargets[info.colorTargetIndex];
+                auto* rt = mBoundDepthStencilTarget;
                 D3D12_CLEAR_FLAGS depthStencilClear = {};
                 if (info.flags & RenderTargetFlagBits::DEPTH_TARGET) {
                     depthStencilClear |= D3D12_CLEAR_FLAG_DEPTH;

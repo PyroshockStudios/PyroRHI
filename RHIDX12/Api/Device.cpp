@@ -1104,7 +1104,82 @@ namespace PyroshockStudios {
             tlas = PYRO_NULL_TLAS;
         }
         eastl::optional<Format> D3DDevice::PickSupportedFormat(const eastl::span<Format>& candidates, FormatFeatureFlags features) const {
-            return eastl::optional<Format>();
+            D3D12_FORMAT_SUPPORT1 requiredSupport1 = D3D12_FORMAT_SUPPORT1_NONE;
+            D3D12_FORMAT_SUPPORT2 requiredSupport2 = D3D12_FORMAT_SUPPORT2_NONE;
+
+            if (features & FormatFeatureBits::DEPTH_STENCIL_TARGET) {
+                requiredSupport1 |= D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL;
+            }
+
+            if (features & FormatFeatureBits::COLOR_TARGET) {
+                requiredSupport1 |= D3D12_FORMAT_SUPPORT1_RENDER_TARGET;
+            }
+
+            if (features & FormatFeatureBits::COLOR_TARGET_BLEND) {
+                requiredSupport1 |= D3D12_FORMAT_SUPPORT1_BLENDABLE;
+            }
+
+            if (features & FormatFeatureBits::SHADER_RESOURCE) {
+                requiredSupport1 |= D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE;
+            }
+
+            if (features & FormatFeatureBits::UNORDERED_ACCESS) {
+                requiredSupport1 |= D3D12_FORMAT_SUPPORT1_TYPED_UNORDERED_ACCESS_VIEW;
+            }
+
+            // TODO: d3d12 does not expose them as a single flag,
+            // maybe the flag can be made more specific?
+            if (features & FormatFeatureBits::UNORDERED_ACCESS_ATOMIC) {
+                requiredSupport2 |=
+                    D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_ADD |
+                    D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_BITWISE_OPS |
+                    D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_COMPARE_STORE_OR_COMPARE_EXCHANGE |
+                    D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_EXCHANGE |
+                    D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_SIGNED_MIN_OR_MAX |
+                    D3D12_FORMAT_SUPPORT2_UAV_ATOMIC_UNSIGNED_MIN_OR_MAX;
+            }
+
+            if (features & FormatFeatureBits::BLIT_SRC) {
+                requiredSupport1 |= D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE;
+            }
+            if (features & FormatFeatureBits::BLIT_DST) {
+                requiredSupport1 |= D3D12_FORMAT_SUPPORT1_RENDER_TARGET;
+            }
+
+            if (features & FormatFeatureBits::VERTEX_BUFFER) {
+                requiredSupport1 |= D3D12_FORMAT_SUPPORT1_IA_VERTEX_BUFFER;
+            }
+
+            for (Format candidate : candidates) {
+                DXGI_FORMAT dxgiFormat = ToDXGIFormat(candidate);
+                if (dxgiFormat == DXGI_FORMAT_UNKNOWN) {
+                    continue;
+                }
+
+                D3D12_FEATURE_DATA_FORMAT_SUPPORT formatSupport = {
+                    .Format = dxgiFormat,
+                    .Support1 = D3D12_FORMAT_SUPPORT1_NONE,
+                    .Support2 = D3D12_FORMAT_SUPPORT2_NONE
+                };
+
+                HRESULT hr = mDevice->CheckFeatureSupport(
+                    D3D12_FEATURE_FORMAT_SUPPORT,
+                    &formatSupport,
+                    sizeof(formatSupport));
+
+                if (FAILED(hr)) {
+                    continue;
+                }
+
+                const bool matchSupport1 = (formatSupport.Support1 & requiredSupport1) == requiredSupport1;
+                const bool matchSupport2 = (formatSupport.Support2 & requiredSupport2) == requiredSupport2;
+
+                if (matchSupport1 && matchSupport2) {
+                    return candidate;
+                }
+            }
+
+            return eastl::nullopt;
         }
         eastl::span<ICommandQueue*> D3DDevice::GetCommandQueues() {
             return mCommandQueueList;
