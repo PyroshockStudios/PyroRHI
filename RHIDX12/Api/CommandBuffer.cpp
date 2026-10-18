@@ -815,7 +815,7 @@ namespace PyroshockStudios {
         void D3DCommandBuffer::SetViewport(const ViewportInfo& info) {
             D3D12_VIEWPORT viewport{
                 .TopLeftX = info.x,
-                .TopLeftY = info.height - info.y,
+                .TopLeftY = std::abs(info.height) - info.y,
                 .Width = info.width,
                 .Height = -info.height,
                 .MinDepth = info.minDepth,
