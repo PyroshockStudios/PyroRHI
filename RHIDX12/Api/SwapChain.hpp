@@ -48,6 +48,8 @@ namespace PyroshockStudios {
             UINT mSyncInterval = 0;
 
         private:
+            void CreateSwapChain();
+
             void DestroyImages();
             void GetImages();
             ComPtr<IDCompositionDevice> mDcompDevice = {};
@@ -61,6 +63,8 @@ namespace PyroshockStudios {
             Format mFormat = {};
             D3DDevice* mDevice = {};
             u32 mImageIndex = 0;
+
+            bool mTimedOut = false;
         };
     } // namespace RHIDX12
 } // namespace PyroshockStudios

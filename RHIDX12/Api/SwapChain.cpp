@@ -30,138 +30,7 @@ namespace PyroshockStudios {
     namespace RHIDX12 {
         D3DSwapChain::D3DSwapChain(D3DDevice* device, SwapChainInfo&& info)
             : mDevice(device), mInfo(eastl::move(info)) {
-
-            // Describe and create the swap chain.
-            DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-            swapChainDesc.BufferCount = mInfo.bufferCount;
-            swapChainDesc.Width = mInfo.extent.width;
-            swapChainDesc.Height = mInfo.extent.height;
-            switch (mInfo.format) {
-            case SwapChainFormat::Unorm8BitLDR:
-                swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-                mFormat = Format::BGRA8Unorm;
-                break;
-            case SwapChainFormat::Srgb8BitLDR:
-                // DXGI swap chain buffer must be UNORM; RTV handles the sRGB view
-                swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-                mFormat = Format::BGRA8Srgb;
-                break;
-            case SwapChainFormat::Unorm10BitLDR:
-                swapChainDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-                mFormat = Format::A2RGB10Unorm;
-                break;
-            case SwapChainFormat::Float16BitHDR:
-                swapChainDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-                mFormat = Format::RGBA16Sfloat;
-                break;
-            default:
-                ASSERT(false, "invalid format!");
-            }
-            if (info.imageUsage & ImageUsageFlagBits::RENDER_TARGET || info.imageUsage & ImageUsageFlagBits::BLIT_DST) {
-                swapChainDesc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-            }
-			// Apparently not needed, and this is incompatible with Shader Input
-            // if (info.imageUsage & ImageUsageFlagBits::TRANSFER_SRC) {
-            //     swapChainDesc.BufferUsage |= DXGI_USAGE_READ_ONLY;
-            // }
-            if (info.imageUsage & ImageUsageFlagBits::BLIT_SRC) {
-                swapChainDesc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
-            }
-            if (info.imageUsage & ImageUsageFlagBits::UNORDERED_ACCESS) {
-                swapChainDesc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
-            }
-            swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-            swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-            switch (info.alphaMode) {
-            case SwapChainAlphaMode::None:
-                swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
-                break;
-            case SwapChainAlphaMode::Premultiplied:
-                swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
-                break;
-            case SwapChainAlphaMode::Postmultiplied:
-                swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_STRAIGHT;
-                break;
-            default:
-                ASSERT(false, "Invalid alpha mode");
-            }
-            switch (info.presentMode) {
-            case SwapChainPresentMode::VSync:
-            case SwapChainPresentMode::VSyncAdaptive:
-                mSyncInterval = 1;
-                break;
-            case SwapChainPresentMode::Tearing:
-                swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-                mSyncInterval = 0;
-                break;
-            case SwapChainPresentMode::LowLatency:
-                mSyncInterval = 0;
-                break;
-            default:
-                ASSERT(false, "Invalid present mode");
-            }
-            swapChainDesc.SampleDesc.Count = 1;
-            HWND hwnd = reinterpret_cast<HWND>(info.nativeWindow);
-
-            ComPtr<IDXGISwapChain1> swapChain;
-            if (info.alphaMode != SwapChainAlphaMode::None || !info.nativeWindow) {
-                // no window
-                CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForComposition(
-                    static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
-                    &swapChainDesc,
-                    nullptr,
-                                   &swapChain),
-                    "Failed to CreateSwapChainForComposition");
-                gDx12Context->FlushDebugMessages();
-            } else {
-                CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForHwnd(
-                    static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
-                    hwnd,
-                    &swapChainDesc,
-                    nullptr,
-                    nullptr,
-                                   &swapChain),
-                    "Failed to CreateSwapChainForHwnd");
-                gDx12Context->FlushDebugMessages();
-            }
-            if (info.alphaMode != SwapChainAlphaMode::None && info.nativeWindow) {
-                CheckD3DResult(DCompositionCreateDevice(
-                    nullptr,
-                    __uuidof(IDCompositionDevice),
-                                   reinterpret_cast<void**>(mDcompDevice.GetAddressOf())),
-                    "Failed to DCompositionCreateDevice");
-                ;
-                gDx12Context->FlushDebugMessages();
-
-                CheckD3DResult(mDcompDevice->CreateTargetForHwnd(hwnd, TRUE, &mDcompTarget),
-                    "Failed to IDCompositionDevice::CreateTargetForHwnd");
-                gDx12Context->FlushDebugMessages();
-
-                CheckD3DResult(mDcompDevice->CreateVisual(&mDcompVisual),
-                    "Failed to IDCompositionDevice::CreateVisual");
-                gDx12Context->FlushDebugMessages();
-
-
-                CheckD3DResult(mDcompVisual->SetContent(swapChain.Get()),
-                    "Failed to IDCompositionVisual::SetContent");
-                gDx12Context->FlushDebugMessages();
-                // Add visual to target
-                CheckD3DResult(mDcompTarget->SetRoot(mDcompVisual.Get()),
-                    "Failed to IDCompositionTarget::SetRoot");
-                gDx12Context->FlushDebugMessages();
-                // Commit composition
-                CheckD3DResult(mDcompDevice->Commit(),
-                    "Failed to IDCompositionDevice::Commit");
-                gDx12Context->FlushDebugMessages();
-            }
-            
-            CheckD3DResult(swapChain.As(&mSwapChain), "Failed to get IDXGISwapChain3");
-            D3DSetDebugName(mSwapChain, info.name.c_str());
-
-            mSwapWait = mSwapChain->GetFrameLatencyWaitableObject();
-            CheckD3DResult(mSwapChain->SetMaximumFrameLatency(1), "Failed to SetMaximumFrameLatency");
-            gDx12Context->FlushDebugMessages();
-            GetImages();
+            CreateSwapChain();
         }
         D3DSwapChain::~D3DSwapChain() {
             DestroyImages();
@@ -180,8 +49,10 @@ namespace PyroshockStudios {
             if (waitResult == WAIT_TIMEOUT) {
                 // The DWM stopped signaling (system is sleeping, minimized, or GPU hung).
                 // Safely back out so the app doesn't freeze.
+                mTimedOut = true;
                 return PYRO_SWAPCHAIN_ACQUIRE_FAIL;
             } else if (waitResult != WAIT_OBJECT_0) {
+                mTimedOut = true;
                 // Handle other wait failures
                 return PYRO_SWAPCHAIN_ACQUIRE_FAIL;
             }
@@ -218,6 +89,16 @@ namespace PyroshockStudios {
             GetClientRect(window, &area);
             mInfo.extent.width = area.right;
             mInfo.extent.height = area.bottom;
+            if (mTimedOut) {
+                Logger::Warn(gDX12Sink, "Swap Chain {} \"{}\" was found to be timed out, recreating entire swap chain...", (void*)this, mInfo.name);
+                mSwapChain.Reset();
+                mDcompDevice.Reset();
+                mDcompTarget.Reset();
+                mDcompVisual.Reset();
+                CreateSwapChain();
+                mTimedOut = false;
+                return;
+            }
 
             DXGI_SWAP_CHAIN_DESC1 desc;
             CheckD3DResult(mSwapChain->GetDesc1(&desc), "Failed to get DXGI_SWAP_CHAIN_DESC1");
@@ -252,6 +133,139 @@ namespace PyroshockStudios {
         ColorSpace D3DSwapChain::GetColorSpace() const {
             ASSERT(false, "TODO");
             return ColorSpace();
+        }
+
+        void D3DSwapChain::CreateSwapChain() {
+            // Describe and create the swap chain.
+            DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+            swapChainDesc.BufferCount = mInfo.bufferCount;
+            swapChainDesc.Width = mInfo.extent.width;
+            swapChainDesc.Height = mInfo.extent.height;
+            switch (mInfo.format) {
+            case SwapChainFormat::Unorm8BitLDR:
+                swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+                mFormat = Format::BGRA8Unorm;
+                break;
+            case SwapChainFormat::Srgb8BitLDR:
+                // DXGI swap chain buffer must be UNORM; RTV handles the sRGB view
+                swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+                mFormat = Format::BGRA8Srgb;
+                break;
+            case SwapChainFormat::Unorm10BitLDR:
+                swapChainDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+                mFormat = Format::A2RGB10Unorm;
+                break;
+            case SwapChainFormat::Float16BitHDR:
+                swapChainDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+                mFormat = Format::RGBA16Sfloat;
+                break;
+            default:
+                ASSERT(false, "invalid format!");
+            }
+            if (mInfo.imageUsage & ImageUsageFlagBits::RENDER_TARGET || mInfo.imageUsage & ImageUsageFlagBits::BLIT_DST) {
+                swapChainDesc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+            }
+            // Apparently not needed, and this is incompatible with Shader Input
+            // if (info.imageUsage & ImageUsageFlagBits::TRANSFER_SRC) {
+            //     swapChainDesc.BufferUsage |= DXGI_USAGE_READ_ONLY;
+            // }
+            if (mInfo.imageUsage & ImageUsageFlagBits::BLIT_SRC) {
+                swapChainDesc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
+            }
+            if (mInfo.imageUsage & ImageUsageFlagBits::UNORDERED_ACCESS) {
+                swapChainDesc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
+            }
+            swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+            swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+            switch (mInfo.alphaMode) {
+            case SwapChainAlphaMode::None:
+                swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+                break;
+            case SwapChainAlphaMode::Premultiplied:
+                swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
+                break;
+            case SwapChainAlphaMode::Postmultiplied:
+                swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_STRAIGHT;
+                break;
+            default:
+                ASSERT(false, "Invalid alpha mode");
+            }
+            switch (mInfo.presentMode) {
+            case SwapChainPresentMode::VSync:
+            case SwapChainPresentMode::VSyncAdaptive:
+                mSyncInterval = 1;
+                break;
+            case SwapChainPresentMode::Tearing:
+                swapChainDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+                mSyncInterval = 0;
+                break;
+            case SwapChainPresentMode::LowLatency:
+                mSyncInterval = 0;
+                break;
+            default:
+                ASSERT(false, "Invalid present mode");
+            }
+            swapChainDesc.SampleDesc.Count = 1;
+            HWND hwnd = reinterpret_cast<HWND>(mInfo.nativeWindow);
+
+            ComPtr<IDXGISwapChain1> swapChain;
+            if (mInfo.alphaMode != SwapChainAlphaMode::None || !mInfo.nativeWindow) {
+                // no window
+                CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForComposition(
+                                   static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
+                                   &swapChainDesc,
+                                   nullptr,
+                                   &swapChain),
+                    "Failed to CreateSwapChainForComposition");
+                gDx12Context->FlushDebugMessages();
+            } else {
+                CheckD3DResult(mDevice->InternalFactory()->CreateSwapChainForHwnd(
+                                   static_cast<D3DCommandQueue*>(mDevice->GetPresentQueue())->InternalQueue(), // Swap chain needs the queue so that it can force a flush on it.
+                                   hwnd,
+                                   &swapChainDesc,
+                                   nullptr,
+                                   nullptr,
+                                   &swapChain),
+                    "Failed to CreateSwapChainForHwnd");
+                gDx12Context->FlushDebugMessages();
+            }
+            if (mInfo.alphaMode != SwapChainAlphaMode::None && mInfo.nativeWindow) {
+                CheckD3DResult(DCompositionCreateDevice(
+                                   nullptr,
+                                   __uuidof(IDCompositionDevice),
+                                   reinterpret_cast<void**>(mDcompDevice.GetAddressOf())),
+                    "Failed to DCompositionCreateDevice");
+                gDx12Context->FlushDebugMessages();
+
+                CheckD3DResult(mDcompDevice->CreateTargetForHwnd(hwnd, TRUE, &mDcompTarget),
+                    "Failed to IDCompositionDevice::CreateTargetForHwnd");
+                gDx12Context->FlushDebugMessages();
+
+                CheckD3DResult(mDcompDevice->CreateVisual(&mDcompVisual),
+                    "Failed to IDCompositionDevice::CreateVisual");
+                gDx12Context->FlushDebugMessages();
+
+
+                CheckD3DResult(mDcompVisual->SetContent(swapChain.Get()),
+                    "Failed to IDCompositionVisual::SetContent");
+                gDx12Context->FlushDebugMessages();
+                // Add visual to target
+                CheckD3DResult(mDcompTarget->SetRoot(mDcompVisual.Get()),
+                    "Failed to IDCompositionTarget::SetRoot");
+                gDx12Context->FlushDebugMessages();
+                // Commit composition
+                CheckD3DResult(mDcompDevice->Commit(),
+                    "Failed to IDCompositionDevice::Commit");
+                gDx12Context->FlushDebugMessages();
+            }
+
+            CheckD3DResult(swapChain.As(&mSwapChain), "Failed to get IDXGISwapChain3");
+            D3DSetDebugName(mSwapChain, mInfo.name.c_str());
+
+            mSwapWait = mSwapChain->GetFrameLatencyWaitableObject();
+            CheckD3DResult(mSwapChain->SetMaximumFrameLatency(1), "Failed to SetMaximumFrameLatency");
+            gDx12Context->FlushDebugMessages();
+            GetImages();
         }
 
         void D3DSwapChain::DestroyImages() {
