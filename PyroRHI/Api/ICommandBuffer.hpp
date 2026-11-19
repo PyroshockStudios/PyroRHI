@@ -696,6 +696,32 @@ namespace PyroshockStudios {
             PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
         };
 
+        /**
+         * @brief Parameters for setting the blend constant.
+         */
+        struct SetBlendConstantInfo {
+            /**
+             * @brief R Channel
+             */
+            float r = 1.0f;
+            /**
+             * @brief G Channel
+             */
+            float g = 1.0f;
+            /**
+             * @brief B Channel
+             */
+            float b = 1.0f;
+            /**
+             * @brief Alpha Channel
+             */
+            float a = 1.0f;
+
+            PYRO_NODISCARD bool operator==(const SetBlendConstantInfo&) const = default;
+            PYRO_NODISCARD bool operator!=(const SetBlendConstantInfo&) const = default;
+            PYRO_NODISCARD eastl::string ToString(usize indentation = 0) const;
+        };
+
         struct DrawInfo {
             u32 vertexCount = {};
             u32 instanceCount = 1;
@@ -989,6 +1015,11 @@ namespace PyroshockStudios {
              */
             virtual void SetStencilReference(const SetStencilReferenceInfo& info) = 0;
 
+            /**
+             * @brief Sets the constant value for the blend functions.
+             * Only valid if the pipeline state bound makes use of a blend constant in a blend factor!
+             */
+            virtual void SetBlendConstant(const SetBlendConstantInfo& info) = 0;
 
             // ---------------------------------------------------------------------
             // Drawing

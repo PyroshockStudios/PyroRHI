@@ -1252,6 +1252,15 @@ namespace PyroshockStudios {
             return s;
         }
 
+
+        inline eastl::string SetBlendConstantInfo::ToString(usize indentation) const {
+            eastl::string s;
+            s += "SetBlendConstantInfo {\n";
+            s += Indent(indentation + 2) + "rgba: \"" + eastl::string().sprintf("(%.3f, %.3f, %.3f, %.3f)", r, g, b, a) + "\"\n";
+            s += Indent(indentation) + "}";
+            return s;
+        }
+
 #undef ToHexH64
 #undef ToHexU32
 #undef Indent

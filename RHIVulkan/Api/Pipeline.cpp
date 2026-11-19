@@ -165,7 +165,7 @@ namespace PyroshockStudios {
 
 
             // === Dynamic State ===
-            eastl::fixed_vector<VkDynamicState, 3> dynamicStates = {
+            eastl::fixed_vector<VkDynamicState, 8> dynamicStates = {
                 VK_DYNAMIC_STATE_VIEWPORT,
                 VK_DYNAMIC_STATE_SCISSOR
             };
@@ -228,6 +228,14 @@ namespace PyroshockStudios {
                     blendState.srcAlphaBlendFactor = ToVkBlendFactor(attachment.blend->srcAlphaBlendFactor);
                     blendState.dstColorBlendFactor = ToVkBlendFactor(attachment.blend->dstColorBlendFactor);
                     blendState.srcColorBlendFactor = ToVkBlendFactor(attachment.blend->srcColorBlendFactor);
+                }
+                auto isBlendConstant = [](VkBlendFactor enum_) {
+                    return enum_ >= VK_BLEND_FACTOR_CONSTANT_COLOR && enum_ <= VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA;
+                };
+
+                if (isBlendConstant(blendState.dstAlphaBlendFactor) || isBlendConstant(blendState.srcAlphaBlendFactor) ||
+                    isBlendConstant(blendState.dstColorBlendFactor) || isBlendConstant(blendState.srcColorBlendFactor)) {
+                    dynamicStates.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
                 }
                 blendAttachments.push_back(blendState);
                 colorAttachmentFormats.push_back(ToVkFormat(attachment.format));

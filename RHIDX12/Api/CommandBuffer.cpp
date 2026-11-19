@@ -872,6 +872,16 @@ namespace PyroshockStudios {
             gDx12Context->FlushDebugMessages();
         }
 
+        void D3DCommandBuffer::SetBlendConstant(const SetBlendConstantInfo& info) {
+            FLOAT rgba[4];
+            rgba[0] = info.r;
+            rgba[1] = info.g;
+            rgba[2] = info.b;
+            rgba[3] = info.a;
+            mCommandList->OMSetBlendFactor(rgba);
+            gDx12Context->FlushDebugMessages();
+        }
+
         void D3DCommandBuffer::Draw(const DrawInfo& info) {
             FlushPendingUnorderedAccessViewBinds();
             FlushPendingVertexBufferBinds();

@@ -71,6 +71,7 @@ namespace PyroshockStudios {
             void SetVertexBuffer(const SetVertexBufferInfo& info) override;
             void SetIndexBuffer(const SetIndexBufferInfo& info) override;
             void SetStencilReference(const SetStencilReferenceInfo& info) override;
+            void SetBlendConstant(const SetBlendConstantInfo& info) override;
             void Draw(const DrawInfo& info) override;
             void DrawIndexed(const DrawIndexedInfo& info) override;
             void DrawIndirect(const DrawIndirectInfo& info) override;

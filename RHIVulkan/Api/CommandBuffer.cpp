@@ -739,8 +739,18 @@ namespace PyroshockStudios::RHIVulkan {
         };
         vkCmdBindVertexBuffers(mCommandBuffer, info.slot, PYRO_ARRAY_SIZE(buffers), buffers, offsets);
     }
+
     void VulkanCommandBuffer::SetStencilReference(const SetStencilReferenceInfo& info) {
         vkCmdSetStencilReference(mCommandBuffer, VK_STENCIL_FRONT_AND_BACK, info.referenceMask);
+    }
+
+    void VulkanCommandBuffer::SetBlendConstant(const SetBlendConstantInfo& info) {
+        float rgba[4];
+        rgba[0] = info.r;
+        rgba[1] = info.g;
+        rgba[2] = info.b;
+        rgba[3] = info.a;
+        vkCmdSetBlendConstants(mCommandBuffer, rgba);
     }
 
     void VulkanCommandBuffer::Draw(const DrawInfo& info) {

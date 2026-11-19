@@ -201,7 +201,6 @@ namespace PyroshockStudios {
                 const auto& rt = info.colorTargetStates[i];
                 auto& rtBlend = blendDesc.RenderTarget[i];
                 rtBlend.RenderTargetWriteMask = static_cast<UINT8>(rt.writeMask.data);
-
                 if (rt.blend.has_value()) {
                     rtBlend.BlendEnable = TRUE;
                     const auto& blend = rt.blend.value();
@@ -283,7 +282,6 @@ namespace PyroshockStudios {
             memcpy(psoDesc.RTVFormats, rtvFormats.RTFormats, sizeof(psoDesc.RTVFormats));
             psoDesc.DSVFormat = dsvFormat;
             psoDesc.SampleDesc = sampleDesc;
-
             CheckD3DResult(mDevice->InternalDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPipelineState)), "Failed to create Graphics ID3D12PipelineState!");
 
             D3DSetDebugName(mPipelineState, info.name.c_str());
