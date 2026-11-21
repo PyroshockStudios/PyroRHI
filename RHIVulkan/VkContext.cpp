@@ -149,7 +149,7 @@ namespace PyroshockStudios::RHIVulkan {
         // HACK: if headless isnt truely available, try again but without the extension
     getInstanceExtensions: {
         eastl::vector<char const*> explicitExtensions = {};
-        if (args.bEnableApiValidation) {
+        if (args.bEnableApiValidation || args.bEnableGpuValidation) {
             explicitExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
 
@@ -226,11 +226,11 @@ namespace PyroshockStudios::RHIVulkan {
         eastl::vector<const char*> implicitEnabledLayers = {};
 
 
-        eastl::vector<VkValidationFeatureEnableEXT> validationFeatureEnables = {
-            VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
-        };
+        eastl::vector<VkValidationFeatureEnableEXT> validationFeatureEnables;
+        if (args.bEnableApiValidation) {
+            validationFeatureEnables.push_back(VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT);
+        }
         if (args.bEnableGpuValidation) {
-            Logger::Warn(gVulkanSink, "GPU Assisted Validation layers are enabled! Performance may degrade...");
             validationFeatureEnables.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
             validationFeatureEnables.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
         }
@@ -244,6 +244,8 @@ namespace PyroshockStudios::RHIVulkan {
 
         if (args.bEnableApiValidation || args.bEnableGpuValidation) {
             implicitEnabledLayers.push_back("VK_LAYER_KHRONOS_validation");
+        }
+        if (args.bEnableApiValidation) {
             implicitEnabledLayers.push_back("VK_LAYER_KHRONOS_synchronization2");
         }
         eastl::vector<const char*> enabledLayers = {};
