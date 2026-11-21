@@ -96,7 +96,10 @@ namespace PyroshockStudios::RHIDX12 {
 
                 ID3D12Debug1* dbg1;
                 if (SUCCEEDED(mDebugController->QueryInterface(IID_PPV_ARGS(&dbg1)))) {
-                    // dbg1->SetEnableGPUBasedValidation(TRUE);
+                    if (args.bDebugGPU) {
+                        Logger::Warn(gDX12Sink, "Enabling GPU assisted debug validation, performance may significantly degrade...");
+                        dbg1->SetEnableGPUBasedValidation(TRUE);
+                    }
                     dbg1->SetEnableSynchronizedCommandQueueValidation(TRUE);
                 }
 

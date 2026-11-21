@@ -22,6 +22,7 @@
 
 #include "VkContext.hpp"
 #include "Api/Device.hpp"
+#include "RHIVulkan/Core.hpp"
 #include <EASTL/hash_map.h>
 
 #include <PyroRHI/Api/Limits.hpp>
@@ -29,6 +30,7 @@
 #include <EASTL/vector.h>
 #include <PyroCommon/Logger.hpp>
 #include <libassert/assert.hpp>
+#include <vulkan/vulkan_core.h>
 
 namespace PyroshockStudios::RHIVulkan {
 
@@ -147,7 +149,7 @@ namespace PyroshockStudios::RHIVulkan {
         // HACK: if headless isnt truely available, try again but without the extension
     getInstanceExtensions: {
         eastl::vector<char const*> explicitExtensions = {};
-        if (args.bEnableValidation) {
+        if (args.bEnableApiValidation) {
             explicitExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
 
@@ -224,18 +226,23 @@ namespace PyroshockStudios::RHIVulkan {
         eastl::vector<const char*> implicitEnabledLayers = {};
 
 
-        static const VkValidationFeatureEnableEXT validationFeatureEnables[] = {
-            VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+        eastl::vector<VkValidationFeatureEnableEXT> validationFeatureEnables = {
+            VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
         };
+        if (args.bEnableGpuValidation) {
+            Logger::Warn(gVulkanSink, "GPU Assisted Validation layers are enabled! Performance may degrade...");
+            validationFeatureEnables.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
+            validationFeatureEnables.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
+        }
 
         VkValidationFeaturesEXT validationFeatures = {};
         validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-        validationFeatures.enabledValidationFeatureCount = PYRO_ARRAY_SIZE(validationFeatureEnables);
-        validationFeatures.pEnabledValidationFeatures = validationFeatureEnables;
+        validationFeatures.enabledValidationFeatureCount = static_cast<u32>(validationFeatureEnables.size());
+        validationFeatures.pEnabledValidationFeatures = validationFeatureEnables.data();
         validationFeatures.disabledValidationFeatureCount = 0;
         validationFeatures.pDisabledValidationFeatures = nullptr;
 
-        if (args.bEnableValidation) {
+        if (args.bEnableApiValidation || args.bEnableGpuValidation) {
             implicitEnabledLayers.push_back("VK_LAYER_KHRONOS_validation");
             implicitEnabledLayers.push_back("VK_LAYER_KHRONOS_synchronization2");
         }
@@ -281,7 +288,7 @@ namespace PyroshockStudios::RHIVulkan {
 
         const VkInstanceCreateInfo instanceCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-            .pNext = args.bEnableValidation ? &validationFeatures : nullptr,
+            .pNext = (args.bEnableApiValidation || args.bEnableGpuValidation) ? &validationFeatures : nullptr,
 #ifdef PYRO_PLATFORM_MACOS
             .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
 #else
@@ -299,7 +306,7 @@ namespace PyroshockStudios::RHIVulkan {
         CheckVkResult(vkCreateInstance(&instanceCreateInfo, &mAllocator, &mInstance), "Failed to create VkInstance!");
         volkLoadInstance(mInstance);
 
-        if (args.bEnableValidation) {
+        if ((args.bEnableApiValidation || args.bEnableGpuValidation)) {
             m_fnVkCreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(mInstance, "vkCreateDebugUtilsMessengerEXT");
             m_fnVkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(mInstance, "vkDestroyDebugUtilsMessengerEXT");
 
@@ -495,7 +502,7 @@ namespace PyroshockStudios::RHIVulkan {
                         Logger::Error(gVulkanSink, "\t{}", msg);
                     }
                 }
-                Logger::Fatal(gVulkanSink,  "Vulkan device creation error!");
+                Logger::Fatal(gVulkanSink, "Vulkan device creation error!");
             }
             vkGetPhysicalDeviceProperties(vkPhysicalDevice, &vkPhysicalDeviceProperties);
             Logger::Warn(gVulkanSink, "Selected fallback device {}", vkPhysicalDeviceProperties.deviceName);

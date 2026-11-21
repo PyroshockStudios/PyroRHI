@@ -35,7 +35,8 @@ namespace PyroshockStudios {
             u32 appVersion = {};
             u32 engineVersion = {};
             bool bHeadless = false;
-            bool bEnableValidation = false;
+            bool bEnableApiValidation = false;
+            bool bEnableGpuValidation = false;
             i64 preferredPhysicalDevice = -1; // -1 == pick most suitable
         };
         class VulkanContext : public RHIContext, public IShaderFeatureSet {

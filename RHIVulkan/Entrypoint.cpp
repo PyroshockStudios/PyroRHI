@@ -43,12 +43,14 @@ enum RhiOptionIndices {
     eValidation = 0,
     eHeadless = 1,
     eDevice = 2,
+    eValidationGPU = 3,
     eMAX_OPTIONS
 };
 static const RHIOptionInfo gRhiOptions[PYRO_RHI_MAX_OPTIONS] = {
     { .name = "debug" },
     { .name = "headless" },
-    { .name = "device", .valueType = RHIOptionValueType::Integer }
+    { .name = "device", .valueType = RHIOptionValueType::Integer },
+    { .name = "debug-gpu" },
 };
 
 PYRO_EXPORT void PYRO_CDECL GetCustomRHIInfo(RHIInfo* pInfo) {
@@ -78,8 +80,12 @@ PYRO_EXPORT void PYRO_CDECL CreateRHIContext(const RHICreateInfo* pCreateInfo, R
 
         switch (option.optionIndex) {
         case eValidation:
-            Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Enabled validation layers");
-            contextArgs.bEnableValidation = true;
+            Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Enabled API Validation layers");
+            contextArgs.bEnableApiValidation = true;
+            break;
+        case eValidationGPU:
+            Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Enabled GPU Assisted Validation layers");
+            contextArgs.bEnableGpuValidation = true;
             break;
         case eHeadless:
             Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Chose physical device index {}", option.intValue);

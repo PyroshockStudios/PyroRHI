@@ -44,6 +44,7 @@ enum RhiOptions : i32 {
     eWarp,
     eSdkVersion,
     eSdkPath,
+    eDebugGPU,
     eMAX_OPTIONS
 };
 
@@ -51,7 +52,8 @@ static const RHIOptionInfo gRhiOptions[PYRO_RHI_MAX_OPTIONS] = {
     { .name = "debug", .valueType = RHIOptionValueType::Flag },
     { .name = "warp", .valueType = RHIOptionValueType::Flag },
     { .name = "sdk-version", .valueType = RHIOptionValueType::Integer },
-    { .name = "sdk-path", .valueType = RHIOptionValueType::String }
+    { .name = "sdk-path", .valueType = RHIOptionValueType::String },
+    { .name = "debug-gpu", .valueType = RHIOptionValueType::Flag },
 };
 
 PYRO_EXPORT void PYRO_CDECL GetCustomRHIInfo(RHIInfo* pInfo) {
@@ -91,6 +93,10 @@ PYRO_EXPORT void PYRO_CDECL CreateRHIContext(const RHICreateInfo* pCreateInfo, R
             ASSERT(option.numStrValues > 0);
             Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Override D3D12 Agility SDK Path: {}", option.strValueArray[0]);
             contextArgs.sdkDllRelativePath = static_cast<LPCSTR>(option.strValueArray[0]);
+            break;
+        case eDebugGPU:
+            Logger::Trace(pCreateInfo->pLoggerSink, "RHI load option: Enabled GPU-assisted debug layers");
+            contextArgs.bDebugGPU = true;
             break;
         default:
             Logger::Warn(pCreateInfo->pLoggerSink, "Invalid RHI load option ignored!");

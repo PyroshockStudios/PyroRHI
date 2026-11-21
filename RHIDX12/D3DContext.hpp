@@ -33,6 +33,7 @@ namespace PyroshockStudios {
         class D3DDevice;
         struct D3DContextArgs {
             bool bDebug = false;
+            bool bDebugGPU = false;
             bool bWarpDriver = false;
             i32 deviceIndex = -1;
             UINT sdkVersion = 618;
@@ -71,7 +72,7 @@ namespace PyroshockStudios {
             void InternalFlushDebugMessages();
             bool bWarpDriver;
             bool bDebug;
-            i32 mOverrideDeviceIndex =-1;
+            i32 mOverrideDeviceIndex = -1;
             ComPtr<IDXGIFactory4> mFactory;
             ComPtr<ID3D12InfoQueue> mInfoQueue = nullptr;
             ComPtr<ID3D12Debug> mDebugController = nullptr;
