@@ -1081,9 +1081,9 @@ namespace PyroshockStudios {
 
             if (vkSetDebugUtilsObjectNameEXT) {
                 eastl::string name =
-                    imageSlot.info.name + " (View: levels [" + eastl::to_string(resourceInfo.slice.baseMipLevel) +
-                    ", " + eastl::to_string(resourceInfo.slice.baseMipLevel + resourceInfo.slice.levelCount) + "], layers [" + eastl::to_string(resourceInfo.slice.baseArrayLayer) +
-                    ", " + eastl::to_string(resourceInfo.slice.baseMipLevel + resourceInfo.slice.levelCount) + "])";
+                    imageSlot.info.name + " {View: levels [" + eastl::to_string(resourceInfo.slice.baseMipLevel) +
+                    ", " + (resourceInfo.slice.levelCount == PYRO_REMAINING_MIP_LEVELS ? "REM" : eastl::to_string(resourceInfo.slice.baseMipLevel + resourceInfo.slice.levelCount)) + "), layers [" + eastl::to_string(resourceInfo.slice.baseArrayLayer) +
+                    ", " + (resourceInfo.slice.layerCount == PYRO_REMAINING_ARRAY_LAYERS ? "REM" : eastl::to_string(resourceInfo.slice.baseArrayLayer + resourceInfo.slice.layerCount)) + ")}";
 
                 const VkDebugUtilsObjectNameInfoEXT imageViewNameInfo = {
                     .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,

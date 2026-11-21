@@ -548,8 +548,8 @@ namespace PyroshockStudios {
                 srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
                 const auto& slice = imgInfo.slice;
-                auto mipLevels = srcImg.info.mipLevelCount;
-                auto arrayLayers = srcImg.info.arrayLayerCount;
+                auto mipLevels = PYRO_IMAGE_SLICE_RESOLVE_LEVELS(imgInfo.slice, srcImg.info.mipLevelCount);
+                auto arrayLayers = PYRO_IMAGE_SLICE_RESOLVE_LAYERS(imgInfo.slice, srcImg.info.arrayLayerCount);
 
                 // Pick the correct view dimension
                 switch (imgInfo.viewType) {
@@ -1397,7 +1397,7 @@ namespace PyroshockStudios {
                 });
                 return table->second;
             }
-            Logger::Trace(gDX12Sink, "[D3D12] Copying descriptor tables");
+            Logger::Trace(gDX12Sink, "[D3D12] Copying descriptor tables (~{} UAVs)", desc.boundUavs.size());
 
             DescriptorTableInfo tableInfo{};
             D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
@@ -1824,7 +1824,7 @@ namespace PyroshockStudios {
                 rootparams[12].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_6);
                 rootparams[13].InitAsConstantBufferView(RHIDX12_FIXED_CBV_REGISTER_7);
 
-                const UINT NUM_BINDLESS_SRV_SPACES = 9;
+                const UINT NUM_BINDLESS_SRV_SPACES = 28;
 
                 CD3DX12_DESCRIPTOR_RANGE srvDescriptorRanges[NUM_BINDLESS_SRV_SPACES]{};
 

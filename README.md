@@ -18,6 +18,7 @@ The goal is not to hide low-level rendering, but to present it through a consist
 - Optional memory block suballocation for engine-style resource management
 - Shader model and backend feature queries
 - Modern GPU features including acceleration structures and ray-query-oriented workflows where supported
+- Unified slang shader support (in `resources/Shaders/Include/`)
 
 ## Backends
 
