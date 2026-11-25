@@ -574,7 +574,7 @@ namespace PyroshockStudios {
         static void D3DConvertClearColor(FLOAT* clearCol, ColorClearValue clearValue, Format format) {
             switch (RHIUtil::GetFormatNumericType(format)) {
             case RHIUtil::FormatNumericType::Float:
-                memcpy(clearCol, clearValue.float32.data(), sizeof(clearCol));
+                memcpy(clearCol, clearValue.float32.data(), sizeof(FLOAT[4]));
                 break;
             case RHIUtil::FormatNumericType::SignedInt:
                 clearCol[0] = static_cast<FLOAT>(clearValue.int32[0]);
